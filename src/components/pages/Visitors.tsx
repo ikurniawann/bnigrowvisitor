@@ -7,6 +7,7 @@ import VisitorDetail from './VisitorDetail'
 interface VisitorForm {
   name: string
   phone: string
+  email: string
   business_field: string
   company: string
   chapter: string
@@ -21,6 +22,7 @@ interface VisitorForm {
 const initialForm: VisitorForm = {
   name: '',
   phone: '',
+  email: '',
   business_field: '',
   company: '',
   chapter: '',
@@ -162,6 +164,7 @@ export default function Visitors() {
     setFormData({
       name: visitor.name || '',
       phone: visitor.phone || '',
+      email: visitor.email || '',
       business_field: visitor.business_field || '',
       company: visitor.company || '',
       chapter: visitor.chapter || '',
@@ -201,6 +204,7 @@ export default function Visitors() {
       const data: any = {
         name: formData.name,
         phone: formData.phone,
+        email: formData.email || undefined,
         business_field: formData.business_field || undefined,
         company: formData.company || undefined,
         chapter: formData.chapter || undefined,
@@ -567,6 +571,19 @@ export default function Visitors() {
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
                     placeholder="0812xxxx"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
+                    placeholder="email@domain.com"
                   />
                 </div>
 
