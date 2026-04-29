@@ -302,7 +302,7 @@ export default function Members() {
       {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="bg-white rounded-xl shadow p-4 flex items-center justify-between">
-          <div className="text-sm text-gray-600">
+          <div className="text-[13px] text-gray-600">
             Menampilkan <span className="font-medium text-gray-900">{startIndex + 1}</span> - <span className="font-medium text-gray-900">{Math.min(endIndex, filteredMembers.length)}</span> dari <span className="font-medium text-gray-900">{filteredMembers.length}</span> data
           </div>
           <div className="flex items-center gap-2">

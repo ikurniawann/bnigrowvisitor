@@ -359,7 +359,7 @@ export default function AttendedVisitors() {
       {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="bg-white rounded-xl shadow p-4 flex items-center justify-between">
-          <div className="text-sm text-gray-600">
+          <div className="text-[13px] text-gray-600">
             Menampilkan <span className="font-medium text-gray-900">{startIndex + 1}</span> - <span className="font-medium text-gray-900">{Math.min(endIndex, filteredVisitors.length)}</span> dari <span className="font-medium text-gray-900">{filteredVisitors.length}</span> data
           </div>
           <div className="flex items-center gap-2">
@@ -456,7 +456,7 @@ export default function AttendedVisitors() {
               {!selectedSubStatus ? (
                 // Step 1: Pilih sub-status
                 <div className="space-y-2">
-                  <p className="text-sm text-gray-600 mb-3">Pilih status follow-up untuk visitor ini:</p>
+                  <p className="text-[13px] text-gray-600 mb-3">Pilih status follow-up untuk visitor ini:</p>
                   
                   <button
                     onClick={() => handleSubStatusSelect('contacted_no_answer')}
@@ -620,7 +620,7 @@ export default function AttendedVisitors() {
                       <polyline points="22 4 12 14.01 9 11.01" />
                     </svg>
                   </div>
-                  <p className="text-sm text-gray-600">Menyimpan...</p>
+                  <p className="text-[13px] text-gray-600">Menyimpan...</p>
                 </div>
               )}
             </div>

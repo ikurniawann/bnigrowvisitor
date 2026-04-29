@@ -347,20 +347,20 @@ export default function Visitors() {
                   <tr key={visitor.id} className="border-t border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-[13px] text-gray-600 font-medium">{startIndex + index + 1}</td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{visitor.name}</div>
+                      <div className="font-medium text-gray-900 text-[13px]">{visitor.name}</div>
                       <div className="text-xs text-gray-500 md:hidden">{visitor.phone}</div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-[13px] text-gray-600">
                       {visitor.business_field || '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-[13px] text-gray-600">
                       {visitor.phone}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 hidden md:table-cell">
+                    <td className="px-4 py-3 text-[13px] text-gray-600 hidden md:table-cell">
                       {visitor.email || '-'}
                     </td>
 
-                    <td className="px-4 py-3 text-sm hidden md:table-cell">
+                    <td className="px-4 py-3 text-[13px] hidden md:table-cell">
                       {(visitor as any).referred_by_member_name ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           <span className="w-4 h-4 rounded-full bg-green-600 text-white flex items-center justify-center text-xs">
@@ -372,7 +372,7 @@ export default function Visitors() {
                         <span className="text-gray-400">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm hidden md:table-cell">
+                    <td className="px-4 py-3 text-[13px] hidden md:table-cell">
                       {visitor.pic_name ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                           <span className="w-4 h-4 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs">
@@ -434,7 +434,7 @@ export default function Visitors() {
       {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="bg-white rounded-xl shadow p-4 flex items-center justify-between">
-          <div className="text-sm text-gray-600">
+          <div className="text-[13px] text-gray-600">
             Menampilkan <span className="font-medium text-gray-900">{startIndex + 1}</span> - <span className="font-medium text-gray-900">{Math.min(endIndex, filteredVisitors.length)}</span> dari <span className="font-medium text-gray-900">{filteredVisitors.length}</span> data
           </div>
           <div className="flex items-center gap-2">
