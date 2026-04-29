@@ -1,84 +1,39 @@
--- Update gender based on name patterns
--- This script auto-detects gender from visitor names
+-- Update gender based on visitor names
+-- Run this script to auto-populate gender field
 
--- First, set default for all existing records
+-- Step 1: Set default 'Laki-laki' for all NULL genders
 UPDATE visitors 
 SET gender = 'Laki-laki'
-WHERE gender IS NULL;
+WHERE gender IS NULL OR gender = '';
 
--- Update to Perempuan for common female name patterns
+-- Step 2: Update to 'Perempuan' for female names
 UPDATE visitors 
 SET gender = 'Perempuan'
-WHERE LOWER(name) LIKE '%a%' 
-  AND (
-    -- Common female endings in Indonesian names
-    LOWER(name) LIKE '%wati%' OR
-    LOWER(name) LIKE '%yani%' OR
-    LOWER(name) LIKE '%ti%' OR
-    LOWER(name) LIKE '%ah%' OR
-    LOWER(name) LIKE '%ah %' OR
-    LOWER(name) LIKE '%nia%' OR
-    LOWER(name) LIKE '%lia%' OR
-    LOWER(name) LIKE '%sia%' OR
-    LOWER(name) LIKE '%ra%' OR
-    LOWER(name) LIKE '%da%' OR
-    -- Common female first names
-    LOWER(name) LIKE 'siti%' OR
-    LOWER(name) LIKE 'sri%' OR
-    LOWER(name) LIKE 'dewi%' OR
-    LOWER(name) LIKE 'putri%' OR
-    LOWER(name) LIKE 'indah%' OR
-    LOWER(name) LIKE 'ratna%' OR
-    LOWER(name) LIKE 'maya%' OR
-    LOWER(name) LIKE 'rina%' OR
-    LOWER(name) LIKE 'rini%' OR
-    LOWER(name) LIKE 'ani%' OR
-    LOWER(name) LIKE 'ana%' OR
-    LOWER(name) LIKE 'yuni%' OR
-    LOWER(name) LIKE 'yanti%' OR
-    LOWER(name) LIKE 'harti%' OR
-    LOWER(name) LIKE 'astuti%' OR
-    LOWER(name) LIKE 'lestari%' OR
-    LOWER(name) LIKE 'handayani%' OR
-    LOWER(name) LIKE 'kurnia%' OR
-    LOWER(name) LIKE 'persada%' OR
-    -- Specific female names from the database
-    LOWER(name) LIKE 'aurelia%' OR
-    LOWER(name) LIKE 'agnes%' OR
-    LOWER(name) LIKE 'anna%' OR
-    LOWER(name) LIKE 'elisabeth%' OR
-    LOWER(name) LIKE 'eva%' OR
-    LOWER(name) LIKE 'febri%' OR
-    LOWER(name) LIKE 'grace%' OR
-    LOWER(name) LIKE 'irma%' OR
-    LOWER(name) LIKE 'jennyke%' OR
-    LOWER(name) LIKE 'ken%' OR
-    LOWER(name) LIKE 'kezia%' OR
-    LOWER(name) LIKE 'kiyoko%' OR
-    LOWER(name) LIKE 'lie%' OR
-    LOWER(name) LIKE 'lurus%' OR
-    LOWER(name) LIKE 'maria%' OR
-    LOWER(name) LIKE 'mayawati%' OR
-    LOWER(name) LIKE 'mella%' OR
-    LOWER(name) LIKE 'meilita%' OR
-    LOWER(name) LIKE 'natalia%' OR
-    LOWER(name) LIKE 'nida%' OR
-    LOWER(name) LIKE 'novi%' OR
-    LOWER(name) LIKE 'renni%' OR
-    LOWER(name) LIKE 'selviya%' OR
-    LOWER(name) LIKE 'sindy%' OR
-    LOWER(name) LIKE 'siti%' OR
-    LOWER(name) LIKE 'teti%' OR
-    LOWER(name) LIKE 'frida%' OR
-    LOWER(name) LIKE 'dw%' OR
-    LOWER(name) LIKE 'ayudya%'
-  );
+WHERE (
+  -- Common female name patterns
+  LOWER(name) ~ '(wati|yani|ti|ah|nia|lia|sia|ra|da)$' OR
+  LOWER(name) ~ '^(siti|sri|dewi|putri|indah|ratna|maya|rina|rini|ani|ana|yuni|yanti|harti|astuti|lestari|handayani|kurnia)' OR
+  
+  -- Specific female names from database
+  LOWER(name) ~ '^(aurelia|agnes|anna|elisabeth|eva|febri|grace|irma|jennyke|ken|kezia|kiyoko|maria|mayawati|mella|meilita|natalia|nida|novi|renni|selviya|sindy|teti|frida|ayudya)' OR
+  
+  -- Additional common Indonesian female names
+  LOWER(name) ~ '(chandra|linda|mira|siska|desi|rizky|fitri|eka|prima|dian|tanti|lili|susanti|wulandari)'
+);
 
--- Verify the update
+-- Step 3: Verify results
 SELECT 
   gender,
-  COUNT(*) as count,
-  ARRAY_AGG(DISTINCT LEFT(name, 20)) as sample_names
+  COUNT(*) as total,
+  ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 2) as percentage,
+  STRING_AGG(LEFT(name, 25), ', ' ORDER BY name LIMIT 10) as sample_names
 FROM visitors
 GROUP BY gender
-ORDER BY count DESC;
+ORDER BY total DESC;
+
+-- Step 4: Show sample of each gender
+SELECT '=== LAKI-LAKI ===' as info;
+SELECT name FROM visitors WHERE gender = 'Laki-laki' ORDER BY name LIMIT 10;
+
+SELECT '=== PEREMPUAN ===' as info;
+SELECT name FROM visitors WHERE gender = 'Perempuan' ORDER BY name LIMIT 10;
