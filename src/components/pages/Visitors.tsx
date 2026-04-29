@@ -16,7 +16,8 @@ interface VisitorForm {
   meeting_date: string
   pic_id: string
   status: string
-  attended_choice?: string
+  attended_choice_number?: number
+  attended_choice_note?: string
   notes: string
 }
 
@@ -32,7 +33,8 @@ const initialForm: VisitorForm = {
   meeting_date: '',
   pic_id: '',
   status: 'new',
-  attended_choice: '',
+  attended_choice_number: undefined,
+  attended_choice_note: '',
   notes: '',
 }
 
@@ -215,7 +217,8 @@ export default function Visitors() {
         meeting_date: formData.meeting_date || undefined,
         pic_id: formData.pic_id || undefined,
         status: formData.status,
-        attended_choice: formData.attended_choice || undefined,
+        attended_choice_number: formData.attended_choice_number || undefined,
+        attended_choice_note: formData.attended_choice_note || undefined,
         notes: formData.notes || undefined,
         updated_at: new Date().toISOString(),
       }
@@ -252,12 +255,12 @@ export default function Visitors() {
     return STATUSES[status as keyof typeof STATUSES]?.badge || 'bg-gray-100 text-gray-800'
   }
 
-  const getStatusLabel = (status: string, attendedChoice?: string) => {
+  const getStatusLabel = (status: string, attendedChoiceNumber?: number) => {
     const baseLabel = STATUSES[status as keyof typeof STATUSES]?.label || status
     
-    // If status is 'attended' (Hadir) and has attended_choice, append it
-    if (status === 'attended' && attendedChoice) {
-      return `${baseLabel} - ${attendedChoice}`
+    // If status is 'attended' (Hadir) and has attended_choice_number, append it
+    if (status === 'attended' && attendedChoiceNumber) {
+      return `${baseLabel} - ${attendedChoiceNumber}`
     }
     
     return baseLabel
@@ -445,7 +448,7 @@ export default function Visitors() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(visitor.status)}`}>
-                        {getStatusLabel(visitor.status, (visitor as any).attended_choice)}
+                        {getStatusLabel(visitor.status, (visitor as any).attended_choice_number)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -766,17 +769,39 @@ export default function Visitors() {
                       Pilihan Kehadiran *
                     </label>
                     <select
-                      value={formData.attended_choice || ''}
-                      onChange={(e) => setFormData({ ...formData, attended_choice: e.target.value })}
+                      value={formData.attended_choice_number || ''}
+                      onChange={(e) => {
+                        const num = parseInt(e.target.value)
+                        let note = ''
+                        
+                        // Map number to description
+                        switch(num) {
+                          case 1:
+                            note = 'Bersedia di-interview'
+                            break
+                          case 2:
+                            note = 'Masih pikir-pikir'
+                            break
+                          case 3:
+                            note = 'Menolak untuk bergabung'
+                            break
+                        }
+                        
+                        setFormData({ 
+                          ...formData, 
+                          attended_choice_number: num,
+                          attended_choice_note: note
+                        })
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
                       required
                     >
                       <option value="">— Pilih —</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
+                      <option value="1">1 - Bersedia di-interview</option>
+                      <option value="2">2 - Masih pikir-pikir</option>
+                      <option value="3">3 - Menolak untuk bergabung</option>
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">Pilih salah satu (1, 2, atau 3)</p>
+                    <p className="text-xs text-gray-500 mt-1">Pilih salah satu opsi</p>
                   </div>
                 )}
               </div>

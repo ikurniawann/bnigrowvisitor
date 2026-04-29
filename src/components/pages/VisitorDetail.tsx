@@ -217,13 +217,20 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
               <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(visitor.status)}`}>
                 {(() => {
                   const baseLabel = STATUSES[visitor.status as keyof typeof STATUSES]?.label || visitor.status
-                  // If status is 'attended' and has attended_choice, append it
-                  if (visitor.status === 'attended' && (visitor as any).attended_choice) {
-                    return `${baseLabel} - ${(visitor as any).attended_choice}`
+                  // If status is 'attended' and has attended_choice_number, append it
+                  if (visitor.status === 'attended' && (visitor as any).attended_choice_number) {
+                    return `${baseLabel} - ${(visitor as any).attended_choice_number}`
                   }
                   return baseLabel
                 })()}
               </span>
+              
+              {/* Show attended choice note if available */}
+              {visitor.status === 'attended' && (visitor as any).attended_choice_note && (
+                <p className="text-xs text-gray-600 mt-1">
+                  {(visitor as any).attended_choice_note}
+                </p>
+              )}
             </div>
           </div>
 
