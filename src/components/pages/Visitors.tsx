@@ -396,7 +396,7 @@ export default function Visitors() {
                         <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                           visitor.gender === 'Bapak' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
                         }`}>
-                          {visitor.gender === 'Bapak' ? '👨' : '👩'} {visitor.gender}
+                          {visitor.gender}
                         </span>
                       ) : (
                         <span className="text-gray-400">-</span>
