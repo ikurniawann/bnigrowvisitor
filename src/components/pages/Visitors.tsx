@@ -344,18 +344,6 @@ export default function Visitors() {
                     </td>
 
                     <td className="px-4 py-3 text-sm hidden md:table-cell">
-                      {visitor.pic_name ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          <span className="w-4 h-4 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs">
-                            {visitor.pic_name.charAt(0).toUpperCase()}
-                          </span>
-                          {visitor.pic_name}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm hidden md:table-cell">
                       {(visitor as any).referred_by_member_name ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           <span className="w-4 h-4 rounded-full bg-green-600 text-white flex items-center justify-center text-xs">
@@ -372,6 +360,23 @@ export default function Visitors() {
                         {getStatusLabel(visitor.status)}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-sm hidden md:table-cell">
+                      {visitor.pic_name ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          <span className="w-4 h-4 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs">
+                            {visitor.pic_name.charAt(0).toUpperCase()}
+                          </span>
+                          {visitor.pic_name}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm hidden md:table-cell">
+                      {(visitor as any).referred_by_member_name ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="w-4 h-4 rounded-full bg-green-600 text-white flex items-center justify-center text-xs">
+                            {(visitor as any).referred_by_member_name.charAt(0).toUpperCase()}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <button
