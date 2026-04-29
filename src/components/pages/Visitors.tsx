@@ -16,6 +16,7 @@ interface VisitorForm {
   meeting_date: string
   pic_id: string
   status: string
+  attended_choice?: string
   notes: string
 }
 
@@ -31,6 +32,7 @@ const initialForm: VisitorForm = {
   meeting_date: '',
   pic_id: '',
   status: 'new',
+  attended_choice: '',
   notes: '',
 }
 
@@ -213,6 +215,7 @@ export default function Visitors() {
         meeting_date: formData.meeting_date || undefined,
         pic_id: formData.pic_id || undefined,
         status: formData.status,
+        attended_choice: formData.attended_choice || undefined,
         notes: formData.notes || undefined,
         updated_at: new Date().toISOString(),
       }
@@ -249,8 +252,15 @@ export default function Visitors() {
     return STATUSES[status as keyof typeof STATUSES]?.badge || 'bg-gray-100 text-gray-800'
   }
 
-  const getStatusLabel = (status: string) => {
-    return STATUSES[status as keyof typeof STATUSES]?.label || status
+  const getStatusLabel = (status: string, attendedChoice?: string) => {
+    const baseLabel = STATUSES[status as keyof typeof STATUSES]?.label || status
+    
+    // If status is 'attended' (Hadir) and has attended_choice, append it
+    if (status === 'attended' && attendedChoice) {
+      return `${baseLabel} - ${attendedChoice}`
+    }
+    
+    return baseLabel
   }
 
   if (loading) {
@@ -435,7 +445,7 @@ export default function Visitors() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(visitor.status)}`}>
-                        {getStatusLabel(visitor.status)}
+                        {getStatusLabel(visitor.status, (visitor as any).attended_choice)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -748,6 +758,27 @@ export default function Visitors() {
                     ))}
                   </select>
                 </div>
+
+                {/* Attended Choice - Only show when status is 'attended' (Hadir) */}
+                {formData.status === 'attended' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                      Pilihan Kehadiran *
+                    </label>
+                    <select
+                      value={formData.attended_choice || ''}
+                      onChange={(e) => setFormData({ ...formData, attended_choice: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
+                      required
+                    >
+                      <option value="">— Pilih —</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Pilih salah satu (1, 2, atau 3)</p>
+                  </div>
+                )}
               </div>
 
               <div>

@@ -215,7 +215,14 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
                 {visitor.business_field || 'Bidang Usaha'} {visitor.company && `- ${visitor.company}`}
               </p>
               <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(visitor.status)}`}>
-                {STATUSES[visitor.status as keyof typeof STATUSES]?.label || visitor.status}
+                {(() => {
+                  const baseLabel = STATUSES[visitor.status as keyof typeof STATUSES]?.label || visitor.status
+                  // If status is 'attended' and has attended_choice, append it
+                  if (visitor.status === 'attended' && (visitor as any).attended_choice) {
+                    return `${baseLabel} - ${(visitor as any).attended_choice}`
+                  }
+                  return baseLabel
+                })()}
               </span>
             </div>
           </div>

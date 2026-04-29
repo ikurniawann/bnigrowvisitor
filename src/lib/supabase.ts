@@ -47,6 +47,7 @@ export interface Visitor {
   meeting_date?: string
   pic_id?: string
   status: VisitorStatus
+  attended_choice?: string  // Choice 1, 2, or 3 when status is 'attended'
   notes?: string
   created_by?: string
   created_at: string
