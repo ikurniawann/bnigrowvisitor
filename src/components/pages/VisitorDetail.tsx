@@ -53,10 +53,18 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
     
     setUpdating(true)
     try {
-      await updateVisitor(visitor.id, { 
+      const updates: any = { 
         status: newStatus as any,
         updated_at: new Date().toISOString()
-      })
+      }
+      
+      // Clear attended_choice when changing from 'attended' to other status
+      if (visitor.status === 'attended') {
+        updates.attended_choice_number = null
+        updates.attended_choice_note = null
+      }
+      
+      await updateVisitor(visitor.id, updates)
       await reload()
       
       // Update local visitor data
@@ -74,26 +82,36 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
     setUpdating(true)
     try {
       let note = ''
+      let choiceNumber = 0
+      let choiceNote = ''
       
       switch (option) {
         case 'interview':
           note = '[Hadir] Bersedia di-interview'
+          choiceNumber = 1
+          choiceNote = 'Bersedia di-interview'
           break
         case 'thinking':
           note = '[Hadir] Masih pikir-pikir'
+          choiceNumber = 2
+          choiceNote = 'Masih pikir-pikir'
           break
         case 'reject':
           note = '[Hadir] Menolak untuk bergabung'
+          choiceNumber = 3
+          choiceNote = 'Menolak untuk bergabung'
           break
       }
       
-      // Update status to attended (jika belum)
+      // Update status to attended with choice number and note
       await updateVisitor(visitor.id, {
         status: 'attended',
+        attended_choice_number: choiceNumber,
+        attended_choice_note: choiceNote,
         updated_at: new Date().toISOString()
       })
       
-      // Add note
+      // Add timestamp note to notes field (optional, for history)
       if (note) {
         const timestamp = new Date().toLocaleString('id-ID', { 
           year: 'numeric', 
