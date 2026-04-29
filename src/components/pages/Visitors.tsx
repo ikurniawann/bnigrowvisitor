@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useData } from '@/hooks/useData'
 import VisitorDetail from './VisitorDetail'
+import * as ExcelJS from 'exceljs'
+import { saveAs } from 'file-saver'
 
 interface VisitorForm {
   name: string
@@ -55,6 +57,69 @@ export default function Visitors() {
   const [picFilter, setPicFilter] = useState('')
   const [sortBy, setSortBy] = useState('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  
+  // Export to Excel function
+  const handleExportExcel = async () => {
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('Visitor List')
+    
+    // Set column widths
+    worksheet.columns = [
+      { key: 'no', width: 5 },
+      { key: 'name', width: 25 },
+      { key: 'gender', width: 10 },
+      { key: 'business_field', width: 30 },
+      { key: 'company', width: 25 },
+      { key: 'phone', width: 15 },
+      { key: 'email', width: 30 },
+      { key: 'referred_by', width: 20 },
+      { key: 'status', width: 15 },
+      { key: 'meeting_date', width: 15 }
+    ]
+    
+    // Header style
+    const headerRow = worksheet.addRow([
+      'NO', 'NAMA', 'GENDER', 'BIDANG USAHA', 'PERUSAHAAN', 
+      'NO WA', 'EMAIL', 'DIAJAK OLEH', 'STATUS', 'TANGGAL MEETING'
+    ])
+    
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFDC143C' } // BNI Red
+    }
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' }
+    
+    // Add data rows
+    sortedVisitors.forEach((visitor: any, index: number) => {
+      worksheet.addRow({
+        no: startIndex + index + 1,
+        name: visitor.name,
+        gender: visitor.gender || '-',
+        business_field: visitor.business_field || '-',
+        company: visitor.company || '-',
+        phone: visitor.phone || '-',
+        email: visitor.email || '-',
+        referred_by: (visitor as any).referred_by_member_name || '-',
+        status: visitor.status || '-',
+        meeting_date: visitor.meeting_date ? new Date(visitor.meeting_date).toLocaleDateString('id-ID') : '-'
+      })
+    })
+    
+    // Style data rows
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        row.alignment = { vertical: 'middle' }
+        row.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} }
+      }
+    })
+    
+    // Generate and download
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    saveAs(blob, `BNI_Grow_Visitors_${new Date().toISOString().split('T')[0]}.xlsx`)
+  }
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -268,8 +333,9 @@ export default function Visitors() {
     <div className="space-y-4">
       {/* Filter Bar */}
       <div className="bg-white rounded-xl shadow p-4 space-y-3">
-        <div className="flex flex-col lg:flex-row gap-3">
-          {/* Search */}
+        <div className="flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center">
+          <div className="flex flex-col lg:flex-row gap-3 flex-1 w-full">
+            {/* Search */}
           <div className="flex-1 relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
@@ -339,6 +405,19 @@ export default function Visitors() {
               {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
             </button>
           </div>
+
+          {/* Export Button */}
+          <button
+            onClick={handleExportExcel}
+            className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white text-sm font-medium rounded-lg shadow transition-all flex items-center gap-2 whitespace-nowrap"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Export Excel
+          </button>
         </div>
 
         {/* Count */}
