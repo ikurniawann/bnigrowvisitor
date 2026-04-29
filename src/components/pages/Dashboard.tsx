@@ -124,28 +124,69 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Top Diajak Oleh Chart - Full Width */}
-        <div className="bg-white rounded-xl shadow p-6">
+        {/* Charts Row 1: Status & Industry */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Left: Status Visitor Distribution */}
+          <div className="bg-white rounded-xl shadow p-4">
+            <h3 className="text-sm font-semibold text-gray-800 mb-4">Status Visitor</h3>
+            <div className="space-y-3">
+              {Object.entries(statusDist).map(([status, count]) => (
+                <div key={status} className="flex items-center gap-3">
+                  <div className="w-32 text-xs text-gray-600 capitalize">{STATUSES[status]?.label || status}</div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className={`h-full ${getStatusColor(status)} transition-all duration-500`}
+                      style={{ width: `${(count / maxStatusCount) * 100}%` }}
+                    />
+                  </div>
+                  <div className="w-8 text-right text-xs font-semibold">{count}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: Top Industry */}
+          <div className="bg-white rounded-xl shadow p-4">
+            <h3 className="text-sm font-semibold text-gray-800 mb-4">Top Industri</h3>
+            <div className="space-y-3">
+              {industryDist.map(([industry, count]) => (
+                <div key={industry} className="flex items-center gap-3">
+                  <div className="w-24 text-xs text-gray-600 truncate">{industry}</div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className="h-full bg-red-500 transition-all duration-500"
+                      style={{ width: `${(count / maxIndustryCount) * 100}%` }}
+                    />
+                  </div>
+                  <div className="w-8 text-right text-xs font-semibold">{count}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: Top Diajak Oleh - Vertical Bar Chart (Full Width) */}
+        <div className="bg-white rounded-xl shadow p-6 mt-4">
           <h3 className="text-base font-bold text-gray-900 mb-6 flex items-center gap-2">
             <span>🏆</span>
             Top Diajak Oleh (Member)
           </h3>
-          <div className="space-y-4">
+          <div className="flex items-end gap-4 h-48 px-4">
             {referrerDist.length > 0 ? (
               referrerDist.map(([name, count]) => (
-                <div key={name} className="flex items-center gap-4">
-                  <div className="w-48 text-sm text-gray-700 truncate" title={name}>{name}</div>
-                  <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
-                    <div 
-                      className="h-full bg-green-500 rounded-full transition-all duration-500"
-                      style={{ width: `${(count / maxReferrerCount) * 100}%`, minWidth: '30px' }}
-                    />
+                <div key={name} className="flex-1 flex flex-col items-center gap-2">
+                  <div className="text-xs font-bold text-gray-700">{count}</div>
+                  <div 
+                    className="w-full bg-gradient-to-t from-green-500 to-green-400 rounded-t-lg transition-all duration-500"
+                    style={{ height: `${(count / maxReferrerCount) * 100}%`, minHeight: '20px' }}
+                  />
+                  <div className="text-[10px] text-gray-600 truncate w-full text-center" title={name}>
+                    {name.split(' ')[0]}
                   </div>
-                  <div className="w-8 text-right text-sm font-bold text-gray-900">{count}</div>
                 </div>
               ))
             ) : (
-              <div className="text-center text-gray-500 text-sm py-12">
+              <div className="w-full text-center text-gray-500 text-sm">
                 Belum ada data referral
               </div>
             )}
