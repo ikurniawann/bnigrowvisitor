@@ -3,6 +3,17 @@
 import { useRouter } from 'next/navigation'
 import { useData } from '@/hooks/useData'
 
+const STATUSES = {
+  new:          { label: 'Baru Daftar',      color: '#dbeafe' },
+  followup:     { label: 'Follow Up',         color: '#fef3c7' },
+  confirmed:    { label: 'Konfirmasi Hadir',  color: '#dcfce7' },
+  attended:     { label: 'Hadir',             color: '#d1fae5' },
+  no_show:      { label: 'Tidak Hadir',       color: '#fee2e2' },
+  interview:    { label: 'Interview',         color: '#ede9fe' },
+  member:       { label: 'Jadi Member',       color: '#ccfbf1' },
+  not_continue: { label: 'Tidak Lanjut',      color: '#f3f4f6' },
+}
+
 export default function Dashboard() {
   const router = useRouter()
   const { getStats, getIndustryDistribution, getStatusDistribution, visitors } = useData()
