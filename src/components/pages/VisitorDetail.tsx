@@ -223,7 +223,18 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
               <div className="text-gray-500">Chapter</div>
               <div className="text-gray-900">{visitor.chapter || '-'}</div>
               <div className="text-gray-500">Diajak oleh</div>
-              <div className="text-gray-900">{visitor.referral_name || '-'}</div>
+              <div className="text-gray-900">
+                {(visitor as any).referred_by_member_name ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-green-600 text-white flex items-center justify-center text-xs">
+                      {(visitor as any).referred_by_member_name.charAt(0).toUpperCase()}
+                    </span>
+                    {(visitor as any).referred_by_member_name}
+                  </span>
+                ) : (
+                  visitor.referral_name || '-'
+                )}
+              </div>
               <div className="text-gray-500">Tanggal</div>
               <div className="text-gray-900">{visitor.meeting_date ? new Date(visitor.meeting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</div>
               <div className="text-gray-500">PIC</div>
