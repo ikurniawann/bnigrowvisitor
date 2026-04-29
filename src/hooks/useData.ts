@@ -74,6 +74,7 @@ export function useData() {
         referred_by_member:referred_by_member_id (id, name)
       `)
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
 
     if (error) {
       console.error('Error loading visitors:', error)
@@ -129,7 +130,8 @@ export function useData() {
     const { data, error } = await supabase
       .from('members')
       .select('*')
-      .order('joined_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
 
     if (error) {
       console.error('Error loading members:', error)
