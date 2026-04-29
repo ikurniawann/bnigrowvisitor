@@ -215,8 +215,8 @@ export default function Members() {
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr className="text-[11px] text-gray-600 uppercase tracking-wide">
+            <thead className="bg-gradient-to-r from-red-600 to-red-700">
+              <tr className="text-[11px] text-white font-semibold uppercase tracking-wide">
                 <th className="text-left font-semibold px-4 py-3">No</th>
                 <th className="text-left font-semibold px-4 py-3">Nama</th>
                 <th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Bidang Usaha</th>

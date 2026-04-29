@@ -310,8 +310,8 @@ export default function Visitors() {
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr className="text-xs text-gray-600">
+            <thead className="bg-gradient-to-r from-red-600 to-red-700">
+              <tr className="text-xs text-white font-semibold uppercase tracking-wide">
                 <th className="text-left font-medium px-4 py-3">No</th>
                 <th className="text-left font-medium px-4 py-3">Nama</th>
                 <th className="text-left font-medium px-4 py-3">Bidang Usaha</th>
