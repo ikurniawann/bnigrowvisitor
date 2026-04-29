@@ -51,6 +51,8 @@ export default function Visitors() {
   const [statusFilter, setStatusFilter] = useState('')
   const [meetingFilter, setMeetingFilter] = useState('')
   const [picFilter, setPicFilter] = useState('')
+  const [sortBy, setSortBy] = useState('created_at')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -119,16 +121,31 @@ export default function Visitors() {
     return true
   })
 
+  // Sort visitors
+  const sortedVisitors = [...filteredVisitors].sort((a, b) => {
+    let comparison = 0
+    
+    if (sortBy === 'created_at') {
+      comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    } else if (sortBy === 'name') {
+      comparison = a.name.localeCompare(b.name)
+    } else if (sortBy === 'meeting_date') {
+      comparison = new Date(a.meeting_date || '1970-01-01').getTime() - new Date(b.meeting_date || '1970-01-01').getTime()
+    }
+    
+    return sortOrder === 'asc' ? comparison : -comparison
+  })
+
   // Pagination
-  const totalPages = Math.ceil(filteredVisitors.length / itemsPerPage)
+  const totalPages = Math.ceil(sortedVisitors.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const paginatedVisitors = filteredVisitors.slice(startIndex, endIndex)
+  const paginatedVisitors = sortedVisitors.slice(startIndex, endIndex)
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, statusFilter, meetingFilter, picFilter])
+  }, [search, statusFilter, meetingFilter, picFilter, sortBy, sortOrder])
 
   const handleOpenAdd = () => {
     setFormData({
@@ -298,6 +315,26 @@ export default function Visitors() {
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
+
+          {/* Sort By */}
+          <div className="flex gap-2">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
+            >
+              <option value="created_at">Tanggal Input</option>
+              <option value="name">Nama</option>
+              <option value="meeting_date">Tanggal Meeting</option>
+            </select>
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:bg-gray-50 focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+            </button>
+          </div>
         </div>
 
         {/* Count */}
