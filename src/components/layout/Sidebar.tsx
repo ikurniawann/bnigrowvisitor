@@ -12,7 +12,6 @@ const navItems = [
   { id: 'kanban', label: 'Kanban', path: '/kanban', icon: 'M3 3h5v18H3V3zm7 0h5v12h-5V3zm7 0h5v15h-5V3z' },
   { id: 'visitors', label: 'Visitor', path: '/visitors', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 1 1 0 7.75' },
   { id: 'attended', label: 'Visitor Hadir', path: '/attended', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { id: 'ocr', label: 'OCR Email', path: '/ocr', icon: 'M3 3h18v18H3V3zm0 6h18M9 21V9' },
   { id: 'pic', label: 'Kelola PIC', path: '/pic', icon: 'M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 6c-4.4 0-8 3.6-8 8h16c0-4.4-3.6-8-8-8z' },
   { id: 'weekly', label: 'Weekly Meeting', path: '/weekly', icon: 'M3 4h18v18H3V4zm13-2v4M8 2v4M3 10h18' },
 ]
