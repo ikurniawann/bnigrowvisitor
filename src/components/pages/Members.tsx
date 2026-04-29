@@ -204,10 +204,8 @@ export default function Members() {
               <tr className="text-[11px] text-gray-600 uppercase tracking-wide">
                 <th className="text-left font-semibold px-4 py-3">No</th>
                 <th className="text-left font-semibold px-4 py-3">Nama</th>
-                <th className="text-left font-semibold px-4 py-3 hidden md:table-cell">No WhatsApp</th>
-                <th className="text-left font-semibold px-4 py-3 hidden lg:table-cell">Email</th>
-                <th className="text-left font-semibold px-4 py-3 hidden xl:table-cell">Perusahaan</th>
-                <th className="text-left font-semibold px-4 py-3 hidden xl:table-cell">Chapter</th>
+                <th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Bidang Usaha</th>
+                <th className="text-left font-semibold px-4 py-3 hidden lg:table-cell">Perusahaan</th>
                 <th className="text-left font-semibold px-4 py-3">Tanggal Gabung</th>
                 <th className="text-left font-semibold px-4 py-3">Status</th>
                 <th className="text-left font-semibold px-4 py-3">Aksi</th>
@@ -216,7 +214,7 @@ export default function Members() {
             <tbody>
               {filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                     <svg className="w-12 h-12 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                       <circle cx="9" cy="7" r="4" />
@@ -242,28 +240,8 @@ export default function Members() {
                         <div className="text-xs text-gray-500 mt-0.5">{member.business_field}</div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-[13px] text-gray-600 hidden md:table-cell">
-                      {member.phone ? (
-                        <a 
-                          href={`https://wa.me/${member.phone.replace(/^0/, '62')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-green-600 hover:underline"
-                        >
-                          {member.phone}
-                        </a>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
                     <td className="px-4 py-3 text-[13px] text-gray-600 hidden lg:table-cell">
-                      {member.email || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-[13px] text-gray-600 hidden xl:table-cell">
                       {member.company || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-[13px] text-gray-600 hidden xl:table-cell">
-                      {member.chapter || '-'}
                     </td>
                     <td className="px-4 py-3 text-[13px] text-gray-600">
                       {member.joined_date 
