@@ -91,14 +91,21 @@ export default function LoginPage() {
               {loading ? 'Loading...' : 'Login'}
             </button>
           </form>
+        </div>
 
-          <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-            <p className="text-xs text-gray-600 font-semibold mb-2 uppercase tracking-wide">Default Login:</p>
-            <div className="text-xs text-gray-700 space-y-1.5">
-              <p><strong className="text-gray-900">Admin:</strong> admin@bnigrow.com / admin123</p>
-              <p><strong className="text-gray-900">PIC:</strong> pic1@bnigrow.com / admin123</p>
-            </div>
-          </div>
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-600">
+            Powered by{' '}
+            <a 
+              href="https://wit.id" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-red-600 hover:text-red-700 font-medium underline transition-colors"
+            >
+              WIT.ID
+            </a>
+          </p>
         </div>
       </div>
     </div>

@@ -126,6 +126,23 @@ export default function DashboardLayout({
           <main className="flex-1 p-4 lg:p-6 overflow-auto">
             {children}
           </main>
+
+          {/* Footer */}
+          {!isFullscreen && (
+            <footer className="bg-white border-t border-gray-200 py-3 px-6">
+              <div className="text-center text-xs text-gray-500">
+                Powered by{' '}
+                <a 
+                  href="https://wit.id" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-red-600 hover:text-red-700 font-medium underline transition-colors"
+                >
+                  WIT.ID
+                </a>
+              </div>
+            </footer>
+          )}
         </div>
       </div>
     </DashboardContext.Provider>
