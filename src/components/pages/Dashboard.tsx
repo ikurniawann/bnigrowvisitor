@@ -124,73 +124,28 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Left: Top Industri */}
-          <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">Top Industri</h3>
-            <div className="space-y-3">
-              {industryDist.map(([industry, count]) => (
-                <div key={industry} className="flex items-center gap-3">
-                  <div className="w-24 text-xs text-gray-600 truncate">{industry}</div>
-                  <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div 
-                      className="h-full bg-red-500 transition-all duration-500"
-                      style={{ width: `${(count / maxIndustryCount) * 100}%` }}
-                    />
-                  </div>
-                  <div className="w-8 text-right text-xs font-semibold">{count}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right: Top Diajak Oleh */}
-          <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">🏆 Top Diajak Oleh (Member)</h3>
-            <div className="space-y-3">
-              {referrerDist.length > 0 ? (
-                referrerDist.map(([name, count]) => (
-                  <div key={name} className="flex items-center gap-3">
-                    <div className="w-36 text-xs text-gray-600 truncate">{name}</div>
-                    <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
-                      <div 
-                        className="h-full bg-green-500 rounded-full transition-all duration-500"
-                        style={{ width: `${(count / maxReferrerCount) * 100}%` }}
-                      />
-                    </div>
-                    <div className="w-6 text-right text-xs font-semibold text-gray-700">{count}</div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-gray-500 text-sm py-8">
-                  Belum ada data referral
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Full Width: Top Diajak Oleh Extended */}
-        <div className="bg-white rounded-xl shadow p-4 mt-4">
-          <h3 className="text-sm font-semibold text-gray-800 mb-4">🏆 Top Diajak Oleh (Member) - Full Width</h3>
-          <div className="space-y-3">
+        {/* Top Diajak Oleh Chart - Full Width */}
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="text-base font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <span>🏆</span>
+            Top Diajak Oleh (Member)
+          </h3>
+          <div className="space-y-4">
             {referrerDist.length > 0 ? (
               referrerDist.map(([name, count]) => (
-                <div key={name} className="flex items-center gap-3">
-                  <div className="w-48 text-xs text-gray-600 truncate">{name}</div>
-                  <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
+                <div key={name} className="flex items-center gap-4">
+                  <div className="w-48 text-sm text-gray-700 truncate" title={name}>{name}</div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
                     <div 
-                      className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all duration-500 flex items-center justify-end pr-3"
-                      style={{ width: `${(count / maxReferrerCount) * 100}%`, minWidth: '50px' }}
-                    >
-                      <span className="text-white text-xs font-bold">{count}</span>
-                    </div>
+                      className="h-full bg-green-500 rounded-full transition-all duration-500"
+                      style={{ width: `${(count / maxReferrerCount) * 100}%`, minWidth: '30px' }}
+                    />
                   </div>
+                  <div className="w-8 text-right text-sm font-bold text-gray-900">{count}</div>
                 </div>
               ))
             ) : (
-              <div className="text-center text-gray-500 text-sm py-8">
+              <div className="text-center text-gray-500 text-sm py-12">
                 Belum ada data referral
               </div>
             )}
