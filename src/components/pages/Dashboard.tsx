@@ -16,15 +16,17 @@ const STATUSES = {
 
 export default function Dashboard() {
   const router = useRouter()
-  const { getStats, getIndustryDistribution, getStatusDistribution, visitors } = useData()
+  const { getStats, getIndustryDistribution, getStatusDistribution, getReferrerDistribution, visitors } = useData()
   const stats = getStats()
 
   const recentVisitors = visitors.slice(0, 8)
   const statusDist = getStatusDistribution()
   const industryDist = getIndustryDistribution()
+  const referrerDist = getReferrerDistribution()
 
   const maxStatusCount = Math.max(...Object.values(statusDist), 1)
   const maxIndustryCount = Math.max(...industryDist.map(([, c]) => c), 1)
+  const maxReferrerCount = Math.max(...referrerDist.map(([, c]) => c), 1)
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -138,6 +140,31 @@ export default function Dashboard() {
                 <div className="w-8 text-right text-xs font-semibold">{count}</div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Referrer Chart */}
+        <div className="bg-white rounded-xl shadow p-4">
+          <h3 className="text-sm font-semibold text-gray-800 mb-4">🏆 Top Diajak Oleh (Member)</h3>
+          <div className="space-y-3">
+            {referrerDist.length > 0 ? (
+              referrerDist.map(([name, count]) => (
+                <div key={name} className="flex items-center gap-3">
+                  <div className="w-32 text-xs text-gray-600 truncate" title={name}>{name}</div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500"
+                      style={{ width: `${(count / maxReferrerCount) * 100}%` }}
+                    />
+                  </div>
+                  <div className="w-8 text-right text-xs font-semibold">{count}</div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-500 text-sm py-8">
+                Belum ada data referral
+              </div>
+            )}
           </div>
         </div>
       </div>

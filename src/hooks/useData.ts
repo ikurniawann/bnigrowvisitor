@@ -238,7 +238,22 @@ export function useData() {
     if (error) throw error
     
     await loadPics()
-    return { ...data, id: data.id, wa: data.phone }
+  
+  function getReferrerDistribution() {
+    const distribution: Record<string, number> = {}
+    visitors.forEach(v => {
+      const referrerName = (v as any).referred_by_member_name
+      if (referrerName) {
+        distribution[referrerName] = (distribution[referrerName] || 0) + 1
+      }
+    })
+    // Convert to array and sort by count
+    return Object.entries(distribution)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10) // Top 10 referrers
+  }
+
+  return { ...data, id: data.id, wa: data.phone }
   }
 
   async function updatePic(id: string, updates: Partial<PIC>) {
@@ -328,7 +343,22 @@ export function useData() {
       return true
     })
 
-    return {
+  
+  function getReferrerDistribution() {
+    const distribution: Record<string, number> = {}
+    visitors.forEach(v => {
+      const referrerName = (v as any).referred_by_member_name
+      if (referrerName) {
+        distribution[referrerName] = (distribution[referrerName] || 0) + 1
+      }
+    })
+    // Convert to array and sort by count
+    return Object.entries(distribution)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10) // Top 10 referrers
+  }
+
+  return {
       total: filtered.length,
       confirmed: filtered.filter(v => v.status === 'confirmed').length,
       pending: filtered.filter(v => v.status === 'followup').length,
@@ -357,6 +387,21 @@ export function useData() {
     return distribution
   }
 
+
+  function getReferrerDistribution() {
+    const distribution: Record<string, number> = {}
+    visitors.forEach(v => {
+      const referrerName = (v as any).referred_by_member_name
+      if (referrerName) {
+        distribution[referrerName] = (distribution[referrerName] || 0) + 1
+      }
+    })
+    // Convert to array and sort by count
+    return Object.entries(distribution)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10) // Top 10 referrers
+  }
+
   return {
     visitors,
     meetings,
@@ -379,6 +424,7 @@ export function useData() {
     getStats,
     getIndustryDistribution,
     getStatusDistribution,
+    getReferrerDistribution,
     STATUSES,
     KANBAN_COLS,
   }
