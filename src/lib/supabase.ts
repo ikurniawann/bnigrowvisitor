@@ -43,6 +43,7 @@ export interface Visitor {
   referral_name?: string
   referral_user_id?: string
   meeting_id?: string
+  meeting_date?: string
   pic_id?: string
   status: VisitorStatus
   notes?: string
