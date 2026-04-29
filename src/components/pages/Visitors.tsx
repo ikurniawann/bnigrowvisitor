@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useData } from '@/hooks/useData'
 import VisitorDetail from './VisitorDetail'
 
@@ -11,7 +11,7 @@ interface VisitorForm {
   business_field: string
   company: string
   chapter: string
-  referral_name: string
+  referred_by_member_id: string
   meeting_date: string
   pic_id: string
   status: string
@@ -25,7 +25,7 @@ const initialForm: VisitorForm = {
   business_field: '',
   company: '',
   chapter: '',
-  referral_name: '',
+  referred_by_member_id: '',
   meeting_date: '',
   pic_id: '',
   status: 'new',
@@ -44,7 +44,7 @@ const STATUSES = {
 }
 
 export default function Visitors() {
-  const { visitors, meetings, pics, loading, reload, addVisitor, updateVisitor, deleteVisitor } = useData()
+  const { visitors, meetings, pics, members, loading, reload, addVisitor, updateVisitor, deleteVisitor } = useData()
   
   // Filters
   const [search, setSearch] = useState('')
@@ -60,6 +60,29 @@ export default function Visitors() {
   const [formData, setFormData] = useState<VisitorForm>(initialForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  
+  // Member search dropdown state
+  const [memberSearch, setMemberSearch] = useState('')
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false)
+  const memberDropdownRef = useRef<HTMLDivElement>(null)
+  
+  // Close dropdown when click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (memberDropdownRef.current && !memberDropdownRef.current.contains(event.target as Node)) {
+        setShowMemberDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+  
+  // Filter members for dropdown
+  const filteredMembers = members.filter(m => 
+    m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
+    (m.business_field || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
+    (m.company || '').toLowerCase().includes(memberSearch.toLowerCase())
+  ).slice(0, 10) // Limit 10 results
 
   // Listen for global "open add visitor" event from topbar button
   useEffect(() => {
@@ -111,7 +134,7 @@ export default function Visitors() {
       business_field: visitor.business_field || '',
       company: visitor.company || '',
       chapter: visitor.chapter || '',
-      referral_name: visitor.referral_name || '',
+      referred_by_member_id: (visitor as any).referred_by_member_id || '',
       meeting_date: visitor.meeting_date || '',
       pic_id: visitor.pic_id || '',
       status: visitor.status || 'new',
@@ -150,7 +173,7 @@ export default function Visitors() {
         business_field: formData.business_field || undefined,
         company: formData.company || undefined,
         chapter: formData.chapter || undefined,
-        referral_name: formData.referral_name || undefined,
+        referred_by_member_id: formData.referred_by_member_id || undefined,
         meeting_date: formData.meeting_date || undefined,
         pic_id: formData.pic_id || undefined,
         status: formData.status,
@@ -500,13 +523,66 @@ export default function Visitors() {
                   <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
                     Diajak oleh Member
                   </label>
-                  <input
-                    type="text"
-                    value={formData.referral_name}
-                    onChange={(e) => setFormData({ ...formData, referral_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
-                    placeholder="Nama member"
-                  />
+                  <div ref={memberDropdownRef} className="relative">
+                    {formData.referred_by_member_id ? (
+                      <div className="flex items-center justify-between w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-green-50">
+                        <div className="flex-1">
+                          {members.find(m => m.id === formData.referred_by_member_id)?.name || 'Unknown Member'}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, referred_by_member_id: '' })
+                            setMemberSearch('')
+                          }}
+                          className="ml-2 text-red-500 hover:text-red-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={memberSearch}
+                        onChange={(e) => {
+                          setMemberSearch(e.target.value)
+                          setShowMemberDropdown(true)
+                        }}
+                        onFocus={() => setShowMemberDropdown(true)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
+                        placeholder="Cari nama member..."
+                      />
+                    )}
+                    
+                    {showMemberDropdown && memberSearch && filteredMembers.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {filteredMembers.map((member) => (
+                          <button
+                            key={member.id}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, referred_by_member_id: member.id })
+                              setMemberSearch('')
+                              setShowMemberDropdown(false)
+                            }}
+                            className="w-full px-3 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                          >
+                            <div className="font-medium text-gray-900 text-sm">{member.name}</div>
+                            <div className="text-xs text-gray-500">
+                              {member.business_field || '-'}
+                              {member.company ? ` • ${member.company}` : ''}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {showMemberDropdown && memberSearch && filteredMembers.length === 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-center text-sm text-gray-500">
+                        Tidak ada member ditemukan
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
