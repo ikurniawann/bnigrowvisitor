@@ -90,7 +90,7 @@ export default function PICManagement() {
         }
 
         // Create user in database
-        await supabase
+        const { error: insertError } = await supabase
           .from('users')
           .insert({
             name: formData.name,
@@ -102,7 +102,7 @@ export default function PICManagement() {
           })
           .single()
 
-        if (userError) throw userError
+        if (insertError) throw insertError
       }
 
       setIsModalOpen(false)
