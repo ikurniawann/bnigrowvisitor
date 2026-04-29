@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useData } from '@/hooks/useData'
+import { supabase } from '@/lib/supabase'
 
 interface PICForm {
   name: string
