@@ -153,7 +153,7 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
     }
   }
 
-  const formatWaLink = (phone: string, visitorName?: string) => {
+  const formatWaLink = (phone: string, visitorName?: string, referredByMemberName?: string) => {
     // Clean phone number and add country code
     const clean = phone.replace(/[^0-9]/g, '')
     let waNumber: string
@@ -174,7 +174,9 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
         day: 'numeric' 
       });
       
-      const message = `Selamat Siang Pak/Bu ${visitorName},\n\nPerkenalkan saya XXX Visitor Host BNI Grow dengan bisnis XXX\nChapter Jakarta.\n\nAnda diundang oleh Bapak/Ibu [Diajak Oleh] untuk ikut weekly meeting BNI Grow besok:\n${meetingDate}\nPagi jam 07.30 - 10.15 WIB\n\nMohon konfirmasi, apakah Bapak/Ibu ${visitorName} akan hadir di online meeting besok jam 7.30 pagi?\n\nKonfirmasi kehadiran ini penting untuk menentukan pembagian room/seat saat open networking.\n\nTerima kasih,\nVisitor Host BNI Grow Jakarta`;
+      const referrerName = referredByMemberName || '[Diajak Oleh]';
+      
+      const message = `Selamat Siang Pak/Bu ${visitorName},\n\nPerkenalkan saya XXX Visitor Host BNI Grow dengan bisnis XXX\nChapter Jakarta.\n\nAnda diundang oleh Bapak/Ibu ${referrerName} untuk ikut weekly meeting BNI Grow besok:\n${meetingDate}\nPagi jam 07.30 - 10.15 WIB\n\nMohon konfirmasi, apakah Bapak/Ibu ${visitorName} akan hadir di online meeting besok jam 7.30 pagi?\n\nKonfirmasi kehadiran ini penting untuk menentukan pembagian room/seat saat open networking.\n\nTerima kasih,\nVisitor Host BNI Grow Jakarta`;
       return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
     }
     
@@ -220,7 +222,7 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
             <div className="grid grid-cols-[80px_1fr] gap-2 text-sm">
               <div className="text-gray-500">WhatsApp</div>
               <a 
-                href={formatWaLink(visitor.phone, visitor.name)} 
+                href={formatWaLink(visitor.phone, visitor.name, (visitor as any).referred_by_member_name)} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-green-600 hover:underline font-medium"
