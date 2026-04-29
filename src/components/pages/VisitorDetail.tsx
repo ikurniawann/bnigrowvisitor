@@ -167,7 +167,11 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
     
     // Add message template if visitor name provided
     if (visitorName) {
-      const meetingDate = new Date().toLocaleDateString('id-ID', { 
+      // Calculate tomorrow's date
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const meetingDate = tomorrow.toLocaleDateString('id-ID', { 
         weekday: 'long', 
         year: 'numeric', 
         month: 'long', 
