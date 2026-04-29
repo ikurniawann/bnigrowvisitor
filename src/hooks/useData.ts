@@ -8,6 +8,7 @@ export interface PIC {
   name: string
   role: string
   wa: string
+  is_active?: boolean
 }
 
 export interface VisitorWithRelations extends Visitor {
