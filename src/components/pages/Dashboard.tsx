@@ -144,24 +144,30 @@ export default function Dashboard() {
         </div>
 
         {/* Referrer Chart */}
-        <div className="bg-white rounded-xl shadow p-4">
-          <h3 className="text-sm font-semibold text-gray-800 mb-4">🏆 Top Diajak Oleh (Member)</h3>
-          <div className="space-y-3">
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="text-base font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <span>🏆</span>
+            Top Diajak Oleh (Member)
+          </h3>
+          <div className="space-y-4">
             {referrerDist.length > 0 ? (
-              referrerDist.map(([name, count]) => (
-                <div key={name} className="flex items-center gap-3">
-                  <div className="w-32 text-xs text-gray-600 truncate" title={name}>{name}</div>
-                  <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500"
-                      style={{ width: `${(count / maxReferrerCount) * 100}%` }}
-                    />
+              referrerDist.map(([name, count], index) => (
+                <div key={name} className="flex items-center gap-4">
+                  <div className="w-40 text-sm font-medium text-gray-700 truncate" title={name}>
+                    {index + 1}. {name}
                   </div>
-                  <div className="w-8 text-right text-xs font-semibold">{count}</div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-8 overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all duration-500 flex items-center justify-end pr-3"
+                      style={{ width: `${(count / maxReferrerCount) * 100}%`, minWidth: '40px' }}
+                    >
+                      <span className="text-white text-sm font-bold">{count}</span>
+                    </div>
+                  </div>
                 </div>
               ))
             ) : (
-              <div className="text-center text-gray-500 text-sm py-8">
+              <div className="text-center text-gray-500 text-sm py-12">
                 Belum ada data referral
               </div>
             )}
