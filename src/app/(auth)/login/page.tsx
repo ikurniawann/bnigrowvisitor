@@ -38,9 +38,9 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="mb-4">
             <img 
-              src="https://bnijakartabarat.com/jakarta-barat-grow/en-ID/assets/images/logo BNI Grow.0c9a0f371e56.png" 
+              src="/logo-bni-grow.png" 
               alt="BNI Grow Logo"
-              className="h-20 w-auto mx-auto object-contain"
+              className="h-16 w-auto mx-auto object-contain"
             />
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Visitor Management System</h1>
