@@ -260,7 +260,7 @@ export default function Visitors() {
     
     // If status is 'attended' (Hadir) and has attended_choice_number, append it
     if (status === 'attended' && attendedChoiceNumber) {
-      return `${baseLabel} - ${attendedChoiceNumber}`
+      return `${baseLabel}-${attendedChoiceNumber}`
     }
     
     return baseLabel
