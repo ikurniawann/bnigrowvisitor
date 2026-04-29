@@ -104,7 +104,7 @@ export default function WeeklyMeeting() {
   }
 
   const getUniqueMeetingDates = () => {
-    const dates = [...new Set(visitors.map(v => v.meeting_date).filter(Boolean))]
+    const dates = Array.from(new Set(visitors.map(v => v.meeting_date).filter(Boolean) as string[]))
     return dates.sort().reverse()
   }
 
