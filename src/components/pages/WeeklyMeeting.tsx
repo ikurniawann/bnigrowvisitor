@@ -62,8 +62,8 @@ export default function WeeklyMeeting() {
       await addMeeting({
         title: newMeetingTitle,
         meeting_date: newMeetingDate,
-        location: newMeetingLocation || null,
-        notes: null,
+        location: newMeetingLocation || undefined,
+        notes: undefined,
       })
       setIsAddModalOpen(false)
       await reload()
