@@ -265,7 +265,7 @@ export function useData() {
       confirmed: filtered.filter(v => v.status === 'confirmed').length,
       pending: filtered.filter(v => v.status === 'followup').length,
       member: filtered.filter(v => v.status === 'member').length,
-      hadir: filtered.filter(v => v.status === 'hadir').length,
+      hadir: filtered.filter(v => v.status === 'attended').length,
       interview: filtered.filter(v => v.status === 'interview').length,
     }
   }
