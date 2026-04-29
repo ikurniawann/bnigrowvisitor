@@ -40,6 +40,7 @@ export interface Visitor {
   business_field?: string
   company?: string
   chapter?: string
+  gender?: string
   referral_name?: string
   referral_user_id?: string
   meeting_id?: string
