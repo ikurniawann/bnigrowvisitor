@@ -312,6 +312,7 @@ export default function Visitors() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr className="text-xs text-gray-600">
+                <th className="text-left font-medium px-4 py-3">No</th>
                 <th className="text-left font-medium px-4 py-3">Nama</th>
                 <th className="text-left font-medium px-4 py-3">Bidang Usaha</th>
                 <th className="text-left font-medium px-4 py-3">No WA</th>
@@ -325,7 +326,7 @@ export default function Visitors() {
             <tbody>
               {paginatedVisitors.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
                     <svg className="w-12 h-12 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                       <circle cx="9" cy="7" r="4" />
@@ -342,8 +343,9 @@ export default function Visitors() {
                   </td>
                 </tr>
               ) : (
-                paginatedVisitors.map((visitor) => (
+                paginatedVisitors.map((visitor, index) => (
                   <tr key={visitor.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3 text-[13px] text-gray-600 font-medium">{startIndex + index + 1}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900">{visitor.name}</div>
                       <div className="text-xs text-gray-500 md:hidden">{visitor.phone}</div>

@@ -262,6 +262,7 @@ export default function AttendedVisitors() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr className="text-[11px] text-gray-600 uppercase tracking-wide">
+                  <th className="text-left font-semibold px-4 py-3">No</th>
                   <th className="text-left font-semibold px-4 py-3">Nama</th>
                   <th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Bidang Usaha</th>
                   <th className="text-left font-semibold px-4 py-3">No WA</th>
@@ -273,8 +274,9 @@ export default function AttendedVisitors() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedVisitors.map((visitor) => (
+                {paginatedVisitors.map((visitor, index) => (
                   <tr key={visitor.id} className={`border-t border-gray-100 hover:bg-gray-50 ${FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES] ? `border-l-4 ${FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES].color}` : ''}`}>
+                    <td className="px-4 py-3 text-[13px] text-gray-600 font-medium">{startIndex + index + 1}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900 text-[13px]">{visitor.name}</div>
                       <div className="text-xs text-gray-500 mt-0.5">
