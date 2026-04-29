@@ -146,15 +146,15 @@ export default function Visitors() {
       const data: any = {
         name: formData.name,
         phone: formData.phone,
-        email: formData.email || null,
-        business_field: formData.business_field || null,
-        company: formData.company || null,
-        chapter: formData.chapter || null,
-        referral_name: formData.referral_name || null,
-        meeting_date: formData.meeting_date || null,
-        pic_id: formData.pic_id || null,
+        email: formData.email || undefined,
+        business_field: formData.business_field || undefined,
+        company: formData.company || undefined,
+        chapter: formData.chapter || undefined,
+        referral_name: formData.referral_name || undefined,
+        meeting_date: formData.meeting_date || undefined,
+        pic_id: formData.pic_id || undefined,
         status: formData.status,
-        notes: formData.notes || null,
+        notes: formData.notes || undefined,
         updated_at: new Date().toISOString(),
       }
 

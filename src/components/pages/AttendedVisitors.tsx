@@ -115,7 +115,7 @@ export default function AttendedVisitors() {
       
       if (newStatus !== selectedVisitor.status) {
         await updateVisitor(selectedVisitor.id, {
-          status: newStatus,
+          status: newStatus as any,
           updated_at: new Date().toISOString()
         })
       }
