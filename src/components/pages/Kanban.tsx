@@ -81,7 +81,7 @@ export default function Kanban() {
     try {
       // Optimistic update via hook
       await updateVisitor(visitorId, {
-        status: newStatus,
+        status: newStatus as any,
         updated_at: new Date().toISOString()
       })
       
