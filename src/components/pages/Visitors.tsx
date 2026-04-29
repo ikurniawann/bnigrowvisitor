@@ -221,7 +221,7 @@ export default function Visitors() {
               placeholder="Cari nama, WA, email, bidang usaha..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 font-medium placeholder-gray-500"
             />
           </div>
 
@@ -229,7 +229,7 @@ export default function Visitors() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
           >
             <option value="">Semua Status</option>
             {Object.entries(STATUSES).map(([key, value]) => (
@@ -241,7 +241,7 @@ export default function Visitors() {
           <select
             value={meetingFilter}
             onChange={(e) => setMeetingFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
           >
             <option value="">Semua Meeting</option>
             {meetings.map(m => (
@@ -253,7 +253,7 @@ export default function Visitors() {
           <select
             value={picFilter}
             onChange={(e) => setPicFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
           >
             <option value="">Semua PIC</option>
             {pics.map(p => (

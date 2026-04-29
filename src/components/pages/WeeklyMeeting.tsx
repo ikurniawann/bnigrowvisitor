@@ -323,7 +323,7 @@ export default function WeeklyMeeting() {
                   value={newMeetingTitle}
                   onChange={(e) => setNewMeetingTitle(e.target.value)}
                   placeholder="Contoh: Weekly Meeting 28 April 2026"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
                   autoFocus
                 />
               </div>
@@ -336,7 +336,7 @@ export default function WeeklyMeeting() {
                   type="date"
                   value={newMeetingDate}
                   onChange={(e) => setNewMeetingDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
                 />
               </div>
 
@@ -349,7 +349,7 @@ export default function WeeklyMeeting() {
                   value={newMeetingLocation}
                   onChange={(e) => setNewMeetingLocation(e.target.value)}
                   placeholder="Contoh: Hotel Grand Kancana, Bekasi"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
                 />
               </div>
             </div>
