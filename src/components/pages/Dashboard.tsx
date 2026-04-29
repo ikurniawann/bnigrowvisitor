@@ -143,28 +143,28 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Row 2: Top Diajak Oleh - Vertical Bar Chart (Full Width) */}
+        {/* Row 2: Top Diajak Oleh - Horizontal Bars (Full Width) */}
         <div className="bg-white rounded-xl shadow p-6 mt-4">
           <h3 className="text-base font-bold text-gray-900 mb-6 flex items-center gap-2">
             <span>🏆</span>
             Top Diajak Oleh (Member)
           </h3>
-          <div className="flex items-end gap-4 h-48 px-4">
+          <div className="space-y-4">
             {referrerDist.length > 0 ? (
               referrerDist.map(([name, count]) => (
-                <div key={name} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="text-xs font-bold text-gray-700">{count}</div>
-                  <div 
-                    className="w-full bg-gradient-to-t from-green-500 to-green-400 rounded-t-lg transition-all duration-500"
-                    style={{ height: `${(count / maxReferrerCount) * 100}%`, minHeight: '20px' }}
-                  />
-                  <div className="text-[10px] text-gray-600 truncate w-full text-center" title={name}>
-                    {name.split(' ')[0]}
+                <div key={name} className="flex items-center gap-4">
+                  <div className="w-48 text-sm font-medium text-gray-700 truncate" title={name}>{name}</div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all duration-500"
+                      style={{ width: `${(count / maxReferrerCount) * 100}%` }}
+                    />
                   </div>
+                  <div className="w-8 text-right text-sm font-bold text-gray-900">{count}</div>
                 </div>
               ))
             ) : (
-              <div className="w-full text-center text-gray-500 text-sm">
+              <div className="text-center text-gray-500 text-sm py-12">
                 Belum ada data referral
               </div>
             )}
