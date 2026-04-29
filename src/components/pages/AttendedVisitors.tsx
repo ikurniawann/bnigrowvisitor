@@ -354,7 +354,7 @@ export default function AttendedVisitors() {
           <div>
             <h4 className="text-sm font-semibold text-blue-900 mb-1">Cara Menggunakan</h4>
             <ul className="text-xs text-blue-700 space-y-1">
-              <li>• Visitor yang hadir akan muncul di tab <strong>"Hadir"</strong></li>
+              <li>• Visitor yang hadir akan muncul di tab <strong>Hadir</strong></li>
               <li>• Gunakan tombol aksi cepat untuk ubah status ke Interview, Member, atau Tidak Lanjut</li>
               <li>• Atau klik detail untuk melihat informasi lengkap dan catatan</li>
               <li>• Status Interview, Member, dan Tidak Lanjut hanya bisa diubah dari halaman ini</li>

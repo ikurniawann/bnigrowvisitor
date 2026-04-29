@@ -266,7 +266,7 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
             {['interview', 'member', 'not_continue'].includes(visitor.status) && (
               <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-xs text-blue-800">
-                  ℹ️ Status "{STATUSES[visitor.status as keyof typeof STATUSES]?.label || visitor.status}" dikelola dari halaman <strong>Visitor Hadir</strong>.
+                  ℹ️ Status {STATUSES[visitor.status as keyof typeof STATUSES]?.label || visitor.status} dikelola dari halaman <strong>Visitor Hadir</strong>.
                 </p>
               </div>
             )}

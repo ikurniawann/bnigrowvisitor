@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase, Visitor, Meeting, User as UserType } from '@/lib/supabase'
+import { supabase, Visitor, Meeting } from '@/lib/supabase'
 
 export interface PIC {
   id: string

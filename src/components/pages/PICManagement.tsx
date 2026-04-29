@@ -20,7 +20,7 @@ const initialForm: PICForm = {
 }
 
 export default function PICManagement() {
-  const { pics, visitors, loading, reload, addPic, updatePic, deletePic } = useData()
+  const { pics, visitors, loading, reload, updatePic, deletePic } = useData()
   
   // State
   const [isModalOpen, setIsModalOpen] = useState(false)

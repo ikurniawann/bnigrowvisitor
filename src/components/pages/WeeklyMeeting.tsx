@@ -5,7 +5,7 @@ import { useData } from '@/hooks/useData'
 import VisitorDetail from './VisitorDetail'
 
 export default function WeeklyMeeting() {
-  const { visitors, meetings, loading, reload, addMeeting } = useData()
+  const { visitors, loading, reload, addMeeting } = useData()
   
   const [selectedMeetingId, setSelectedMeetingId] = useState<string>('')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -24,10 +24,19 @@ export default function WeeklyMeeting() {
     : []
 
   // Group by status for summary
-  const summary = STATUSES ? Object.entries(STATUSES).reduce((acc, [key, value]) => {
+  const summary = Object.entries({
+    new: 'Baru Daftar',
+    followup: 'Follow Up',
+    confirmed: 'Konfirmasi Hadir',
+    attended: 'Hadir',
+    no_show: 'Tidak Hadir',
+    interview: 'Interview',
+    member: 'Jadi Member',
+    not_continue: 'Tidak Lanjut'
+  }).reduce((acc, [key]) => {
     acc[key] = selectedVisitors.filter(v => v.status === key).length
     return acc
-  }, {} as Record<string, number>) : {}
+  }, {} as Record<string, number>)
 
   const totalVisitors = selectedVisitors.length
   const confirmedCount = summary['confirmed'] || 0
@@ -358,10 +367,7 @@ export default function WeeklyMeeting() {
         <VisitorDetail
           visitor={selectedVisitor}
           onClose={handleCloseDetail}
-          onEdit={(v) => {
-            handleCloseDetail()
-            // Edit will be implemented
-          }}
+          onEdit={() => handleCloseDetail()}
         />
       )}
     </div>
