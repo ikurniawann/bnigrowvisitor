@@ -124,44 +124,22 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Charts Row 1: Status & Industry */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Left: Status Visitor Distribution */}
-          <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">Status Visitor</h3>
-            <div className="space-y-3">
-              {Object.entries(statusDist).map(([status, count]) => (
-                <div key={status} className="flex items-center gap-3">
-                  <div className="w-32 text-xs text-gray-600 capitalize">{STATUSES[status]?.label || status}</div>
-                  <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div 
-                      className={`h-full ${getStatusColor(status)} transition-all duration-500`}
-                      style={{ width: `${(count / maxStatusCount) * 100}%` }}
-                    />
-                  </div>
-                  <div className="w-8 text-right text-xs font-semibold">{count}</div>
+        {/* Charts Row 1: Only Top Industry */}
+        <div className="bg-white rounded-xl shadow p-4">
+          <h3 className="text-sm font-semibold text-gray-800 mb-4">Top Industri</h3>
+          <div className="space-y-3">
+            {industryDist.map(([industry, count]) => (
+              <div key={industry} className="flex items-center gap-3">
+                <div className="w-24 text-xs text-gray-600 truncate">{industry}</div>
+                <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+                  <div 
+                    className="h-full bg-red-500 transition-all duration-500"
+                    style={{ width: `${(count / maxIndustryCount) * 100}%` }}
+                  />
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right: Top Industry */}
-          <div className="bg-white rounded-xl shadow p-4">
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">Top Industri</h3>
-            <div className="space-y-3">
-              {industryDist.map(([industry, count]) => (
-                <div key={industry} className="flex items-center gap-3">
-                  <div className="w-24 text-xs text-gray-600 truncate">{industry}</div>
-                  <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div 
-                      className="h-full bg-red-500 transition-all duration-500"
-                      style={{ width: `${(count / maxIndustryCount) * 100}%` }}
-                    />
-                  </div>
-                  <div className="w-8 text-right text-xs font-semibold">{count}</div>
-                </div>
-              ))}
-            </div>
+                <div className="w-8 text-right text-xs font-semibold">{count}</div>
+              </div>
+            ))}
           </div>
         </div>
 
