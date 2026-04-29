@@ -174,7 +174,7 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
         day: 'numeric' 
       });
       
-      const message = `Selamat Siang Pak/Bu ${visitorName},\n\nPerkenalkan saya salah satu Visitor Host BNI Grow Chapter Jakarta.\n\nAnda diundang untuk ikut weekly meeting BNI Grow besok:\n📅 ${meetingDate}\n⏰ Pagi jam 07.30 - 10.15 WIB\n\nMohon konfirmasi, apakah Bapak/Ibu ${visitorName} akan hadir di online meeting besok jam 7.30 pagi?\n\nKonfirmasi kehadiran ini penting untuk menentukan pembagian room/seat saat open networking.\n\nTerima kasih,\nVisitor Host BNI Grow Jakarta`;
+      const message = `Selamat Siang Pak/Bu ${visitorName},\n\nPerkenalkan saya salah satu Visitor Host BNI Grow Chapter Jakarta.\n\nAnda diundang untuk ikut weekly meeting BNI Grow besok:\n${meetingDate}\nPagi jam 07.30 - 10.15 WIB\n\nMohon konfirmasi, apakah Bapak/Ibu ${visitorName} akan hadir di online meeting besok jam 7.30 pagi?\n\nKonfirmasi kehadiran ini penting untuk menentukan pembagian room/seat saat open networking.\n\nTerima kasih,\nVisitor Host BNI Grow Jakarta`;
       return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
     }
     
