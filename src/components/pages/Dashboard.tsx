@@ -145,22 +145,22 @@ export default function Dashboard() {
 
         {/* Row 2: Top Diajak Oleh - Horizontal Bars (Full Width) */}
         <div className="bg-white rounded-xl shadow p-6 mt-4">
-          <h3 className="text-base font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <span>🏆</span>
             Top Visitor Brought
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {referrerDist.length > 0 ? (
               referrerDist.map(([name, count]) => (
                 <div key={name} className="flex items-center gap-4">
-                  <div className="w-48 text-sm font-medium text-gray-700 truncate" title={name}>{name}</div>
-                  <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                  <div className="w-36 text-xs text-gray-600 truncate">{name}</div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
                     <div 
                       className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all duration-500"
                       style={{ width: `${(count / maxReferrerCount) * 100}%` }}
                     />
                   </div>
-                  <div className="w-8 text-right text-sm font-bold text-gray-900">{count}</div>
+                  <div className="w-8 text-right text-xs font-semibold">{count}</div>
                 </div>
               ))
             ) : (
