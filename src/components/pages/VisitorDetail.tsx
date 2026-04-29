@@ -54,7 +54,7 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
     setUpdating(true)
     try {
       await updateVisitor(visitor.id, { 
-        status: newStatus,
+        status: newStatus as any,
         updated_at: new Date().toISOString()
       })
       await reload()
