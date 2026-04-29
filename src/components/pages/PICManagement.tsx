@@ -369,7 +369,7 @@ export default function PICManagement() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
                   placeholder="Contoh: Ilham Ramadhan"
                   autoFocus
                 />
@@ -383,7 +383,7 @@ export default function PICManagement() {
                   type="text"
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
                   placeholder="Visitor Followup Specialist"
                 />
               </div>
@@ -396,7 +396,7 @@ export default function PICManagement() {
                   type="tel"
                   value={formData.wa}
                   onChange={(e) => setFormData({ ...formData, wa: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
                   placeholder="0812xxxx"
                 />
               </div>
@@ -411,7 +411,7 @@ export default function PICManagement() {
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
                       placeholder="pic@bnigrow.com"
                     />
                     <p className="text-[10px] text-gray-500 mt-1">Email untuk login ke sistem</p>
@@ -425,7 +425,7 @@ export default function PICManagement() {
                       type="password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
                       placeholder="pic123"
                     />
                     <p className="text-[10px] text-gray-500 mt-1">Password awal, bisa diubah setelah login</p>
