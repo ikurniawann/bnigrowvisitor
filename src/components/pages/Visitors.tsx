@@ -26,7 +26,7 @@ const initialForm: VisitorForm = {
   business_field: '',
   company: '',
   chapter: '',
-  gender: 'Laki-laki',
+  gender: 'Bapak',
   referred_by_member_id: '',
   meeting_date: '',
   pic_id: '',
@@ -168,7 +168,7 @@ export default function Visitors() {
       business_field: visitor.business_field || '',
       company: visitor.company || '',
       chapter: visitor.chapter || '',
-      gender: visitor.gender || 'Laki-laki',
+      gender: visitor.gender || 'Bapak',
       referred_by_member_id: (visitor as any).referred_by_member_id || '',
       meeting_date: visitor.meeting_date || '',
       pic_id: visitor.pic_id || '',
@@ -394,9 +394,9 @@ export default function Visitors() {
                     <td className="px-4 py-3 text-[13px] text-gray-600">
                       {visitor.gender ? (
                         <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                          visitor.gender === 'Laki-laki' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
+                          visitor.gender === 'Bapak' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
                         }`}>
-                          {visitor.gender === 'Laki-laki' ? '👨' : '👩'} {visitor.gender}
+                          {visitor.gender === 'Bapak' ? '👨' : '👩'} {visitor.gender}
                         </span>
                       ) : (
                         <span className="text-gray-400">-</span>
@@ -635,8 +635,8 @@ export default function Visitors() {
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
                   >
-                    <option value="Laki-laki">Laki-laki</option>
-                    <option value="Perempuan">Perempuan</option>
+                    <option value="Bapak">Bapak</option>
+                    <option value="Ibu">Ibu</option>
                   </select>
                 </div>
 
