@@ -70,7 +70,8 @@ export function useData() {
       .select(`
         *,
         pic:pic_id (id, name),
-        meeting:meeting_id (id, title, meeting_date)
+        meeting:meeting_id (id, title, meeting_date),
+        referred_by_member:referred_by_member_id (id, name)
       `)
       .order('created_at', { ascending: false })
 
@@ -85,6 +86,7 @@ export function useData() {
       pic_name: (v.pic as any)?.name,
       meeting_title: (v.meeting as any)?.title,
       meeting_date: (v.meeting as any)?.meeting_date,
+      referred_by_member_name: (v.referred_by_member as any)?.name,
     })))
   }
 
