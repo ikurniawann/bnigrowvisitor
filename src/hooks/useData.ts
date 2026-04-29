@@ -242,6 +242,9 @@ export function useData() {
   function getReferrerDistribution() {
     const distribution: Record<string, number> = {}
     visitors.forEach(v => {
+      // Exclude visitors with status 'Tidak Hadir' (no_show)
+      if (v.status === 'no_show') return
+      
       const referrerName = (v as any).referred_by_member_name
       if (referrerName) {
         distribution[referrerName] = (distribution[referrerName] || 0) + 1
@@ -347,6 +350,9 @@ export function useData() {
   function getReferrerDistribution() {
     const distribution: Record<string, number> = {}
     visitors.forEach(v => {
+      // Exclude visitors with status 'Tidak Hadir' (no_show)
+      if (v.status === 'no_show') return
+      
       const referrerName = (v as any).referred_by_member_name
       if (referrerName) {
         distribution[referrerName] = (distribution[referrerName] || 0) + 1
@@ -391,6 +397,9 @@ export function useData() {
   function getReferrerDistribution() {
     const distribution: Record<string, number> = {}
     visitors.forEach(v => {
+      // Exclude visitors with status 'Tidak Hadir' (no_show)
+      if (v.status === 'no_show') return
+      
       const referrerName = (v as any).referred_by_member_name
       if (referrerName) {
         distribution[referrerName] = (distribution[referrerName] || 0) + 1
