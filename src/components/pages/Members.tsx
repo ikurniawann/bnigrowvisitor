@@ -33,6 +33,10 @@ export default function Members() {
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
 
   const handleOpenAdd = () => {
     setFormData(initialForm)
@@ -113,6 +117,17 @@ export default function Members() {
     
     return matchSearch && matchStatus
   })
+
+  // Pagination
+  const totalPages = Math.ceil(filteredMembers.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedMembers = filteredMembers.slice(startIndex, endIndex)
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, statusFilter])
 
   if (loading) {
     return (
@@ -211,7 +226,7 @@ export default function Members() {
               </tr>
             </thead>
             <tbody>
-              {filteredMembers.length === 0 ? (
+              {paginatedMembers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
                     <svg className="w-12 h-12 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -230,7 +245,7 @@ export default function Members() {
                   </td>
                 </tr>
               ) : (
-                filteredMembers.map((member, index) => (
+                paginatedMembers.map((member, index) => (
                   <tr key={member.id} className="border-t border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-[13px] text-gray-600 font-medium">{index + 1}</td>
                     <td className="px-4 py-3">
@@ -283,6 +298,48 @@ export default function Members() {
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="bg-white rounded-xl shadow p-4 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Menampilkan <span className="font-medium text-gray-900">{startIndex + 1}</span> - <span className="font-medium text-gray-900">{Math.min(endIndex, filteredMembers.length)}</span> dari <span className="font-medium text-gray-900">{filteredMembers.length}</span> data
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ← Previous
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                    currentPage === page
+                      ? 'bg-red-600 text-white font-medium'
+                      : 'border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal Form */}
       {isModalOpen && (

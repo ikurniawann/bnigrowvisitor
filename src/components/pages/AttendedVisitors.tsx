@@ -35,6 +35,10 @@ export default function AttendedVisitors() {
   const [selectedSubStatus, setSelectedSubStatus] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [interviewDate, setInterviewDate] = useState('')
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
 
   const handleOpenDetail = (visitor: any) => {
     setSelectedVisitor(visitor)
@@ -145,6 +149,12 @@ export default function AttendedVisitors() {
     ? attendedVisitors 
     : grouped[filterStatus as keyof typeof grouped] || []
 
+  // Pagination
+  const totalPages = Math.ceil(filteredVisitors.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedVisitors = filteredVisitors.slice(startIndex, endIndex)
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -237,7 +247,7 @@ export default function AttendedVisitors() {
           </h3>
         </div>
         
-        {filteredVisitors.length === 0 ? (
+        {paginatedVisitors.length === 0 ? (
           <div className="p-12 text-center">
             <svg className="w-16 h-16 mx-auto mb-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -263,7 +273,7 @@ export default function AttendedVisitors() {
                 </tr>
               </thead>
               <tbody>
-                {filteredVisitors.map((visitor) => (
+                {paginatedVisitors.map((visitor) => (
                   <tr key={visitor.id} className={`border-t border-gray-100 hover:bg-gray-50 ${FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES] ? `border-l-4 ${FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES].color}` : ''}`}>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900 text-[13px]">{visitor.name}</div>
@@ -343,6 +353,48 @@ export default function AttendedVisitors() {
           </div>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="bg-white rounded-xl shadow p-4 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Menampilkan <span className="font-medium text-gray-900">{startIndex + 1}</span> - <span className="font-medium text-gray-900">{Math.min(endIndex, filteredVisitors.length)}</span> dari <span className="font-medium text-gray-900">{filteredVisitors.length}</span> data
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ← Previous
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                    currentPage === page
+                      ? 'bg-red-600 text-white font-medium'
+                      : 'border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Info Box */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
