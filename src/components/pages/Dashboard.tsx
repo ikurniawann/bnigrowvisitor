@@ -147,7 +147,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl shadow p-6 mt-4">
           <h3 className="text-base font-bold text-gray-900 mb-6 flex items-center gap-2">
             <span>🏆</span>
-            Top Diajak Oleh (Member)
+            Top Visitor Brought
           </h3>
           <div className="space-y-4">
             {referrerDist.length > 0 ? (
