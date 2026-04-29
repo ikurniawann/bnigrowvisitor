@@ -13,6 +13,7 @@ export interface PIC {
 export interface VisitorWithRelations extends Visitor {
   pic_name?: string
   meeting_title?: string
+  meeting_date?: string
 }
 
 const STATUSES = {
@@ -52,7 +53,7 @@ export function useData() {
       .select(`
         *,
         pic:pic_id (id, name),
-        meeting:meeting_id (id, title)
+        meeting:meeting_id (id, title, meeting_date)
       `)
       .order('created_at', { ascending: false })
 
@@ -66,6 +67,7 @@ export function useData() {
       ...v,
       pic_name: (v.pic as any)?.name,
       meeting_title: (v.meeting as any)?.title,
+      meeting_date: (v.meeting as any)?.meeting_date,
     })))
   }
 
