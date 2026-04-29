@@ -301,7 +301,6 @@ export default function Visitors() {
                 <th className="text-left font-medium px-4 py-3">Bidang Usaha</th>
                 <th className="text-left font-medium px-4 py-3">No WA</th>
                 <th className="text-left font-medium px-4 py-3 hidden md:table-cell">Email</th>
-                <th className="text-left font-medium px-4 py-3 hidden lg:table-cell">Meeting</th>
                 <th className="text-left font-medium px-4 py-3 hidden md:table-cell">Diajak Oleh</th>
                 <th className="text-left font-medium px-4 py-3 hidden md:table-cell">PIC</th>
                 <th className="text-left font-medium px-4 py-3">Status</th>
@@ -311,7 +310,7 @@ export default function Visitors() {
             <tbody>
               {filteredVisitors.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
                     <svg className="w-12 h-12 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                       <circle cx="9" cy="7" r="4" />
@@ -343,20 +342,7 @@ export default function Visitors() {
                     <td className="px-4 py-3 text-sm text-gray-600 hidden md:table-cell">
                       {visitor.email || '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 hidden lg:table-cell">
-                      {visitor.meeting_date ? (
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {new Date(visitor.meeting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {new Date(visitor.meeting_date).getFullYear()}
-                          </div>
-                        </div>
-                      ) : (
-                        visitor.meeting_title || '-'
-                      )}
-                    </td>
+
                     <td className="px-4 py-3 text-sm hidden md:table-cell">
                       {visitor.pic_name ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
