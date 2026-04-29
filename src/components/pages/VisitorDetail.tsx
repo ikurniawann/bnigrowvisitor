@@ -167,7 +167,14 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
     
     // Add message template if visitor name provided
     if (visitorName) {
-      const message = `Halo ${visitorName},\n\nTerima kasih sudah berkunjung ke BNI Grow Jakarta.\n\nKami ingin menindaklanjuti kunjungan Anda dan mengajak Anda untuk bergabung menjadi member BNI Grow.\n\nApakah Anda bersedia untuk diskusi lebih lanjut?\n\nSalam,\nBNI Grow Jakarta`;
+      const meetingDate = new Date().toLocaleDateString('id-ID', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      const message = `Selamat Siang Pak/Bu ${visitorName},\n\nPerkenalkan saya salah satu Visitor Host BNI Grow Chapter Jakarta.\n\nAnda diundang untuk ikut weekly meeting BNI Grow besok:\n📅 ${meetingDate}\n⏰ Pagi jam 07.30 - 10.15 WIB\n\nMohon konfirmasi, apakah Bapak/Ibu ${visitorName} akan hadir di online meeting besok jam 7.30 pagi?\n\nKonfirmasi kehadiran ini penting untuk menentukan pembagian room/seat saat open networking.\n\nTerima kasih,\nVisitor Host BNI Grow Jakarta`;
       return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
     }
     
