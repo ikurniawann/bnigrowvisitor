@@ -153,16 +153,24 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
     }
   }
 
-  const formatWaLink = (phone: string) => {
+  const formatWaLink = (phone: string, visitorName?: string) => {
     // Clean phone number and add country code
     const clean = phone.replace(/[^0-9]/g, '')
+    let waNumber: string
     if (clean.startsWith('0')) {
-      return `https://wa.me/62${clean.slice(1)}`
+      waNumber = `62${clean.slice(1)}`
+    } else if (clean.startsWith('62')) {
+      waNumber = clean
+    } else {
+      waNumber = `62${clean}`
     }
-    if (clean.startsWith('62')) {
-      return `https://wa.me/${clean}`
+    
+    // Add message template if visitor name provided
+    if (visitorName) {
+      const message = `Halo ${visitorName},\n\nTerima kasih sudah berkunjung ke BNI Grow Jakarta.\n\nKami ingin menindaklanjuti kunjungan Anda dan mengajak Anda untuk bergabung menjadi member BNI Grow.\n\nApakah Anda bersedia untuk diskusi lebih lanjut?\n\nSalam,\nBNI Grow Jakarta`      return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`
     }
-    return `https://wa.me/62${clean}`
+    
+    return `https://wa.me/${waNumber}`
   }
 
   return (
@@ -204,7 +212,7 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
             <div className="grid grid-cols-[80px_1fr] gap-2 text-sm">
               <div className="text-gray-500">WhatsApp</div>
               <a 
-                href={formatWaLink(visitor.phone)} 
+                href={formatWaLink(visitor.phone, visitor.name)} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-green-600 hover:underline font-medium"
