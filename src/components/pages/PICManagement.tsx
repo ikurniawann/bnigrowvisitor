@@ -1,9 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { useData } from '@/hooks/useData'
-import { supabase } from '@/lib/supabase'
 
 interface PICForm {
   name: string
@@ -22,7 +20,6 @@ const initialForm: PICForm = {
 }
 
 export default function PICManagement() {
-  const router = useRouter()
   const { pics, visitors, loading, reload, addPic, updatePic, deletePic } = useData()
   
   // State
@@ -92,7 +89,7 @@ export default function PICManagement() {
         }
 
         // Create user in database
-        const { data: userData, error: userError } = await supabase
+        await supabase
           .from('users')
           .insert({
             name: formData.name,
@@ -102,7 +99,6 @@ export default function PICManagement() {
             phone: formData.wa,
             is_active: true,
           })
-          .select()
           .single()
 
         if (userError) throw userError

@@ -1,37 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useData } from '@/hooks/useData'
 import VisitorDetail from './VisitorDetail'
-
-const ATTENDED_SUBSTATUS = {
-  contacted_no_answer: { 
-    label: 'Sudah Dihubungi, Belum Jawab', 
-    badge: 'bg-yellow-100 text-yellow-800', 
-    color: 'border-yellow-500' 
-  },
-  interview_pending_date: { 
-    label: 'Akan Interview (Belum Ada Tanggal)', 
-    badge: 'bg-purple-100 text-purple-800', 
-    color: 'border-purple-500' 
-  },
-  interview_scheduled: { 
-    label: 'Sudah Ada Tanggal Interview', 
-    badge: 'bg-blue-100 text-blue-800', 
-    color: 'border-blue-500' 
-  },
-  interview_completed_accept: { 
-    label: 'Interview Selesai - Diterima', 
-    badge: 'bg-emerald-100 text-emerald-800', 
-    color: 'border-emerald-500' 
-  },
-  interview_completed_reject: { 
-    label: 'Interview Selesai - Tidak Diterima', 
-    badge: 'bg-red-100 text-red-800', 
-    color: 'border-red-500' 
-  },
-}
 
 const FINAL_STATUSES = {
   interview:    { label: 'Interview',      badge: 'bg-purple-100 text-purple-800', color: 'border-purple-500' },
@@ -40,7 +11,6 @@ const FINAL_STATUSES = {
 }
 
 export default function AttendedVisitors() {
-  const router = useRouter()
   const { visitors, loading, reload, updateVisitor } = useData()
   
   // Filter: hanya visitor dengan status attended atau final statuses
@@ -74,18 +44,6 @@ export default function AttendedVisitors() {
   const handleCloseDetail = () => {
     setIsDetailOpen(false)
     setSelectedVisitor(null)
-  }
-
-  const handleQuickUpdate = async (visitorId: string, newStatus: string) => {
-    try {
-      await updateVisitor(visitorId, {
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      })
-      await reload()
-    } catch (err: any) {
-      alert('Gagal update: ' + err.message)
-    }
   }
 
   const handleSubStatusSelect = (subStatus: string) => {
@@ -410,10 +368,7 @@ export default function AttendedVisitors() {
         <VisitorDetail
           visitor={selectedVisitor}
           onClose={handleCloseDetail}
-          onEdit={(v) => {
-            handleCloseDetail()
-            // Edit will be implemented
-          }}
+          onEdit={() => handleCloseDetail()}
         />
       )}
 
@@ -477,7 +432,7 @@ export default function AttendedVisitors() {
                   >
                     <span className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center text-lg">✅</span>
                     <div>
-                      <div>Sudah Ada Tanggal Interview</div>
+                      <div className="font-semibold text-sm">Sudah Ada Tanggal Interview</div>
                       <div className="text-xs text-blue-600 font-normal mt-0.5">Jadwal sudah fix</div>
                     </div>
                   </button>

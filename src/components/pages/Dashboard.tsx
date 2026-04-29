@@ -5,7 +5,7 @@ import { useData } from '@/hooks/useData'
 
 export default function Dashboard() {
   const router = useRouter()
-  const { getStats, getIndustryDistribution, getStatusDistribution, visitors, KANBAN_COLS, STATUSES } = useData()
+  const { getStats, getIndustryDistribution, getStatusDistribution, visitors } = useData()
   const stats = getStats()
 
   const recentVisitors = visitors.slice(0, 8)
@@ -156,7 +156,7 @@ export default function Dashboard() {
               {recentVisitors.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-gray-500 text-sm">
-                    Belum ada visitor. Klik "Tambah Visitor" untuk menambahkan.
+                    Belum ada visitor. Klik &quot;Tambah Visitor&quot; untuk menambahkan.
                   </td>
                 </tr>
               ) : (

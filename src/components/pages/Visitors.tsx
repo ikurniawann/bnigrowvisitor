@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useData, PIC } from '@/hooks/useData'
-import { supabase } from '@/lib/supabase'
+import { useState } from 'react'
+import { useData } from '@/hooks/useData'
 import VisitorDetail from './VisitorDetail'
 
 interface VisitorForm {

@@ -38,7 +38,6 @@ export default function DashboardLayout({
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState('dashboard')
-  const [showAddVisitorModal, setShowAddVisitorModal] = useState(false)
 
   useEffect(() => {
     const loadUser = async () => {

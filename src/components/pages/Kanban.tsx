@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useData } from '@/hooks/useData'
 import VisitorDetail from './VisitorDetail'
@@ -14,20 +14,9 @@ const KANBAN_COLS = [
   { id: 'member', label: 'Jadi Member', color: 'bg-cyan-500', light: 'bg-cyan-50', dark: 'text-cyan-800' },
 ]
 
-const STATUSES = {
-  new:          { label: 'Baru Daftar',      badge: 'bg-blue-100 text-blue-800' },
-  followup:     { label: 'Follow Up',         badge: 'bg-yellow-100 text-yellow-800' },
-  confirmed:    { label: 'Konfirmasi Hadir',  badge: 'bg-green-100 text-green-800' },
-  attended:     { label: 'Hadir',             badge: 'bg-emerald-100 text-emerald-800' },
-  no_show:      { label: 'Tidak Hadir',       badge: 'bg-red-100 text-red-800' },
-  interview:    { label: 'Interview',         badge: 'bg-purple-100 text-purple-800' },
-  member:       { label: 'Jadi Member',       badge: 'bg-cyan-100 text-cyan-800' },
-  not_continue: { label: 'Tidak Lanjut',      badge: 'bg-gray-100 text-gray-800' },
-}
-
 export default function Kanban() {
   const router = useRouter()
-  const { visitors, meetings, pics, loading, reload, updateVisitor } = useData()
+  const { visitors, pics, loading, reload, updateVisitor } = useData()
   
   // Filters
   const [meetingFilter, setMeetingFilter] = useState('')
@@ -344,10 +333,7 @@ export default function Kanban() {
         <VisitorDetail
           visitor={selectedVisitor}
           onClose={handleCloseDetail}
-          onEdit={(v) => {
-            handleCloseDetail()
-            // Will implement edit modal later
-          }}
+          onEdit={() => handleCloseDetail()}
         />
       )}
     </div>
