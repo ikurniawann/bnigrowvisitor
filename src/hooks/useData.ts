@@ -17,6 +17,21 @@ export interface VisitorWithRelations extends Visitor {
   meeting_date?: string
 }
 
+export interface Member {
+  id: string
+  name: string
+  phone?: string
+  email?: string
+  business_field?: string
+  company?: string
+  chapter?: string
+  joined_date: string
+  status: string
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
 const STATUSES = {
   new:          { label: 'Baru Daftar',      color: '#dbeafe' },
   followup:     { label: 'Follow Up',         color: '#fef3c7' },
@@ -34,6 +49,7 @@ export function useData() {
   const [visitors, setVisitors] = useState<VisitorWithRelations[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [pics, setPics] = useState<PIC[]>([])
+  const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
 
   // Load all data
@@ -44,7 +60,7 @@ export function useData() {
 
   async function loadData() {
     setLoading(true)
-    await Promise.all([loadVisitors(), loadMeetings(), loadPics()])
+    await Promise.all([loadVisitors(), loadMeetings(), loadPics(), loadMembers()])
     setLoading(false)
   }
 
@@ -105,6 +121,54 @@ export function useData() {
       role: p.role || 'PIC',
       wa: p.phone || '',
     })))
+  }
+
+  async function loadMembers() {
+    const { data, error } = await supabase
+      .from('members')
+      .select('*')
+      .order('joined_date', { ascending: false })
+
+    if (error) {
+      console.error('Error loading members:', error)
+      setMembers([])
+      return
+    }
+
+    setMembers(data || [])
+  }
+
+  // CRUD Members
+  async function addMember(member: Partial<Member>) {
+    const { data, error } = await supabase
+      .from('members')
+      .insert(member)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  }
+
+  async function updateMember(id: string, member: Partial<Member>) {
+    const { data, error } = await supabase
+      .from('members')
+      .update(member)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  }
+
+  async function deleteMember(id: string) {
+    const { error } = await supabase
+      .from('members')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
   }
 
   // CRUD Visitors
@@ -293,6 +357,7 @@ export function useData() {
     visitors,
     meetings,
     pics,
+    members,
     loading,
     reload: loadData,
     addVisitor,
@@ -303,6 +368,9 @@ export function useData() {
     deletePic,
     addMeeting,
     deleteMeeting,
+    addMember,
+    updateMember,
+    deleteMember,
     getFilteredVisitors,
     getStats,
     getIndustryDistribution,
