@@ -11,6 +11,7 @@ interface VisitorForm {
   business_field: string
   company: string
   chapter: string
+  gender: string
   referred_by_member_id: string
   meeting_date: string
   pic_id: string
@@ -25,6 +26,7 @@ const initialForm: VisitorForm = {
   business_field: '',
   company: '',
   chapter: '',
+  gender: 'Laki-laki',
   referred_by_member_id: '',
   meeting_date: '',
   pic_id: '',
@@ -166,6 +168,7 @@ export default function Visitors() {
       business_field: visitor.business_field || '',
       company: visitor.company || '',
       chapter: visitor.chapter || '',
+      gender: visitor.gender || 'Laki-laki',
       referred_by_member_id: (visitor as any).referred_by_member_id || '',
       meeting_date: visitor.meeting_date || '',
       pic_id: visitor.pic_id || '',
@@ -205,6 +208,7 @@ export default function Visitors() {
         business_field: formData.business_field || undefined,
         company: formData.company || undefined,
         chapter: formData.chapter || undefined,
+        gender: formData.gender || undefined,
         referred_by_member_id: formData.referred_by_member_id || undefined,
         meeting_date: formData.meeting_date || undefined,
         pic_id: formData.pic_id || undefined,
@@ -351,6 +355,7 @@ export default function Visitors() {
               <tr className="text-xs text-white font-bold uppercase tracking-wide">
                 <th className="text-left font-medium px-4 py-3">No</th>
                 <th className="text-left font-medium px-4 py-3">Nama</th>
+                <th className="text-left font-medium px-4 py-3">Gender</th>
                 <th className="text-left font-medium px-4 py-3">Bidang Usaha</th>
                 <th className="text-left font-medium px-4 py-3">No WA</th>
                 <th className="text-left font-medium px-4 py-3 hidden md:table-cell">Email</th>
@@ -363,7 +368,7 @@ export default function Visitors() {
             <tbody>
               {paginatedVisitors.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-gray-500">
                     <svg className="w-12 h-12 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                       <circle cx="9" cy="7" r="4" />
@@ -386,6 +391,17 @@ export default function Visitors() {
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900 text-[13px]">{visitor.name}</div>
                       <div className="text-xs text-gray-500 md:hidden">{visitor.phone}</div>
+                    </td>
+                    <td className="px-4 py-3 text-[13px] text-gray-600">
+                      {visitor.gender ? (
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                          visitor.gender === 'Laki-laki' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
+                        }`}>
+                          {visitor.gender === 'Laki-laki' ? '👨' : '👩'} {visitor.gender}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-[13px] text-gray-600">
                       {visitor.business_field || '-'}
@@ -612,6 +628,20 @@ export default function Visitors() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
                     placeholder="Misal: Grow Jakarta Selatan"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={formData.gender}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
+                  >
+                    <option value="Laki-laki">Laki-laki</option>
+                    <option value="Perempuan">Perempuan</option>
+                  </select>
                 </div>
 
                 <div>
