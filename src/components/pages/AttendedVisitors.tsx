@@ -316,8 +316,16 @@ export default function AttendedVisitors() {
                         visitor.status === 'attended' ? 'bg-emerald-100 text-emerald-800' :
                         FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES]?.badge || 'bg-gray-100 text-gray-800'
                       }`}>
-                        {visitor.status === 'attended' ? 'Hadir' :
-                         FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES]?.label || visitor.status}
+                        {(() => {
+                          if (visitor.status === 'attended') {
+                            const num = (visitor as any).attended_choice_number
+                            if (num) {
+                              return `Hadir-${num}`
+                            }
+                            return 'Hadir'
+                          }
+                          return FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES]?.label || visitor.status
+                        })()}
                       </span>
                     </td>
                     <td className="px-4 py-3">
