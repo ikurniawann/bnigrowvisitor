@@ -171,7 +171,7 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
     }
   }
 
-  const formatWaLink = (phone: string, visitorName?: string, referredByMemberName?: string) => {
+  const formatWaLink = (phone: string, visitorName?: string, referredByMemberName?: string, gender?: string, meetingDate?: string, businessField?: string, company?: string) => {
     // Clean phone number and add country code
     const clean = phone.replace(/[^0-9]/g, '')
     let waNumber: string
@@ -185,20 +185,39 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
     
     // Add message template if visitor name provided
     if (visitorName) {
-      // Calculate tomorrow's date
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      const meetingDate = tomorrow.toLocaleDateString('id-ID', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      
       const referrerName = referredByMemberName || '[Diajak Oleh]';
+      const visitorGender = gender === 'Ibu' ? 'Ibu' : 'Bapak';
+      const actualMeetingDate = meetingDate || new Date().toISOString().split('T')[0];
       
-      const message = `Selamat Siang Pak/Bu ${visitorName},\n\nPerkenalkan saya XXX Visitor Host BNI Grow dengan bisnis XXX\nChapter Jakarta.\n\nAnda diundang oleh Bapak/Ibu ${referrerName} untuk ikut weekly meeting BNI Grow besok:\n${meetingDate}\nPagi jam 07.30 - 10.15 WIB\n\nMohon konfirmasi, apakah Bapak/Ibu ${visitorName} akan hadir di online meeting besok jam 7.30 pagi?\n\nKonfirmasi kehadiran ini penting untuk menentukan pembagian room/seat saat open networking.\n\nTerima kasih,\nVisitor Host BNI Grow Jakarta`;
+      const message = `Halo ${visitorGender} ${visitorName},
+
+*Undangan Weekly Meeting BNI Grow - ${new Date(actualMeetingDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}*
+
+Terima kasih atas minat ${visitorGender} untuk bergabung dengan BNI Grow Chapter.
+
+📅 *Hari/Tanggal:* ${new Date(actualMeetingDate).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+⏰ *Waktu:* 07:30 - 10:15 WIB
+📍 *Lokasi:* Online
+🔗 *Link Meeting:* [Link akan dikirim H-1]
+
+*Konfirmasi Kehadiran:*
+Mohon konfirmasi kehadiran ${visitorGender} dengan membalas pesan ini.
+
+*Info Tambahan:*
+- Durasi meeting: ± 2 jam
+- Dress code: Business Casual
+- Harap login 5 menit sebelum meeting dimulai
+
+Jika ada pertanyaan, jangan ragu untuk menghubungi kami.
+
+Salam hangat,
+*BNI Grow Chapter*
+www.bnigrow.com
+
+---
+*Referrer:* ${referrerName}
+*Business:* ${businessField || '-'}
+*Company:* ${company || '-'}`;
       return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
     }
     
@@ -258,7 +277,7 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
             <div className="grid grid-cols-[80px_1fr] gap-2 text-sm">
               <div className="text-gray-500">WhatsApp</div>
               <a 
-                href={formatWaLink(visitor.phone, visitor.name, (visitor as any).referred_by_member_name)} 
+                href={formatWaLink(visitor.phone, visitor.name, (visitor as any).referred_by_member_name, visitor.gender, visitor.meeting_date, visitor.business_field, visitor.company)} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-green-600 hover:underline font-medium"
