@@ -235,7 +235,7 @@ export default function Dashboard() {
                   <div className="w-36 text-xs text-gray-600 truncate">{name}</div>
                   <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
                     <div 
-                      className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full transition-all duration-500"
+                      className="h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full transition-all duration-500"
                       style={{ width: `${(count / maxReferrerCount) * 100}%` }}
                     />
                   </div>
