@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useData } from '@/hooks/useData'
 
@@ -19,20 +20,65 @@ export default function Dashboard() {
   const { getStats, getIndustryDistribution, getStatusDistribution, getReferrerDistribution, visitors, meetings } = useData()
   
   // Filter state
-  const meetingFilter = ''
+  const [meetingFilter, setMeetingFilter] = useState<string>('')
   
   // Filter visitors by meeting if selected
-  const filteredVisitors = visitors
+  const filteredVisitors = meetingFilter 
+    ? visitors.filter(v => v.meeting_id === meetingFilter)
+    : visitors
   
   const stats = getStats()
+  const filteredStats = meetingFilter
+    ? {
+        total: filteredVisitors.length,
+        confirmed: filteredVisitors.filter(v => v.status === 'confirmed').length,
+        pending: filteredVisitors.filter(v => v.status === 'followup').length,
+        member: filteredVisitors.filter(v => v.status === 'member').length,
+      }
+    : stats
   const recentVisitors = filteredVisitors.slice(0, 8)
+  
   const statusDist = getStatusDistribution()
+  const filteredStatusDist = meetingFilter
+    ? (() => {
+        const dist: Record<string, number> = {}
+        filteredVisitors.forEach(v => {
+          dist[v.status] = (dist[v.status] || 0) + 1
+        })
+        return dist
+      })()
+    : statusDist
+  
   const industryDist = getIndustryDistribution()
+  const filteredIndustryDist = meetingFilter
+    ? (() => {
+        const dist: Record<string, number> = {}
+        filteredVisitors.forEach(v => {
+          const field = v.business_field || 'Lainnya'
+          dist[field] = (dist[field] || 0) + 1
+        })
+        return Object.entries(dist).sort((a, b) => b[1] - a[1]).slice(0, 5) as [string, number][]
+      })()
+    : industryDist
+  
   const referrerDist = getReferrerDistribution()
+  const filteredReferrerDist = meetingFilter
+    ? (() => {
+        const dist: Record<string, number> = {}
+        filteredVisitors.forEach(v => {
+          if (v.status === 'no_show') return
+          const referrerName = (v as any).referred_by_member_name
+          if (referrerName) {
+            dist[referrerName] = (dist[referrerName] || 0) + 1
+          }
+        })
+        return Object.entries(dist).sort((a, b) => b[1] - a[1]).slice(0, 10) as [string, number][]
+      })()
+    : referrerDist
 
-  const maxStatusCount = Math.max(...Object.values(statusDist), 1)
-  const maxIndustryCount = Math.max(...industryDist.map(([, c]) => c), 1)
-  const maxReferrerCount = Math.max(...referrerDist.map(([, c]) => c), 1)
+  const maxStatusCount = Math.max(...Object.values(filteredStatusDist).map(v => v || 1), 1)
+  const maxIndustryCount = Math.max(...filteredIndustryDist.map(([, c]) => c), 1)
+  const maxReferrerCount = Math.max(...filteredReferrerDist.map(([, c]) => c), 1)
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -64,12 +110,39 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Weekly Meeting Filter */}
+      <div className="bg-white rounded-xl shadow p-4">
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-semibold text-gray-700">Filter Weekly Meeting:</label>
+          <select 
+            value={meetingFilter} 
+            onChange={(e) => setMeetingFilter(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+          >
+            <option value="">Semua Meeting</option>
+            {meetings.map(meeting => (
+              <option key={meeting.id} value={meeting.id}>
+                {meeting.title} - {new Date(meeting.meeting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </option>
+            ))}
+          </select>
+          {meetingFilter && (
+            <button
+              onClick={() => setMeetingFilter('')}
+              className="text-xs text-red-600 hover:text-red-700 font-medium"
+            >
+              ✕ Clear
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl shadow p-4">
           <div className="flex justify-between items-start">
             <div>
-              <div className="text-3xl font-bold text-blue-600">{stats.total}</div>
+              <div className="text-3xl font-bold text-blue-600">{filteredStats.total}</div>
               <div className="text-xs text-gray-500 mt-1">Total Visitor</div>
             </div>
             <div className="text-2xl opacity-40">👥</div>
@@ -79,7 +152,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl shadow p-4">
           <div className="flex justify-between items-start">
             <div>
-              <div className="text-3xl font-bold text-green-600">{stats.confirmed}</div>
+              <div className="text-3xl font-bold text-green-600">{filteredStats.confirmed}</div>
               <div className="text-xs text-gray-500 mt-1">Konfirmasi Hadir</div>
             </div>
             <div className="text-2xl opacity-40">✅</div>
@@ -89,7 +162,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl shadow p-4">
           <div className="flex justify-between items-start">
             <div>
-              <div className="text-3xl font-bold text-yellow-600">{stats.pending}</div>
+              <div className="text-3xl font-bold text-yellow-600">{filteredStats.pending}</div>
               <div className="text-xs text-gray-500 mt-1">Pending Follow Up</div>
             </div>
             <div className="text-2xl opacity-40">⏳</div>
@@ -99,7 +172,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl shadow p-4">
           <div className="flex justify-between items-start">
             <div>
-              <div className="text-3xl font-bold text-purple-600">{stats.member}</div>
+              <div className="text-3xl font-bold text-purple-600">{filteredStats.member}</div>
               <div className="text-xs text-gray-500 mt-1">Jadi Member</div>
             </div>
             <div className="text-2xl opacity-40">🏆</div>
@@ -113,7 +186,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl shadow p-4">
           <h3 className="text-sm font-semibold text-gray-800 mb-4">Status Visitor</h3>
           <div className="space-y-3">
-            {Object.entries(statusDist).map(([status, count]) => (
+            {Object.entries(filteredStatusDist).map(([status, count]) => (
               <div key={status} className="flex items-center gap-3">
                 <div className="w-24 text-xs text-gray-600 truncate">
                   {STATUSES[status as keyof typeof STATUSES]?.label || status}
@@ -134,7 +207,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl shadow p-4">
           <h3 className="text-sm font-semibold text-gray-800 mb-4">Top Industri</h3>
           <div className="space-y-3">
-            {industryDist.map(([industry, count]) => (
+            {filteredIndustryDist.map(([industry, count]) => (
               <div key={industry} className="flex items-center gap-3">
                 <div className="w-24 text-xs text-gray-600 truncate">{industry}</div>
                 <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
@@ -156,8 +229,8 @@ export default function Dashboard() {
             Top Visitor Brought
           </h3>
           <div className="space-y-3">
-            {referrerDist.length > 0 ? (
-              referrerDist.map(([name, count]) => (
+            {filteredReferrerDist.length > 0 ? (
+              filteredReferrerDist.map(([name, count]) => (
                 <div key={name} className="flex items-center gap-4">
                   <div className="w-36 text-xs text-gray-600 truncate">{name}</div>
                   <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
