@@ -13,7 +13,7 @@ interface VisitorForm {
   chapter: string
   gender: string
   referred_by_member_id: string
-  meeting_date: string
+  meeting_id: string
   pic_id: string
   status: string
   attended_choice_number?: number
@@ -30,7 +30,7 @@ const initialForm: VisitorForm = {
   chapter: '',
   gender: 'Bapak',
   referred_by_member_id: '',
-  meeting_date: '',
+  meeting_id: '',
   pic_id: '',
   status: 'new',
   attended_choice_number: undefined,
@@ -156,7 +156,7 @@ export default function Visitors() {
   const handleOpenAdd = () => {
     setFormData({
       ...initialForm,
-      meeting_date: new Date().toISOString().split('T')[0],
+      meeting_id: meetings.length > 0 ? meetings[0].id : '',
       pic_id: '',
     })
     setEditingId(null)
@@ -165,19 +165,6 @@ export default function Visitors() {
   }
 
   const handleOpenEdit = (visitor: any) => {
-    // Format meeting_date to YYYY-MM-DD for date input
-    let formattedDate = ''
-    if (visitor.meeting_date) {
-      try {
-        const date = new Date(visitor.meeting_date)
-        if (!isNaN(date.getTime())) {
-          formattedDate = date.toISOString().split('T')[0]
-        }
-      } catch (e) {
-        console.error('Error parsing date:', e)
-      }
-    }
-    
     setFormData({
       name: visitor.name || '',
       phone: visitor.phone || '',
@@ -187,7 +174,7 @@ export default function Visitors() {
       chapter: visitor.chapter || '',
       gender: visitor.gender || 'Bapak',
       referred_by_member_id: (visitor as any).referred_by_member_id || '',
-      meeting_date: formattedDate,
+      meeting_id: visitor.meeting_id || '',
       pic_id: visitor.pic_id || '',
       status: visitor.status || 'new',
       notes: visitor.notes || '',
@@ -227,7 +214,7 @@ export default function Visitors() {
         chapter: formData.chapter || undefined,
         gender: formData.gender || undefined,
         referred_by_member_id: formData.referred_by_member_id || undefined,
-        meeting_date: formData.meeting_date || undefined,
+        meeting_id: formData.meeting_id || undefined,
         pic_id: formData.pic_id || undefined,
         status: formData.status,
         attended_choice_number: formData.attended_choice_number || undefined,
@@ -734,14 +721,20 @@ export default function Visitors() {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                    Tanggal Meeting
+                    Weekly Meeting
                   </label>
-                  <input
-                    type="date"
-                    value={formData.meeting_date}
-                    onChange={(e) => setFormData({ ...formData, meeting_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
-                  />
+                  <select
+                    value={formData.meeting_id}
+                    onChange={(e) => setFormData({ ...formData, meeting_id: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500"
+                  >
+                    <option value="">— Pilih Meeting —</option>
+                    {meetings.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.title} - {new Date(m.meeting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
