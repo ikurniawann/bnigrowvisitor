@@ -251,6 +251,49 @@ export default function Visitors() {
     }
   }
 
+  const handleExportCSV = () => {
+    // Filter visitors based on current filters
+    let dataToExport = paginatedVisitors
+    
+    // If meeting filter is active, export all filtered visitors (not just paginated)
+    if (meetingFilter) {
+      dataToExport = sortedVisitors
+    }
+    
+    const headers = ['No', 'Nama', 'Gender', 'No WhatsApp', 'Email', 'Bidang Usaha', 'Perusahaan', 'Chapter', 'Diajak Oleh', 'PIC', 'Status', 'Tanggal Meeting', 'Meeting', 'Catatan']
+    
+    const rows = dataToExport.map((v, index) => [
+      startIndex + index + 1,
+      `"${v.name}"`,
+      v.gender || '-',
+      `"${v.phone}"`,
+      `"${v.email || '-'}"`,
+      `"${v.business_field || '-'}"`,
+      `"${v.company || '-'}"`,
+      `"${v.chapter || '-'}"`,
+      `"${(v as any).referred_by_member_name || '-'}"`,
+      `"${visitor.pic_name || '-'}"`,
+      STATUSES[v.status as keyof typeof STATUSES]?.label || v.status,
+      (v as any).meeting_date || '-',
+      `"${(v as any).meeting_title || '-'}"`,
+      `"${v.notes || '-'}"`
+    ])
+    
+    const csv = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `Visitor_Export_${meetingFilter || 'All'}_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const getStatusBadgeClass = (status: string) => {
     return STATUSES[status as keyof typeof STATUSES]?.badge || 'bg-gray-100 text-gray-800'
   }
@@ -281,60 +324,62 @@ export default function Visitors() {
     <div className="space-y-4">
       {/* Filter Bar */}
       <div className="bg-white rounded-xl shadow p-4 space-y-3">
-        <div className="flex flex-col lg:flex-row gap-3">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Cari nama, WA, email, bidang usaha..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 font-medium placeholder-gray-500"
-            />
+        <div className="flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center">
+          <div className="flex flex-wrap gap-3 flex-1">
+            {/* Search */}
+            <div className="flex-1 min-w-[200px] relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Cari nama, WA, email, bidang usaha..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 font-medium placeholder-gray-500"
+              />
+            </div>
+
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
+            >
+              <option value="">Semua Status</option>
+              {Object.entries(STATUSES).map(([key, value]) => (
+                <option key={key} value={key}>{value.label}</option>
+              ))}
+            </select>
+
+            {/* Meeting Filter */}
+            <select
+              value={meetingFilter}
+              onChange={(e) => setMeetingFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
+            >
+              <option value="">Semua Meeting</option>
+              {meetings.map(m => (
+                <option key={m.id} value={m.id}>{m.title}</option>
+              ))}
+            </select>
+
+            {/* PIC Filter */}
+            <select
+              value={picFilter}
+              onChange={(e) => setPicFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
+            >
+              <option value="">Semua PIC</option>
+              {pics.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
           </div>
 
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
-          >
-            <option value="">Semua Status</option>
-            {Object.entries(STATUSES).map(([key, value]) => (
-              <option key={key} value={key}>{value.label}</option>
-            ))}
-          </select>
-
-          {/* Meeting Filter */}
-          <select
-            value={meetingFilter}
-            onChange={(e) => setMeetingFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
-          >
-            <option value="">Semua Meeting</option>
-            {meetings.map(m => (
-              <option key={m.id} value={m.id}>{m.title}</option>
-            ))}
-          </select>
-
-          {/* PIC Filter */}
-          <select
-            value={picFilter}
-            onChange={(e) => setPicFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
-          >
-            <option value="">Semua PIC</option>
-            {pics.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-
-          {/* Sort By */}
-          <div className="flex gap-2">
+          {/* Sort & Export */}
+          <div className="flex gap-2 items-center">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -351,12 +396,24 @@ export default function Visitors() {
             >
               {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
             </button>
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+              title="Export to CSV"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Export CSV
+            </button>
           </div>
         </div>
 
         {/* Count */}
         <div className="text-sm text-gray-500">
-          Menampilkan {filteredVisitors.length} dari {visitors.length} visitor
+          Menampilkan {filteredVisitors.length} dari {visitors.length} visitor{meetingFilter ? ` (Filtered by Meeting)` : ''}
         </div>
       </div>
 
