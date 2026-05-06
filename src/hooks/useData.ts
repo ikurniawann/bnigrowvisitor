@@ -310,6 +310,17 @@ export function useData() {
     await loadMeetings()
   }
 
+  async function updateMeeting(id: string, updates: Partial<Meeting>) {
+    const { error } = await supabase
+      .from('meetings')
+      .update(updates)
+      .eq('id', id)
+
+    if (error) throw error
+    
+    await loadMeetings()
+  }
+
   // Stats & Filters
   function getFilteredVisitors(filters: {
     status?: string
