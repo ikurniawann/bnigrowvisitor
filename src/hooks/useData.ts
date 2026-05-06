@@ -436,6 +436,7 @@ export function useData() {
     updatePic,
     deletePic,
     addMeeting,
+    updateMeeting,
     deleteMeeting,
     addMember,
     updateMember,
