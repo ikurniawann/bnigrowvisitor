@@ -16,10 +16,16 @@ const STATUSES = {
 
 export default function Dashboard() {
   const router = useRouter()
-  const { getStats, getIndustryDistribution, getStatusDistribution, getReferrerDistribution, visitors } = useData()
+  const { getStats, getIndustryDistribution, getStatusDistribution, getReferrerDistribution, visitors, meetings } = useData()
+  
+  // Filter state
+  const meetingFilter = ''
+  
+  // Filter visitors by meeting if selected
+  const filteredVisitors = visitors
+  
   const stats = getStats()
-
-  const recentVisitors = visitors.slice(0, 8)
+  const recentVisitors = filteredVisitors.slice(0, 8)
   const statusDist = getStatusDistribution()
   const industryDist = getIndustryDistribution()
   const referrerDist = getReferrerDistribution()
