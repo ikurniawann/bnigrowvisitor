@@ -16,10 +16,12 @@ const STATUSES = {
 }
 
 export default function WeeklyMeeting() {
-  const { visitors, loading, reload, addMeeting } = useData()
+  const { visitors, meetings, loading, reload, addMeeting, updateMeeting, deleteMeeting } = useData()
   
   const [selectedMeetingId, setSelectedMeetingId] = useState<string>('')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingMeetingId, setEditingMeetingId] = useState<string | null>(null)
   const [newMeetingTitle, setNewMeetingTitle] = useState('')
   const [newMeetingDate, setNewMeetingDate] = useState('')
   const [newMeetingLocation, setNewMeetingLocation] = useState('')
@@ -60,6 +62,50 @@ export default function WeeklyMeeting() {
     setNewMeetingDate(new Date().toISOString().split('T')[0])
     setNewMeetingLocation('')
     setIsAddModalOpen(true)
+  }
+
+  const handleOpenEdit = (meeting: any) => {
+    setNewMeetingTitle(meeting.title || '')
+    setNewMeetingDate(meeting.meeting_date || '')
+    setNewMeetingLocation(meeting.location || '')
+    setEditingMeetingId(meeting.id)
+    setIsEditModalOpen(true)
+  }
+
+  const handleEditMeeting = async () => {
+    if (!newMeetingTitle.trim() || !newMeetingDate) {
+      alert('Judul dan tanggal wajib diisi')
+      return
+    }
+
+    setAdding(true)
+    try {
+      if (editingMeetingId) {
+        await updateMeeting(editingMeetingId, {
+          title: newMeetingTitle,
+          meeting_date: newMeetingDate,
+          location: newMeetingLocation || undefined,
+        })
+        setIsEditModalOpen(false)
+        await reload()
+      }
+    } catch (err: any) {
+      alert('Gagal edit meeting: ' + err.message)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const handleDeleteMeeting = async (meetingId: string) => {
+    if (!confirm('Yakin ingin menghapus meeting ini? Semua visitor yang terkait akan tetap ada tapi tidak terasosiasi dengan meeting ini.')) return
+
+    try {
+      await deleteMeeting(meetingId)
+      setSelectedMeetingId('') // Reset selection
+      await reload()
+    } catch (err: any) {
+      alert('Gagal hapus meeting: ' + err.message)
+    }
   }
 
   const handleAddMeeting = async () => {
@@ -104,8 +150,15 @@ export default function WeeklyMeeting() {
   }
 
   const getUniqueMeetingDates = () => {
-    const dates = Array.from(new Set(visitors.map(v => v.meeting_date).filter(Boolean) as string[]))
-    return dates.sort().reverse()
+    // Get all unique meeting dates from meetings table first
+    const meetingDates = meetings.map(m => m.meeting_date).filter(Boolean) as string[]
+    
+    // Also include dates from visitors that might not be in meetings table
+    const visitorDates = Array.from(new Set(visitors.map(v => v.meeting_date).filter(Boolean) as string[]))
+    
+    // Combine and remove duplicates
+    const allDates = Array.from(new Set([...meetingDates, ...visitorDates]))
+    return allDates.sort().reverse()
   }
 
   if (loading) {
@@ -127,15 +180,44 @@ export default function WeeklyMeeting() {
           <h1 className="text-xl font-bold text-gray-900">Weekly Meeting</h1>
           <p className="text-sm text-gray-500 mt-1">List visitor per sesi meeting</p>
         </div>
-        <button
-          onClick={handleOpenAdd}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Tambah Meeting
-        </button>
+        <div className="flex items-center gap-2">
+          {selectedMeetingId && (
+            <>
+              <button
+                onClick={() => {
+                  const meeting = meetings.find(m => m.meeting_date === selectedMeetingId)
+                  if (meeting) handleOpenEdit(meeting)
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Edit
+              </button>
+              <button
+                onClick={() => handleDeleteMeeting(selectedMeetingId)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Hapus
+              </button>
+            </>
+          )}
+          <button
+            onClick={handleOpenAdd}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Tambah Meeting
+          </button>
+        </div>
       </div>
 
       {/* Meeting Selector */}
@@ -367,6 +449,82 @@ export default function WeeklyMeeting() {
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
               >
                 {adding ? 'Menyimpan...' : 'Simpan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Meeting */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">Edit Meeting</h3>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Judul Meeting *
+                </label>
+                <input
+                  type="text"
+                  value={newMeetingTitle}
+                  onChange={(e) => setNewMeetingTitle(e.target.value)}
+                  placeholder="Contoh: Weekly Meeting 28 April 2026"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Tanggal *
+                </label>
+                <input
+                  type="date"
+                  value={newMeetingDate}
+                  onChange={(e) => setNewMeetingDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Lokasi
+                </label>
+                <input
+                  type="text"
+                  value={newMeetingLocation}
+                  onChange={(e) => setNewMeetingLocation(e.target.value)}
+                  placeholder="Contoh: Hotel Grand Kancana, Bekasi"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleEditMeeting}
+                disabled={adding}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {adding ? 'Menyimpan...' : 'Update'}
               </button>
             </div>
           </div>

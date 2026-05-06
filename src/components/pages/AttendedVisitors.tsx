@@ -11,13 +11,21 @@ const FINAL_STATUSES = {
 }
 
 export default function AttendedVisitors() {
-  const { visitors, loading, reload, updateVisitor } = useData()
+  const { visitors, meetings, loading, reload, updateVisitor } = useData()
+  
+  // Filter state
+  const [meetingFilter, setMeetingFilter] = useState<string>('')
   
   // Filter: hanya visitor dengan status attended atau final statuses
-  const attendedVisitors = visitors.filter(v => 
+  let attendedVisitors = visitors.filter(v => 
     v.status === 'attended' || 
     ['interview', 'member', 'not_continue'].includes(v.status)
   )
+  
+  // Apply meeting filter if selected
+  if (meetingFilter) {
+    attendedVisitors = attendedVisitors.filter(v => v.meeting_date === meetingFilter)
+  }
   
   // Group by status
   const grouped = {
@@ -166,7 +174,33 @@ export default function AttendedVisitors() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Meeting Filter */}
+        <div className="bg-white rounded-xl shadow p-4 col-span-2 lg:col-span-1">
+          <label className="block text-xs font-semibold text-gray-600 uppercase mb-2">
+            Filter Meeting
+          </label>
+          <select
+            value={meetingFilter}
+            onChange={(e) => setMeetingFilter(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 bg-white"
+          >
+            <option value="">Semua Meeting</option>
+            {Array.from(new Set(meetings.map(m => m.meeting_date).filter(Boolean) as string[]))
+              .sort()
+              .reverse()
+              .map(date => (
+                <option key={date} value={date}>
+                  {new Date(date).toLocaleDateString('id-ID', { 
+                    day: 'numeric', 
+                    month: 'short', 
+                    year: 'numeric' 
+                  })}
+                </option>
+              ))}
+          </select>
+        </div>
+        
         <div className="bg-white rounded-xl shadow p-4 border-l-4 border-emerald-500">
           <div className="text-3xl font-bold text-emerald-600">{grouped.attended.length}</div>
           <div className="text-xs text-gray-500 mt-1">Hadir</div>

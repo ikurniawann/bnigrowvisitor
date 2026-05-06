@@ -165,6 +165,19 @@ export default function Visitors() {
   }
 
   const handleOpenEdit = (visitor: any) => {
+    // Format meeting_date to YYYY-MM-DD for date input
+    let formattedDate = ''
+    if (visitor.meeting_date) {
+      try {
+        const date = new Date(visitor.meeting_date)
+        if (!isNaN(date.getTime())) {
+          formattedDate = date.toISOString().split('T')[0]
+        }
+      } catch (e) {
+        console.error('Error parsing date:', e)
+      }
+    }
+    
     setFormData({
       name: visitor.name || '',
       phone: visitor.phone || '',
@@ -174,7 +187,7 @@ export default function Visitors() {
       chapter: visitor.chapter || '',
       gender: visitor.gender || 'Bapak',
       referred_by_member_id: (visitor as any).referred_by_member_id || '',
-      meeting_date: visitor.meeting_date || '',
+      meeting_date: formattedDate,
       pic_id: visitor.pic_id || '',
       status: visitor.status || 'new',
       notes: visitor.notes || '',
