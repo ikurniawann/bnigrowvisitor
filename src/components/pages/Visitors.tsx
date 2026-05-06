@@ -272,7 +272,7 @@ export default function Visitors() {
       `"${v.company || '-'}"`,
       `"${v.chapter || '-'}"`,
       `"${(v as any).referred_by_member_name || '-'}"`,
-      `"${visitor.pic_name || '-'}"`,
+      `"${(v as any).pic_name || '-'}"`,
       STATUSES[v.status as keyof typeof STATUSES]?.label || v.status,
       (v as any).meeting_date || '-',
       `"${(v as any).meeting_title || '-'}"`,
