@@ -254,7 +254,6 @@ export function useData() {
     // Convert to array and sort by count
     return Object.entries(distribution)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10) // Top 10 referrers
   }
 
   return { ...data, id: data.id, wa: data.phone }
@@ -373,7 +372,7 @@ export function useData() {
     // Convert to array and sort by count
     return Object.entries(distribution)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10) // Top 10 referrers
+      
   }
 
   return {
@@ -420,7 +419,7 @@ export function useData() {
     // Convert to array and sort by count
     return Object.entries(distribution)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10) // Top 10 referrers
+      
   }
 
   return {
