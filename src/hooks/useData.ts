@@ -245,7 +245,8 @@ export function useData() {
       // Exclude visitors with status 'Tidak Hadir' (no_show)
       if (v.status === 'no_show') return
       
-      const referrerName = (v as any).referred_by_member_name
+      // Use referred_by_member_name first, fallback to referral_name
+      const referrerName = (v as any).referred_by_member_name || (v as any).referral_name
       if (referrerName) {
         distribution[referrerName] = (distribution[referrerName] || 0) + 1
       }
