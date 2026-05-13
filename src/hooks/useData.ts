@@ -87,7 +87,7 @@ export function useData() {
       pic_name: (v.pic as any)?.name,
       meeting_title: (v.meeting as any)?.title,
       meeting_date: (v.meeting as any)?.meeting_date,
-      referred_by_member_name: (v.referred_by_member as any)?.name,
+      referred_by_member_name: (v.referred_by_member as any)?.name || (v as any).referral_name,
     })))
   }
 
