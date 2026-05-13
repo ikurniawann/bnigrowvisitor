@@ -57,7 +57,7 @@ export default function Dashboard() {
           const field = v.business_field || 'Lainnya'
           dist[field] = (dist[field] || 0) + 1
         })
-        return Object.entries(dist).sort((a, b) => b[1] - a[1]).slice(0, 5) as [string, number][]
+        return Object.entries(dist).sort((a, b) => b[1] - a[1]) as [string, number][]
       })()
     : industryDist
   
@@ -72,7 +72,7 @@ export default function Dashboard() {
             dist[referrerName] = (dist[referrerName] || 0) + 1
           }
         })
-        return Object.entries(dist).sort((a, b) => b[1] - a[1]).slice(0, 10) as [string, number][]
+        return Object.entries(dist).sort((a, b) => b[1] - a[1]) as [string, number][]
       })()
     : referrerDist
 
