@@ -40,7 +40,7 @@ BEGIN
     END IF;
 END $$;
 
--- Insert visitor data dengan referral_name (teks bebas untuk Diajak Oleh)
+-- Insert visitor data (cara lama, tanpa ON CONFLICT)
 INSERT INTO visitors (name, phone, email, gender, business_field, company, chapter, referral_name, status, meeting_id, created_at)
 VALUES 
 ('suwarno', '6281317113088', 'suwarno82@gmail.com', 'Bapak', 'Manufacturing', 'www.mitraalatternak.com', 'Grow', 'Maria Soerjanti', 'new', (SELECT id FROM meetings WHERE meeting_date = '2026-05-14' LIMIT 1), NOW()),
@@ -58,18 +58,7 @@ VALUES
 ('Rosdiana Sary Siregar', '+6282120285007', 'rosdiana@ciptamultimegaayra.co.id', 'Ibu', 'Event & Business Service', 'PT. Cipta Multimega Arya', 'Grow', 'Dedy Dahlan', 'new', (SELECT id FROM meetings WHERE meeting_date = '2026-05-14' LIMIT 1), NOW()),
 ('Justin Siswanto', '+62 811-8800-573', 'justinsiswanto6@gmail.com', 'Bapak', 'Manufacturing', 'PT Sinar Mas Agro Resource & Technology', 'Grow', 'Lurus Ledyati', 'new', (SELECT id FROM meetings WHERE meeting_date = '2026-05-14' LIMIT 1), NOW()),
 ('Dedi Suhendi', '08157110051', 'eo.alaminspirasi@gmail.com', 'Bapak', 'Event & Business Service', 'PT. Kreasi Alam Inspirasi', 'Grow', 'Hastomo Wijoyo', 'new', (SELECT id FROM meetings WHERE meeting_date = '2026-05-14' LIMIT 1), NOW()),
-('Dendin Syihab', '081220154433', 'dendinsyihab78@gmail.com', 'Bapak', 'Computer & Programming', 'Gading net', 'Grow', 'Herwin Muchtar', 'new', (SELECT id FROM meetings WHERE meeting_date = '2026-05-14' LIMIT 1), NOW())
-ON CONFLICT (phone) DO UPDATE SET
-    name = EXCLUDED.name,
-    email = EXCLUDED.email,
-    gender = EXCLUDED.gender,
-    business_field = EXCLUDED.business_field,
-    company = EXCLUDED.company,
-    chapter = EXCLUDED.chapter,
-    referral_name = EXCLUDED.referral_name,
-    status = EXCLUDED.status,
-    meeting_id = EXCLUDED.meeting_id,
-    updated_at = NOW();
+('Dendin Syihab', '081220154433', 'dendinsyihab78@gmail.com', 'Bapak', 'Computer & Programming', 'Gading net', 'Grow', 'Herwin Muchtar', 'new', (SELECT id FROM meetings WHERE meeting_date = '2026-05-14' LIMIT 1), NOW());
 
 -- Verifikasi hasil
 SELECT 
