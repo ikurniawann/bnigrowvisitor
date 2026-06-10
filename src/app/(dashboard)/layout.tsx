@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
+import GrowAssistant from '@/components/assistant/GrowAssistant'
 import { getCurrentUser, signOut } from '@/lib/auth'
 
 // Context for global actions
@@ -31,7 +32,7 @@ const pathToPage: Record<string, string> = {
 
 const pageTitles: Record<string, string> = {
   dashboard: 'Dashboard',
-  kanban: 'Kanban',
+  kanban: 'Pipeline',
   visitors: 'Visitors',
   attended: 'Visitor Hadir',
   members: 'Member Grow',
@@ -124,6 +125,7 @@ export default function DashboardLayout({
           </main>
         </div>
       </div>
+      <GrowAssistant />
     </DashboardContext.Provider>
   )
 }

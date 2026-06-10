@@ -52,6 +52,12 @@ export default function Kanban() {
     return acc
   }, {} as Record<string, typeof visitors>)
 
+  const pipelineTotal = filteredVisitors.length
+  const confirmedTotal = visitorsByStatus.confirmed?.length || 0
+  const attendedTotal = visitorsByStatus.attended?.length || 0
+  const memberTotal = visitorsByStatus.member?.length || 0
+  const conversionRate = pipelineTotal > 0 ? Math.round((memberTotal / pipelineTotal) * 100) : 0
+
   const handleDragStart = (e: React.DragEvent, visitorId: string) => {
     setDraggingId(visitorId)
     e.dataTransfer.effectAllowed = 'move'
@@ -140,7 +146,7 @@ export default function Kanban() {
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-lg font-semibold text-gray-900">Kanban Board</h1>
+          <h1 className="text-lg font-semibold text-gray-900">Pipeline Board</h1>
         </div>
         
         <div className="flex items-center gap-3">
@@ -201,9 +207,24 @@ export default function Kanban() {
           </select>
         </div>
 
-        {/* Count */}
-        <div className="text-sm text-gray-500">
-          Total: {filteredVisitors.length} visitor
+        {/* Pipeline Summary */}
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Total Pipeline</div>
+            <div className="mt-1 text-xl font-bold text-gray-900">{pipelineTotal}</div>
+          </div>
+          <div className="rounded-xl border border-green-100 bg-green-50 px-3 py-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-green-600">Confirmed</div>
+            <div className="mt-1 text-xl font-bold text-green-700">{confirmedTotal}</div>
+          </div>
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600">Hadir</div>
+            <div className="mt-1 text-xl font-bold text-emerald-700">{attendedTotal}</div>
+          </div>
+          <div className="rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-cyan-600">Conversion</div>
+            <div className="mt-1 text-xl font-bold text-cyan-700">{conversionRate}%</div>
+          </div>
         </div>
       </div>
 
@@ -212,6 +233,7 @@ export default function Kanban() {
         <div className="flex gap-3 min-w-max pb-4">
           {KANBAN_COLS.map((col) => {
             const colVisitors = visitorsByStatus[col.id] || []
+            const columnRate = pipelineTotal > 0 ? Math.round((colVisitors.length / pipelineTotal) * 100) : 0
             
             return (
               <div
@@ -226,8 +248,8 @@ export default function Kanban() {
                     <div className={`w-3 h-3 rounded-full ${col.color}`} />
                     <h3 className={`text-sm font-semibold ${col.dark}`}>{col.label}</h3>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${col.light} ${col.dark}`}>
-                    {colVisitors.length}
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full bg-white/80 ${col.dark}`}>
+                    {colVisitors.length} / {columnRate}%
                   </span>
                 </div>
 

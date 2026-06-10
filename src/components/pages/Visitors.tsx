@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useData } from '@/hooks/useData'
 import VisitorDetail from './VisitorDetail'
+import { getWaTemplateSettings, renderWaTemplate } from '@/lib/waTemplate'
 
 interface VisitorForm {
   name: string
@@ -61,6 +62,12 @@ export default function Visitors() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
+
+  // Bulk actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkStatus, setBulkStatus] = useState('')
+  const [bulkPicId, setBulkPicId] = useState('')
+  const [bulkSaving, setBulkSaving] = useState(false)
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -110,33 +117,39 @@ export default function Visitors() {
   }, [])
 
   // Filter visitors
-  const filteredVisitors = visitors.filter(v => {
-    if (search) {
-      const s = search.toLowerCase()
-      const match = 
-        v.name.toLowerCase().includes(s) ||
-        v.phone?.includes(s) ||
-        v.email?.toLowerCase().includes(s) ||
-        v.business_field?.toLowerCase().includes(s) ||
-        v.company?.toLowerCase().includes(s)
-      if (!match) return false
-    }
-    if (statusFilter && v.status !== statusFilter) return false
-    if (meetingFilter && v.meeting_id !== meetingFilter) return false
-    if (picFilter && v.pic_id !== picFilter) return false
-    return true
-  })
+  const filteredVisitors = useMemo(() => {
+    return visitors.filter(v => {
+      if (search) {
+        const s = search.toLowerCase()
+        const match = 
+          v.name.toLowerCase().includes(s) ||
+          v.phone?.includes(s) ||
+          v.email?.toLowerCase().includes(s) ||
+          v.business_field?.toLowerCase().includes(s) ||
+          v.company?.toLowerCase().includes(s)
+        if (!match) return false
+      }
+      if (statusFilter && v.status !== statusFilter) return false
+      if (meetingFilter && v.meeting_id !== meetingFilter) return false
+      if (picFilter && v.pic_id !== picFilter) return false
+      return true
+    })
+  }, [visitors, search, statusFilter, meetingFilter, picFilter])
 
   // Sort visitors
-  const sortedVisitors = [...filteredVisitors].sort((a, b) => {
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })
+  const sortedVisitors = useMemo(() => {
+    return [...filteredVisitors].sort((a, b) => {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+  }, [filteredVisitors])
 
   // Pagination
   const totalPages = Math.ceil(sortedVisitors.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const paginatedVisitors = sortedVisitors.slice(startIndex, endIndex)
+  const paginatedVisitors = useMemo(() => sortedVisitors.slice(startIndex, endIndex), [sortedVisitors, startIndex, endIndex])
+  const selectedVisitors = useMemo(() => sortedVisitors.filter(visitor => selectedIds.has(visitor.id)), [sortedVisitors, selectedIds])
+  const allPageSelected = paginatedVisitors.length > 0 && paginatedVisitors.every(visitor => selectedIds.has(visitor.id))
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -241,19 +254,11 @@ export default function Visitors() {
     }
   }
 
-  const handleExportCSV = () => {
-    // Filter visitors based on current filters
-    let dataToExport = paginatedVisitors
-    
-    // If meeting filter is active, export all filtered visitors (not just paginated)
-    if (meetingFilter) {
-      dataToExport = sortedVisitors
-    }
-    
+  const exportVisitorsCSV = (dataToExport: typeof visitors, filenameSuffix = meetingFilter || 'All') => {
     const headers = ['No', 'Nama', 'Gender', 'No WhatsApp', 'Email', 'Bidang Usaha', 'Perusahaan', 'Chapter', 'Diajak Oleh', 'PIC', 'Status', 'Tanggal Meeting', 'Meeting', 'Catatan']
     
     const rows = dataToExport.map((v, index) => [
-      startIndex + index + 1,
+      index + 1,
       `"${v.name}"`,
       v.gender || '-',
       `"${v.phone}"`,
@@ -278,14 +283,33 @@ export default function Visitors() {
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `Visitor_Export_${meetingFilter || 'All'}_${new Date().toISOString().split('T')[0]}.csv`)
+    link.setAttribute('download', `Visitor_Export_${filenameSuffix}_${new Date().toISOString().split('T')[0]}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
+  const handleExportCSV = () => {
+    exportVisitorsCSV(meetingFilter ? sortedVisitors : paginatedVisitors)
+  }
+
   const getStatusBadgeClass = (status: string) => {
     return STATUSES[status as keyof typeof STATUSES]?.badge || 'bg-gray-100 text-gray-800'
+  }
+
+  const getStatusOptionStyle = (status: string) => {
+    const styles: Record<string, { backgroundColor: string; color: string }> = {
+      new: { backgroundColor: '#dbeafe', color: '#1e40af' },
+      followup: { backgroundColor: '#fef3c7', color: '#92400e' },
+      confirmed: { backgroundColor: '#ffedd5', color: '#9a3412' },
+      attended: { backgroundColor: '#d1fae5', color: '#065f46' },
+      no_show: { backgroundColor: '#fee2e2', color: '#991b1b' },
+      interview: { backgroundColor: '#ede9fe', color: '#5b21b6' },
+      member: { backgroundColor: '#ccfbf1', color: '#0f766e' },
+      not_continue: { backgroundColor: '#f3f4f6', color: '#374151' },
+    }
+
+    return styles[status] || { backgroundColor: '#f3f4f6', color: '#374151' }
   }
 
   const getStatusLabel = (status: string, attendedChoiceNumber?: number) => {
@@ -297,6 +321,113 @@ export default function Visitors() {
     }
     
     return baseLabel
+  }
+
+  const getMeetingDateText = (visitor: any) => {
+    const rawDate = visitor.meeting_date || visitor.meeting?.meeting_date
+    const date = rawDate ? new Date(rawDate) : new Date()
+    if (!rawDate) date.setDate(date.getDate() + 1)
+
+    return date.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  }
+
+  const buildWaLink = (visitor: any) => {
+    const clean = (visitor.phone || '').replace(/[^0-9]/g, '')
+    const waNumber = clean.startsWith('0') ? `62${clean.slice(1)}` : clean.startsWith('62') ? clean : `62${clean}`
+    const settings = getWaTemplateSettings()
+    const sapaan = visitor.gender === 'Ibu' ? 'Ibu' : 'Bapak'
+    const template = settings.templates[settings.activeMode]
+    const message = renderWaTemplate(template, {
+      sapaan,
+      nama: visitor.name,
+      pic: visitor.pic_name || '[PIC]',
+      pic_nama: visitor.pic_name || '[PIC]',
+      pic_bisnis: visitor.pic_business_classification || '[Bisnis PIC]',
+      diajak_oleh: visitor.referred_by_member_name || visitor.referral_name || '[Diajak Oleh]',
+      tanggal_meeting: getMeetingDateText(visitor),
+      jam_meeting: '07.30 - 10.15',
+      chapter: visitor.chapter || 'Grow',
+      bidang_usaha: visitor.business_field || '',
+      perusahaan: visitor.company || '',
+    })
+
+    return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`
+  }
+
+  const getDataQualityIssues = (visitor: any) => {
+    const issues: string[] = []
+    const cleanPhone = (visitor.phone || '').replace(/[^0-9]/g, '')
+    if (!cleanPhone || cleanPhone.length < 9) issues.push('WA')
+    if (!visitor.pic_id) issues.push('PIC')
+    if (!visitor.meeting_id && !visitor.meeting_date) issues.push('Meeting')
+    if (!visitor.referred_by_member_name && !visitor.referral_name) issues.push('Diajak oleh')
+    if (!visitor.business_field) issues.push('Bidang')
+    return issues
+  }
+
+  const toggleSelected = (visitorId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(visitorId)) next.delete(visitorId)
+      else next.add(visitorId)
+      return next
+    })
+  }
+
+  const togglePageSelected = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (allPageSelected) {
+        paginatedVisitors.forEach(visitor => next.delete(visitor.id))
+      } else {
+        paginatedVisitors.forEach(visitor => next.add(visitor.id))
+      }
+      return next
+    })
+  }
+
+  const handleQuickStatusChange = async (visitorId: string, status: string) => {
+    await updateVisitor(visitorId, {
+      status: status as any,
+      updated_at: new Date().toISOString(),
+    })
+    await reload()
+  }
+
+  const handleQuickPicChange = async (visitorId: string, picId: string) => {
+    const updates: any = {
+      pic_id: picId || null,
+      updated_at: new Date().toISOString(),
+    }
+
+    await updateVisitor(visitorId, updates)
+    await reload()
+  }
+
+  const handleBulkApply = async () => {
+    if (selectedVisitors.length === 0 || (!bulkStatus && !bulkPicId)) return
+
+    setBulkSaving(true)
+    try {
+      for (const visitor of selectedVisitors) {
+        await updateVisitor(visitor.id, {
+          ...(bulkStatus ? { status: bulkStatus as any } : {}),
+          ...(bulkPicId ? { pic_id: bulkPicId } : {}),
+          updated_at: new Date().toISOString(),
+        })
+      }
+      setBulkStatus('')
+      setBulkPicId('')
+      setSelectedIds(new Set())
+      await reload()
+    } finally {
+      setBulkSaving(false)
+    }
   }
 
   if (loading) {
@@ -339,7 +470,7 @@ export default function Visitors() {
             >
               <option value="">Semua Status</option>
               {Object.entries(STATUSES).map(([key, value]) => (
-                <option key={key} value={key}>{value.label}</option>
+                <option key={key} value={key} style={getStatusOptionStyle(key)}>{value.label}</option>
               ))}
             </select>
 
@@ -389,12 +520,70 @@ export default function Visitors() {
         </div>
       </div>
 
+      {selectedVisitors.length > 0 && (
+        <div className="glass-panel-strong flex flex-col gap-3 rounded-xl p-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="text-sm font-semibold text-gray-800">
+            {selectedVisitors.length} visitor dipilih
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <select
+              value={bulkStatus}
+              onChange={(e) => setBulkStatus(e.target.value)}
+              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800"
+            >
+              <option value="">Ubah status...</option>
+              {Object.entries(STATUSES).map(([key, value]) => (
+                <option key={key} value={key} style={getStatusOptionStyle(key)}>{value.label}</option>
+              ))}
+            </select>
+            <select
+              value={bulkPicId}
+              onChange={(e) => setBulkPicId(e.target.value)}
+              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800"
+            >
+              <option value="">Assign PIC...</option>
+              {pics.map(pic => (
+                <option key={pic.id} value={pic.id}>{pic.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleBulkApply}
+              disabled={bulkSaving || (!bulkStatus && !bulkPicId)}
+              className="h-10 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+            >
+              {bulkSaving ? 'Menyimpan...' : 'Apply'}
+            </button>
+            <button
+              onClick={() => exportVisitorsCSV(selectedVisitors, 'Selected')}
+              className="h-10 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Export Selected
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="h-10 rounded-xl px-3 text-sm font-semibold text-gray-500 transition-colors hover:bg-white/70"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gradient-to-r from-red-600 to-red-700">
               <tr className="text-xs text-white font-bold uppercase tracking-wide">
+                <th className="text-left font-medium px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    onChange={togglePageSelected}
+                    className="h-4 w-4 rounded border-white/70"
+                    aria-label="Pilih semua visitor halaman ini"
+                  />
+                </th>
                 <th className="text-left font-medium px-4 py-3">No</th>
                 <th className="text-left font-medium px-4 py-3">Nama</th>
                 <th className="text-left font-medium px-4 py-3">Gender</th>
@@ -410,7 +599,7 @@ export default function Visitors() {
             <tbody>
               {paginatedVisitors.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={11} className="px-4 py-12 text-center text-gray-500">
                     <svg className="w-12 h-12 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                       <circle cx="9" cy="7" r="4" />
@@ -427,12 +616,38 @@ export default function Visitors() {
                   </td>
                 </tr>
               ) : (
-                paginatedVisitors.map((visitor, index) => (
-                  <tr key={visitor.id} className="border-t border-gray-100 hover:bg-gray-50">
+                paginatedVisitors.map((visitor, index) => {
+                  const qualityIssues = getDataQualityIssues(visitor)
+
+                  return (
+                  <tr key={visitor.id} className={`border-t border-gray-100 hover:bg-gray-50 ${selectedIds.has(visitor.id) ? 'bg-red-50/30' : ''}`}>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(visitor.id)}
+                        onChange={() => toggleSelected(visitor.id)}
+                        className="h-4 w-4 rounded border-gray-300"
+                        aria-label={`Pilih ${visitor.name}`}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-[13px] text-gray-600 font-medium">{startIndex + index + 1}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900 text-[13px]">{visitor.name}</div>
                       <div className="text-xs text-gray-500 md:hidden">{visitor.phone}</div>
+                      {qualityIssues.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {qualityIssues.slice(0, 2).map(issue => (
+                            <span key={issue} className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                              {issue}
+                            </span>
+                          ))}
+                          {qualityIssues.length > 2 && (
+                            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                              +{qualityIssues.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-[13px] text-gray-600">
                       {visitor.gender ? (
@@ -468,24 +683,42 @@ export default function Visitors() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-[13px] min-w-[120px]">
-                      {visitor.pic_name ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          <span className="w-4 h-4 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs">
-                            {visitor.pic_name.charAt(0).toUpperCase()}
-                          </span>
-                          {visitor.pic_name}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
+                      <select
+                        value={visitor.pic_id || ''}
+                        onChange={(e) => handleQuickPicChange(visitor.id, e.target.value)}
+                        className="h-9 w-[140px] rounded-xl border border-purple-100 bg-purple-50 px-2 text-xs font-semibold text-purple-800"
+                      >
+                        <option value="">Belum ada PIC</option>
+                        {pics.map(pic => (
+                          <option key={pic.id} value={pic.id}>{pic.name}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(visitor.status)}`}>
-                        {getStatusLabel(visitor.status, (visitor as any).attended_choice_number)}
-                      </span>
+                      <select
+                        value={visitor.status}
+                        onChange={(e) => handleQuickStatusChange(visitor.id, e.target.value)}
+                        className={`h-9 w-[150px] rounded-xl border-0 px-2 text-xs font-semibold ${getStatusBadgeClass(visitor.status)}`}
+                        title={getStatusLabel(visitor.status, (visitor as any).attended_choice_number)}
+                      >
+                        {Object.entries(STATUSES).map(([key, value]) => (
+                          <option key={key} value={key} style={getStatusOptionStyle(key)}>{value.label}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
+                        <a
+                          href={buildWaLink(visitor)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                          title="Kirim WhatsApp"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" />
+                          </svg>
+                        </a>
                         <button
                           onClick={() => handleOpenDetail(visitor)}
                           className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -519,7 +752,8 @@ export default function Visitors() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -883,6 +1117,10 @@ export default function Visitors() {
         <VisitorDetail
           visitor={selectedVisitor}
           onClose={handleCloseDetail}
+          onSaved={async (savedVisitor) => {
+            setSelectedVisitor(savedVisitor)
+            await reload()
+          }}
           onEdit={(v) => {
             handleCloseDetail()
             handleOpenEdit(v)

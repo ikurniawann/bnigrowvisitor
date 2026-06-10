@@ -37,6 +37,27 @@ export default function Dashboard() {
       }
     : stats
   const recentVisitors = filteredVisitors.slice(0, 8)
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const dayAfterTomorrow = new Date(today)
+  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2)
+
+  const needsFollowUp = filteredVisitors.filter(visitor => ['new', 'followup'].includes(visitor.status))
+  const unassignedVisitors = filteredVisitors.filter(visitor => !visitor.pic_id)
+  const missingDataVisitors = filteredVisitors.filter(visitor => {
+    const cleanPhone = (visitor.phone || '').replace(/[^0-9]/g, '')
+    return !cleanPhone || cleanPhone.length < 9 || !visitor.pic_id || (!visitor.meeting_id && !visitor.meeting_date)
+  })
+  const reminderVisitors = filteredVisitors.filter(visitor => {
+    if (visitor.status !== 'confirmed') return false
+    if (!visitor.meeting_date) return false
+    const meetingDate = new Date(visitor.meeting_date)
+    meetingDate.setHours(0, 0, 0, 0)
+    return meetingDate >= tomorrow && meetingDate < dayAfterTomorrow
+  })
   
   const statusDist = getStatusDistribution()
   const filteredStatusDist = meetingFilter
@@ -142,6 +163,67 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Today Focus */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <button
+          onClick={() => router.push('/visitors')}
+          className="bg-white rounded-xl shadow p-4 text-left transition-transform hover:-translate-y-0.5"
+        >
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Today Focus</div>
+          <div className="mt-2 text-3xl font-bold text-red-600">{needsFollowUp.length}</div>
+          <div className="mt-1 text-sm text-gray-600">Perlu follow-up</div>
+        </button>
+
+        <button
+          onClick={() => router.push('/visitors')}
+          className="bg-white rounded-xl shadow p-4 text-left transition-transform hover:-translate-y-0.5"
+        >
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Belum Assigned</div>
+          <div className="mt-2 text-3xl font-bold text-purple-600">{unassignedVisitors.length}</div>
+          <div className="mt-1 text-sm text-gray-600">Belum ada PIC</div>
+        </button>
+
+        <button
+          onClick={() => router.push('/visitors')}
+          className="bg-white rounded-xl shadow p-4 text-left transition-transform hover:-translate-y-0.5"
+        >
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Data Quality</div>
+          <div className="mt-2 text-3xl font-bold text-amber-600">{missingDataVisitors.length}</div>
+          <div className="mt-1 text-sm text-gray-600">Butuh dilengkapi</div>
+        </button>
+
+        <button
+          onClick={() => router.push('/visitors')}
+          className="bg-white rounded-xl shadow p-4 text-left transition-transform hover:-translate-y-0.5"
+        >
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Reminder H-1</div>
+          <div className="mt-2 text-3xl font-bold text-emerald-600">{reminderVisitors.length}</div>
+          <div className="mt-1 text-sm text-gray-600">Siap dikirim WA</div>
+        </button>
+      </div>
+
+      {reminderVisitors.length > 0 && (
+        <div className="bg-white rounded-xl shadow p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-800">Reminder H-1 Queue</h3>
+            <button onClick={() => router.push('/visitors')} className="text-xs font-semibold text-red-600 hover:text-red-700">
+              Buka Visitor →
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {reminderVisitors.slice(0, 6).map(visitor => (
+              <div key={visitor.id} className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
+                <div className="text-sm font-semibold text-gray-900">{visitor.name}</div>
+                <div className="mt-1 text-xs text-gray-500">{visitor.phone}</div>
+                <div className="mt-2 text-xs font-semibold text-emerald-700">
+                  {visitor.meeting_date ? new Date(visitor.meeting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Meeting belum diset'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
