@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useData } from '@/hooks/useData'
+import { getWaTemplateSettings, renderWaTemplate } from '@/lib/waTemplate'
 
 interface VisitorDetailProps {
   visitor: any
@@ -12,7 +13,7 @@ interface VisitorDetailProps {
 const STATUSES = {
   new:          { label: 'Baru Daftar',      badge: 'bg-blue-100 text-blue-800', btn: 'bg-blue-100 text-blue-700 hover:bg-blue-200' },
   followup:     { label: 'Follow Up',         badge: 'bg-yellow-100 text-yellow-800', btn: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' },
-  confirmed:    { label: 'Konfirmasi Hadir',  badge: 'bg-green-100 text-green-800', btn: 'bg-red-600 text-white hover:bg-red-700' },
+  confirmed:    { label: 'Konfirmasi Hadir',  badge: 'bg-green-100 text-green-800', btn: 'bg-orange-500 text-white hover:bg-orange-600 shadow-[0_10px_22px_rgba(249,115,22,0.24)]' },
   attended:     { label: 'Hadir',             badge: 'bg-emerald-100 text-emerald-800', btn: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' },
   no_show:      { label: 'Tidak Hadir',       badge: 'bg-red-100 text-red-800', btn: 'bg-red-100 text-red-700 hover:bg-red-200' },
   // Interview, Member, Not Continue will be managed from "Visitor Hadir" page
@@ -32,6 +33,10 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
 
   const getStatusBtnClass = (status: string) => {
     return STATUSES[status as keyof typeof STATUSES]?.btn || 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+  }
+
+  const getActiveStatusRingClass = (status: string) => {
+    return status === 'confirmed' ? 'ring-2 ring-offset-1 ring-orange-400' : 'ring-2 ring-offset-1 ring-red-500'
   }
 
   const handleStatusClick = (newStatus: string) => {
@@ -66,9 +71,6 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
       
       await updateVisitor(visitor.id, updates)
       await reload()
-      
-      // Update local visitor data
-      visitor.status = newStatus
     } catch (err: any) {
       alert('Gagal update status: ' + err.message)
     } finally {
@@ -130,7 +132,6 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
       }
       
       await reload()
-      visitor.status = 'attended'
       setShowAttendedOptions(false)
       setPendingStatus(null)
     } catch (err: any) {
@@ -161,7 +162,6 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
       })
       
       await reload()
-      visitor.notes = currentNotes + newNote
       setNoteText('')
       setAddingNote(false)
     } catch (err: any) {
@@ -169,6 +169,19 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
     } finally {
       setUpdating(false)
     }
+  }
+
+  const formatMeetingDate = () => {
+    const rawDate = visitor.meeting_date || visitor.meeting?.meeting_date
+    const date = rawDate ? new Date(rawDate) : new Date()
+    if (!rawDate) date.setDate(date.getDate() + 1)
+
+    return date.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
   }
 
   const formatWaLink = (phone: string, visitorName?: string, referredByMemberName?: string, gender?: string) => {
@@ -183,48 +196,32 @@ export default function VisitorDetail({ visitor, onClose, onEdit }: VisitorDetai
       waNumber = `62${clean}`
     }
     
-    // Add message template if visitor name provided
     if (visitorName) {
-      // Calculate tomorrow's date
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      const meetingDate = tomorrow.toLocaleDateString('id-ID', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      
-      const referrerName = referredByMemberName || '[Diajak Oleh]';
-      
-      const visitorGender = gender === 'Ibu' ? 'Ibu' : 'Bapak';
-      const message = `Selamat Siang ${visitorGender} ${visitorName},
+      const settings = getWaTemplateSettings()
+      const visitorGender = gender === 'Ibu' ? 'Ibu' : 'Bapak'
+      const template = settings.templates[settings.activeMode]
+      const message = renderWaTemplate(template, {
+        sapaan: visitorGender,
+        nama: visitorName,
+        pic: visitor.pic_name || '[PIC]',
+        pic_nama: visitor.pic_name || '[PIC]',
+        pic_bisnis: visitor.pic_business_classification || '[Bisnis PIC]',
+        diajak_oleh: referredByMemberName || '[Diajak Oleh]',
+        tanggal_meeting: formatMeetingDate(),
+        jam_meeting: '07.30 - 10.15',
+        chapter: visitor.chapter || 'Grow',
+        bidang_usaha: visitor.business_field || '',
+        perusahaan: visitor.company || '',
+      })
 
-Perkenalkan saya XXX Visitor Host BNI Grow dengan bisnis XXX
-Chapter Jakarta.
-
-Anda diundang oleh Bapak/Ibu ${referrerName} untuk ikut weekly 
-meeting BNI Grow besok:
-${meetingDate}
-Pagi jam 07.30 - 10.15 WIB
-
-Mohon konfirmasi, apakah ${visitorGender} ${visitorName} akan hadir 
-di online meeting besok jam 7.30 pagi?
-
-Konfirmasi kehadiran ini penting untuk menentukan pembagian 
-room/seat saat open networking.
-
-Terima kasih,
-Visitor Host BNI Grow Jakarta`;
-      return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
+      return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`
     }
     
     return `https://wa.me/${waNumber}`
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
@@ -336,7 +333,7 @@ Visitor Host BNI Grow Jakarta`;
                   disabled={updating || key === visitor.status}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                     key === visitor.status
-                      ? 'ring-2 ring-offset-1 ring-red-500 ' + getStatusBtnClass(key)
+                      ? `${getActiveStatusRingClass(key)} ${getStatusBtnClass(key)}`
                       : getStatusBtnClass(key)
                   }`}
                 >

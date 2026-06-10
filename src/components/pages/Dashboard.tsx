@@ -78,6 +78,12 @@ export default function Dashboard() {
 
   const maxStatusCount = Math.max(...Object.values(filteredStatusDist).map(v => v || 1), 1)
   const maxIndustryCount = Math.max(...filteredIndustryDist.map(([, c]) => c), 1)
+  const sortedReferrerDist = [...filteredReferrerDist].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  const referrerColumnBreak = Math.ceil(sortedReferrerDist.length / 2)
+  const referrerColumns = [
+    sortedReferrerDist.slice(0, referrerColumnBreak),
+    sortedReferrerDist.slice(referrerColumnBreak),
+  ]
   const maxReferrerCount = Math.max(...filteredReferrerDist.map(([, c]) => c), 1)
 
   const getStatusColor = (status: string) => {
@@ -85,11 +91,11 @@ export default function Dashboard() {
       new: 'bg-blue-500',
       followup: 'bg-yellow-500',
       confirmed: 'bg-green-500',
-      hadir: 'bg-emerald-500',
-      tidak_hadir: 'bg-red-500',
+      attended: 'bg-emerald-500',
+      no_show: 'bg-red-500',
       interview: 'bg-purple-500',
       member: 'bg-cyan-500',
-      tidak_lanjut: 'bg-gray-500',
+      not_continue: 'bg-gray-500',
     }
     return colors[status] || 'bg-gray-500'
   }
@@ -99,11 +105,11 @@ export default function Dashboard() {
       new: 'bg-blue-100 text-blue-800',
       followup: 'bg-yellow-100 text-yellow-800',
       confirmed: 'bg-green-100 text-green-800',
-      hadir: 'bg-emerald-100 text-emerald-800',
-      tidak_hadir: 'bg-red-100 text-red-800',
+      attended: 'bg-emerald-100 text-emerald-800',
+      no_show: 'bg-red-100 text-red-800',
       interview: 'bg-purple-100 text-purple-800',
       member: 'bg-cyan-100 text-cyan-800',
-      tidak_lanjut: 'bg-gray-100 text-gray-800',
+      not_continue: 'bg-gray-100 text-gray-800',
     }
     return classes[status] || 'bg-gray-100 text-gray-800'
   }
@@ -223,27 +229,31 @@ export default function Dashboard() {
         </div>
 
         {/* Row 2: Top Diajak Oleh - Horizontal Bars (Full Width) */}
-        <div className="bg-white rounded-xl shadow p-6 mt-4">
+        <div className="bg-white rounded-xl shadow p-6 lg:col-span-2">
           <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <span>🏆</span>
             Top Visitor Brought
           </h3>
-          <div className="space-y-3">
-            {filteredReferrerDist.length > 0 ? (
-              filteredReferrerDist.map(([name, count]) => (
-                <div key={name} className="flex items-center gap-4">
-                  <div className="w-36 text-xs text-gray-600 truncate">{name}</div>
-                  <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full transition-all duration-500"
-                      style={{ width: `${(count / maxReferrerCount) * 100}%` }}
-                    />
-                  </div>
-                  <div className="w-8 text-right text-xs font-semibold">{count}</div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-3">
+            {sortedReferrerDist.length > 0 ? (
+              referrerColumns.map((column, columnIndex) => (
+                <div key={columnIndex} className="space-y-3">
+                  {column.map(([name, count]) => (
+                    <div key={name} className="flex items-center gap-4">
+                      <div className="w-40 text-xs text-gray-600 truncate">{name}</div>
+                      <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full transition-all duration-500"
+                          style={{ width: `${(count / maxReferrerCount) * 100}%` }}
+                        />
+                      </div>
+                      <div className="w-8 text-right text-xs font-semibold">{count}</div>
+                    </div>
+                  ))}
                 </div>
               ))
             ) : (
-              <div className="text-center text-gray-500 text-sm py-12">
+              <div className="text-center text-gray-500 text-sm py-12 xl:col-span-2">
                 Belum ada data referral
               </div>
             )}

@@ -1,54 +1,41 @@
 // Script to create Excel template for visitor import
 // Run with: node scripts/create-excel-template.js
 
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const path = require('path');
 const fs = require('fs');
 
-// Create sample data
 const sampleData = [
   {
-    'Nama': 'Budi Santoso',
+    Nama: 'Budi Santoso',
     'No WhatsApp': '081234567890',
-    'Email': 'budi@example.com',
+    Email: 'budi@example.com',
     'Bidang Usaha': 'Digital Marketing',
-    'Perusahaan': 'PT Kreatif Digital',
-    'Chapter': 'BNI Grow Jakarta Selatan',
-    'Diajak oleh': 'Andi Wijaya'
+    Perusahaan: 'PT Kreatif Digital',
+    Chapter: 'BNI Grow Jakarta Selatan',
+    'Diajak oleh': 'Andi Wijaya',
   },
   {
-    'Nama': 'Siti Rahayu',
+    Nama: 'Siti Rahayu',
     'No WhatsApp': '082345678901',
-    'Email': 'siti@example.com',
+    Email: 'siti@example.com',
     'Bidang Usaha': 'Kuliner & Catering',
-    'Perusahaan': 'Dapur Siti',
-    'Chapter': 'BNI Grow Jakarta Pusat',
-    'Diajak oleh': ''
-  }
+    Perusahaan: 'Dapur Siti',
+    Chapter: 'BNI Grow Jakarta Pusat',
+    'Diajak oleh': '',
+  },
 ];
 
-// Create worksheet
-const worksheet = XLSX.utils.json_to_sheet(sampleData);
-
-// Set column widths
-worksheet['!cols'] = [
-  { wch: 25 }, // Nama
-  { wch: 15 }, // No WhatsApp
-  { wch: 30 }, // Email
-  { wch: 25 }, // Bidang Usaha
-  { wch: 25 }, // Perusahaan
-  { wch: 25 }, // Chapter
-  { wch: 20 }  // Diajak oleh
+const columns = [
+  { header: 'Nama', key: 'Nama', width: 25 },
+  { header: 'No WhatsApp', key: 'No WhatsApp', width: 15 },
+  { header: 'Email', key: 'Email', width: 30 },
+  { header: 'Bidang Usaha', key: 'Bidang Usaha', width: 25 },
+  { header: 'Perusahaan', key: 'Perusahaan', width: 25 },
+  { header: 'Chapter', key: 'Chapter', width: 25 },
+  { header: 'Diajak oleh', key: 'Diajak oleh', width: 20 },
 ];
 
-// Add header row with styling info (note: basic xlsx doesn't support styling)
-// Users will see plain headers
-
-// Create workbook
-const workbook = XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(workbook, worksheet, 'Visitor Template');
-
-// Add instructions sheet
 const instructions = [
   ['INSTRUKSI IMPORT VISITOR'],
   [''],
@@ -68,26 +55,39 @@ const instructions = [
   ['5. Simpan file sebagai .xlsx atau .csv'],
   [''],
   ['Contoh format No WhatsApp yang benar:'],
-  ['   ✓ 081234567890'],
-  ['   ✓ 6281234567890'],
-  ['   ✗ 81234567890 (kurang 0 di depan)'],
-  ['   ✗ +62 812-3456-7890 (ada spasi dan strip)'],
+  ['   - 081234567890'],
+  ['   - 6281234567890'],
+  ['   - Hindari nomor tanpa 0 di depan'],
+  ['   - Hindari spasi, plus, dan strip'],
 ];
 
-const instructionsSheet = XLSX.utils.aoa_to_sheet(instructions);
-instructionsSheet['!cols'] = [{ wch: 60 }];
-XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instruksi');
+async function main() {
+  const workbook = new ExcelJS.Workbook();
 
-// Save file
-const outputPath = path.join(__dirname, '..', 'public', 'templates', 'visitor-import-template.xlsx');
+  const visitorSheet = workbook.addWorksheet('Visitor Template');
+  visitorSheet.columns = columns;
+  visitorSheet.addRows(sampleData);
+  visitorSheet.getRow(1).font = { bold: true };
 
-// Ensure directory exists
-const dir = path.dirname(outputPath);
-if (!fs.existsSync(dir)) {
-  fs.mkdirSync(dir, { recursive: true });
+  const instructionsSheet = workbook.addWorksheet('Instruksi');
+  instructionsSheet.columns = [{ width: 60 }];
+  instructions.forEach(row => instructionsSheet.addRow(row));
+  instructionsSheet.getRow(1).font = { bold: true };
+
+  const outputPath = path.join(__dirname, '..', 'public', 'templates', 'visitor-import-template.xlsx');
+  const dir = path.dirname(outputPath);
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  await workbook.xlsx.writeFile(outputPath);
+
+  console.log('Excel template created successfully!');
+  console.log(`  Location: ${outputPath}`);
 }
 
-XLSX.writeFile(workbook, outputPath);
-
-console.log('✓ Excel template created successfully!');
-console.log(`  Location: ${outputPath}`);
+main().catch(error => {
+  console.error('Failed to create Excel template:', error);
+  process.exit(1);
+});

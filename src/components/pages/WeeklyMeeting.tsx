@@ -53,8 +53,8 @@ export default function WeeklyMeeting() {
 
   const totalVisitors = selectedVisitors.length
   const confirmedCount = summary['confirmed'] || 0
-  const hadirCount = summary['hadir'] || 0
-  const noShowCount = summary['tidak_hadir'] || 0
+  const hadirCount = summary['attended'] || 0
+  const noShowCount = summary['no_show'] || 0
   const conversionRate = totalVisitors > 0 ? Math.round((hadirCount / totalVisitors) * 100) : 0
 
   const handleOpenAdd = () => {
@@ -381,7 +381,7 @@ export default function WeeklyMeeting() {
 
       {/* Modal: Add Meeting */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">Tambah Meeting</h3>
@@ -457,7 +457,7 @@ export default function WeeklyMeeting() {
 
       {/* Modal: Edit Meeting */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">Edit Meeting</h3>

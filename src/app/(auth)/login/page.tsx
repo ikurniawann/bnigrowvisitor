@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from '@/lib/auth'
@@ -36,7 +37,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-red-900 via-red-800 to-red-950">
+      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-red-950 via-red-800 to-slate-950">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -48,20 +49,23 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           {/* Logo */}
           <div>
-            <img 
+            <Image
               src="/logo-bni-grow.png" 
               alt="BNI Grow Logo"
-              className="h-16 w-auto object-contain brightness-0 invert"
+              width={160}
+              height={64}
+              className="object-contain brightness-0 invert"
+              priority
             />
           </div>
 
           {/* Main Content */}
           <div className="space-y-6">
             <div>
-              <h1 className="text-4xl font-bold text-white mb-4">
+              <h1 className="text-4xl font-semibold tracking-[-0.01em] text-white mb-4">
                 Visitor Management System
               </h1>
-              <p className="text-xl text-red-100 leading-relaxed">
+              <p className="text-xl text-red-100 leading-relaxed tracking-[-0.01em]">
                 Kelola kunjungan dan networking BNI Grow dengan mudah — dari tracking visitor, manajemen member, hingga laporan meeting real-time.
               </p>
             </div>
@@ -91,20 +95,23 @@ export default function LoginPage() {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-gray-50">
+      <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
-            <img 
+            <Image
               src="/logo-bni-grow.png" 
               alt="BNI Grow Logo"
-              className="h-12 w-auto mx-auto object-contain"
+              width={120}
+              height={48}
+              className="mx-auto object-contain"
+              priority
             />
           </div>
 
           {/* Welcome Text */}
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            <h2 className="text-3xl font-semibold tracking-[-0.01em] text-gray-950 mb-2">
               Selamat Datang
             </h2>
             <p className="text-gray-600">
@@ -113,7 +120,7 @@ export default function LoginPage() {
           </div>
 
           {/* Login Card */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+          <div className="glass-panel-strong rounded-[22px] p-8">
             <div className="mb-6">
               <h3 className="text-xl font-semibold text-gray-800">Login Portal</h3>
             </div>

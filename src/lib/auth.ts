@@ -2,12 +2,9 @@ import { supabase, User } from './supabase'
 
 export async function signIn(email: string, password: string) {
   try {
-    // For development: directly check users table
-    console.log('Attempting login with email:', email)
-    
     const { data: user, error } = await supabase
       .from('users')
-      .select('*')
+      .select('id, name, email, role, phone, avatar_url, is_active, created_at, updated_at, password_hash')
       .eq('email', email)
       .eq('is_active', true)
       .single()
@@ -22,17 +19,29 @@ export async function signIn(email: string, password: string) {
       return { success: false, error: 'Email tidak terdaftar' }
     }
 
-    console.log('User found:', user.email, 'Role:', user.role)
+    if (typeof user.password_hash === 'string' && user.password_hash.startsWith('$2')) {
+      return {
+        success: false,
+        error: 'Password tersimpan sebagai hash bcrypt, tetapi verifikasi bcrypt belum tersedia di client login ini.',
+      }
+    }
 
-    // Simple password check for development
-    // In production, use bcrypt comparison with password_hash
-    if (password !== 'admin123') {
-      console.log('Wrong password for user:', email)
+    if (password !== user.password_hash) {
       return { success: false, error: 'Password salah' }
     }
 
-    console.log('Login successful for:', email)
-    return { success: true, user: user as User }
+    const safeUser: User = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone,
+      avatar_url: user.avatar_url,
+      is_active: user.is_active,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    }
+    return { success: true, user: safeUser as User }
   } catch (error: any) {
     console.error('Login error:', error)
     return { success: false, error: error.message || 'Login gagal' }
@@ -54,7 +63,7 @@ export async function getCurrentUser(): Promise<User | null> {
     // Verify user still exists and is active
     const { data, error } = await supabase
       .from('users')
-      .select('*')
+      .select('id, name, email, role, phone, avatar_url, is_active, created_at, updated_at')
       .eq('id', user.id)
       .eq('is_active', true)
       .single()

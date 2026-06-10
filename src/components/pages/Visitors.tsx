@@ -57,8 +57,6 @@ export default function Visitors() {
   const [statusFilter, setStatusFilter] = useState('')
   const [meetingFilter, setMeetingFilter] = useState('')
   const [picFilter, setPicFilter] = useState('')
-  const [sortBy, setSortBy] = useState('created_at')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -107,6 +105,8 @@ export default function Visitors() {
     return () => {
       window.removeEventListener('open-add-visitor', handleOpenAddVisitor)
     }
+    // Event listener should be registered once for the dashboard-level custom event.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Filter visitors
@@ -129,17 +129,7 @@ export default function Visitors() {
 
   // Sort visitors
   const sortedVisitors = [...filteredVisitors].sort((a, b) => {
-    let comparison = 0
-    
-    if (sortBy === 'created_at') {
-      comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    } else if (sortBy === 'name') {
-      comparison = a.name.localeCompare(b.name)
-    } else if (sortBy === 'meeting_date') {
-      comparison = new Date(a.meeting_date || '1970-01-01').getTime() - new Date(b.meeting_date || '1970-01-01').getTime()
-    }
-    
-    return sortOrder === 'asc' ? comparison : -comparison
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 
   // Pagination
@@ -151,9 +141,9 @@ export default function Visitors() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, statusFilter, meetingFilter, picFilter, sortBy, sortOrder])
+  }, [search, statusFilter, meetingFilter, picFilter])
 
-  const handleOpenAdd = () => {
+  function handleOpenAdd() {
     setFormData({
       ...initialForm,
       meeting_id: meetings.length > 0 ? meetings[0].id : '',
@@ -323,11 +313,11 @@ export default function Visitors() {
   return (
     <div className="space-y-4">
       {/* Filter Bar */}
-      <div className="bg-white rounded-xl shadow p-4 space-y-3">
-        <div className="flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center">
-          <div className="flex flex-wrap gap-3 flex-1">
+      <div className="visitor-toolbar">
+        <div className="visitor-toolbar-grid">
+          <div className="visitor-filter-group">
             {/* Search */}
-            <div className="flex-1 min-w-[200px] relative">
+            <div className="visitor-search relative">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
@@ -337,7 +327,7 @@ export default function Visitors() {
                 placeholder="Cari nama, WA, email, bidang usaha..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 font-medium placeholder-gray-500"
+                className="w-full pl-10 pr-4 text-sm text-gray-900 font-medium placeholder-gray-500"
               />
             </div>
 
@@ -345,7 +335,7 @@ export default function Visitors() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
+              className="visitor-select text-sm text-gray-900 font-medium"
             >
               <option value="">Semua Status</option>
               {Object.entries(STATUSES).map(([key, value]) => (
@@ -357,7 +347,7 @@ export default function Visitors() {
             <select
               value={meetingFilter}
               onChange={(e) => setMeetingFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
+              className="visitor-select visitor-select-wide text-sm text-gray-900 font-medium"
             >
               <option value="">Semua Meeting</option>
               {meetings.map(m => (
@@ -369,7 +359,7 @@ export default function Visitors() {
             <select
               value={picFilter}
               onChange={(e) => setPicFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
+              className="visitor-select text-sm text-gray-900 font-medium"
             >
               <option value="">Semua PIC</option>
               {pics.map(p => (
@@ -378,27 +368,10 @@ export default function Visitors() {
             </select>
           </div>
 
-          {/* Sort & Export */}
-          <div className="flex gap-2 items-center">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
-            >
-              <option value="created_at">Tanggal Input</option>
-              <option value="name">Nama</option>
-              <option value="meeting_date">Tanggal Meeting</option>
-            </select>
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:bg-gray-50 focus:ring-2 focus:ring-red-500 text-gray-900 font-medium"
-              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-            >
-              {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
-            </button>
+          <div className="visitor-action-group">
             <button
               onClick={handleExportCSV}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+              className="visitor-export-button"
               title="Export to CSV"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -411,8 +384,7 @@ export default function Visitors() {
           </div>
         </div>
 
-        {/* Count */}
-        <div className="text-sm text-gray-500">
+        <div className="visitor-count">
           Menampilkan {filteredVisitors.length} dari {visitors.length} visitor{meetingFilter ? ` (Filtered by Meeting)` : ''}
         </div>
       </div>
@@ -430,7 +402,7 @@ export default function Visitors() {
                 <th className="text-left font-medium px-4 py-3">Perusahaan</th>
                 <th className="text-left font-medium px-4 py-3">No WA</th>
                 <th className="text-left font-medium px-4 py-3 hidden md:table-cell">Diajak Oleh</th>
-                <th className="text-left font-medium px-4 py-3 hidden md:table-cell">PIC</th>
+                <th className="text-left font-medium px-4 py-3 min-w-[120px]">PIC</th>
                 <th className="text-left font-medium px-4 py-3">Status</th>
                 <th className="text-left font-medium px-4 py-3">Aksi</th>
               </tr>
@@ -495,7 +467,7 @@ export default function Visitors() {
                         <span className="text-gray-400">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-[13px] hidden md:table-cell">
+                    <td className="px-4 py-3 text-[13px] min-w-[120px]">
                       {visitor.pic_name ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                           <span className="w-4 h-4 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs">
@@ -598,7 +570,7 @@ export default function Visitors() {
 
       {/* Modal: Add/Edit Visitor */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
               <h3 className="text-lg font-semibold text-gray-900">

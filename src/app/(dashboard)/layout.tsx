@@ -20,9 +20,25 @@ const pathToPage: Record<string, string> = {
   '/dashboard': 'dashboard',
   '/kanban': 'kanban',
   '/visitors': 'visitors',
+  '/attended': 'attended',
+  '/members': 'members',
+  '/export-import': 'export-import',
+  '/text-format': 'text-format',
   '/ocr': 'ocr',
   '/pic': 'pic',
   '/weekly': 'weekly',
+}
+
+const pageTitles: Record<string, string> = {
+  dashboard: 'Dashboard',
+  kanban: 'Kanban',
+  visitors: 'Visitors',
+  attended: 'Visitor Hadir',
+  members: 'Member Grow',
+  'export-import': 'Export / Import',
+  'text-format': 'Text Format',
+  pic: 'Kelola PIC',
+  weekly: 'Weekly Meeting',
 }
 
 // Pages that should hide sidebar (fullscreen mode)
@@ -37,7 +53,7 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const [user, setUser] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
-  const [currentPage, setCurrentPage] = useState('dashboard')
+  const currentPage = pathToPage[pathname] || 'dashboard'
 
   useEffect(() => {
     const loadUser = async () => {
@@ -52,30 +68,10 @@ export default function DashboardLayout({
     loadUser()
   }, [router])
 
-  // Sync pathname with currentPage
-  useEffect(() => {
-    const page = pathToPage[pathname] || 'dashboard'
-    setCurrentPage(page)
-  }, [pathname])
-
   const handleLogout = async () => {
     await signOut()
     localStorage.removeItem('user')
     router.push('/login')
-  }
-
-  const handleNavigate = (page: string) => {
-    const paths: Record<string, string> = {
-      dashboard: '/dashboard',
-      kanban: '/kanban',
-      visitors: '/visitors',
-      ocr: '/ocr',
-      pic: '/pic',
-      weekly: '/weekly',
-    }
-    if (paths[page]) {
-      router.push(paths[page])
-    }
   }
 
   const handleAddVisitor = () => {
@@ -92,7 +88,7 @@ export default function DashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <svg className="animate-spin h-12 w-12 text-red-600 mx-auto" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -106,17 +102,17 @@ export default function DashboardLayout({
 
   return (
     <DashboardContext.Provider value={{ onAddVisitor: handleAddVisitor }}>
-      <div className="flex min-h-screen bg-gray-100">
+      <div className="flex min-h-screen">
         {/* Sidebar - hidden on fullscreen pages */}
         {!isFullscreen && (
           <Sidebar currentPage={currentPage} />
         )}
         
-        <div className={`flex-1 flex flex-col min-h-screen ${isFullscreen ? 'ml-0' : ''}`}>
+        <div className={`flex-1 flex flex-col min-h-screen min-w-0 ${isFullscreen ? 'ml-0' : 'lg:ml-64 lg:w-[calc(100%-16rem)]'}`}>
           {/* Topbar - hidden on fullscreen pages */}
           {!isFullscreen && (
             <Topbar 
-              title={currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}
+              title={pageTitles[currentPage] || currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}
               user={user}
               onLogout={handleLogout}
               onAddVisitor={handleAddVisitor}
@@ -126,23 +122,6 @@ export default function DashboardLayout({
           <main className="flex-1 p-4 lg:p-6 overflow-auto">
             {children}
           </main>
-
-          {/* Footer */}
-          {!isFullscreen && (
-            <footer className="bg-white border-t border-gray-200 py-3 px-6">
-              <div className="text-center text-xs text-gray-500">
-                Powered by{' '}
-                <a 
-                  href="https://wit.id" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-red-600 hover:text-red-700 font-medium underline transition-colors"
-                >
-                  WIT.ID
-                </a>
-              </div>
-            </footer>
-          )}
         </div>
       </div>
     </DashboardContext.Provider>

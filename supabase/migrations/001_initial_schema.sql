@@ -47,6 +47,7 @@ CREATE TABLE users (
   password_hash text NOT NULL,
   role user_role NOT NULL DEFAULT 'pic',
   phone varchar(20),
+  business_classification varchar(150),
   avatar_url text,
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),

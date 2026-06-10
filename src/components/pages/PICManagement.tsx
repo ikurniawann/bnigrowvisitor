@@ -3,11 +3,14 @@
 import { useState } from 'react'
 import { useData } from '@/hooks/useData'
 import { supabase } from '@/lib/supabase'
+import { notifyDataChanged } from '@/lib/ui/toast'
+import { saveLocalPicBusinessClassification } from '@/lib/picBusinessClassification'
 
 interface PICForm {
   name: string
   role: string
   wa: string
+  business_classification: string
   email: string
   password: string
 }
@@ -16,8 +19,9 @@ const initialForm: PICForm = {
   name: '',
   role: 'Visitor Followup Specialist',
   wa: '',
+  business_classification: '',
   email: '',
-  password: 'pic123',
+  password: '',
 }
 
 export default function PICManagement() {
@@ -34,7 +38,7 @@ export default function PICManagement() {
   // Calculate workload for each PIC
   const getPICWorkload = (picId: string) => {
     const picVisitors = visitors.filter(v => v.pic_id === picId)
-    const active = picVisitors.filter(v => !['member', 'tidak_lanjut'].includes(v.status)).length
+    const active = picVisitors.filter(v => !['member', 'not_continue'].includes(v.status)).length
     return {
       total: picVisitors.length,
       active,
@@ -56,6 +60,7 @@ export default function PICManagement() {
       name: pic.name || '',
       role: pic.role || 'Visitor Followup Specialist',
       wa: pic.wa || '',
+      business_classification: pic.business_classification || '',
       email: '', // Email tidak bisa diubah
       password: '',
     })
@@ -75,11 +80,13 @@ export default function PICManagement() {
 
     try {
       if (editingId) {
+        saveLocalPicBusinessClassification(editingId, formData.business_classification)
         // Update existing PIC
         await updatePic(editingId, {
           name: formData.name,
           role: formData.role,
           wa: formData.wa,
+          business_classification: formData.business_classification,
         })
       } else {
         // Create new PIC with user account
@@ -90,7 +97,7 @@ export default function PICManagement() {
         }
 
         // Create user in database
-        const { error: insertError } = await supabase
+        let { data: insertedPic, error: insertError }: { data: any | null; error: any } = await supabase
           .from('users')
           .insert({
             name: formData.name,
@@ -98,11 +105,35 @@ export default function PICManagement() {
             password_hash: formData.password,
             role: 'pic',
             phone: formData.wa,
+            business_classification: formData.business_classification,
             is_active: true,
           })
+          .select('id')
           .single()
 
+        if (insertError && insertError.message?.includes('business_classification')) {
+          const fallback = await supabase
+            .from('users')
+            .insert({
+              name: formData.name,
+              email: formData.email,
+              password_hash: formData.password,
+              role: 'pic',
+              phone: formData.wa,
+              is_active: true,
+            })
+            .select('id')
+            .single()
+
+          insertedPic = fallback.data
+          insertError = fallback.error
+        }
+
         if (insertError) throw insertError
+        if (insertedPic?.id) {
+          saveLocalPicBusinessClassification(insertedPic.id, formData.business_classification)
+        }
+        notifyDataChanged('insert')
       }
 
       setIsModalOpen(false)
@@ -218,6 +249,7 @@ export default function PICManagement() {
                 <tr className="text-[11px] text-gray-600 uppercase tracking-wide">
                   <th className="text-left font-semibold px-4 py-3">Nama PIC</th>
                   <th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Role / Jabatan</th>
+                  <th className="text-left font-semibold px-4 py-3 hidden lg:table-cell">Klasifikasi Bisnis</th>
                   <th className="text-left font-semibold px-4 py-3">No WhatsApp</th>
                   <th className="text-left font-semibold px-4 py-3 hidden lg:table-cell">Visitor Aktif</th>
                   <th className="text-left font-semibold px-4 py-3 hidden lg:table-cell">Total Handled</th>
@@ -246,6 +278,9 @@ export default function PICManagement() {
                       </td>
                       <td className="px-4 py-3 text-[13px] text-gray-600 hidden md:table-cell">
                         {pic.role || 'Visitor Followup Specialist'}
+                      </td>
+                      <td className="px-4 py-3 text-[13px] text-gray-600 hidden lg:table-cell">
+                        {pic.business_classification || '-'}
                       </td>
                       <td className="px-4 py-3 text-[13px] text-gray-600">
                         <a 
@@ -338,7 +373,7 @@ export default function PICManagement() {
 
       {/* Modal: Add/Edit PIC */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">
@@ -401,6 +436,20 @@ export default function PICManagement() {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  Klasifikasi Bisnis
+                </label>
+                <input
+                  type="text"
+                  value={formData.business_classification}
+                  onChange={(e) => setFormData({ ...formData, business_classification: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
+                  placeholder="Contoh: Digital Marketing"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">Dipakai sebagai placeholder {'{pic_bisnis}'} pada format WA</p>
+              </div>
+
               {!editingId && (
                 <>
                   <div>
@@ -419,14 +468,14 @@ export default function PICManagement() {
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                      Password Default *
+                      Password Sementara *
                     </label>
                     <input
                       type="password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
-                      placeholder="pic123"
+                      placeholder="Masukkan password sementara"
                     />
                     <p className="text-[10px] text-gray-500 mt-1">Password awal, bisa diubah setelah login</p>
                   </div>
