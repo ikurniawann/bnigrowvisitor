@@ -45,11 +45,27 @@ function normalizeAssistantText(value: string) {
     .trim()
 }
 
+const POSITION_STORAGE_KEY = 'grow-assistant-position'
+const BUBBLE_WIDTH = 230
+const BUBBLE_HEIGHT = 64
+const VIEWPORT_PADDING = 16
+
+function clampPosition(position: { x: number; y: number }) {
+  if (typeof window === 'undefined') return position
+
+  return {
+    x: Math.min(Math.max(VIEWPORT_PADDING, position.x), Math.max(VIEWPORT_PADDING, window.innerWidth - BUBBLE_WIDTH - VIEWPORT_PADDING)),
+    y: Math.min(Math.max(VIEWPORT_PADDING, position.y), Math.max(VIEWPORT_PADDING, window.innerHeight - BUBBLE_HEIGHT - VIEWPORT_PADDING)),
+  }
+}
+
 export default function GrowAssistant() {
   const [isOpen, setIsOpen] = useState(false)
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [isOnline, setIsOnline] = useState<boolean | null>(null)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
   const [messages, setMessages] = useState<AssistantMessage[]>([
     {
       id: 'welcome',
@@ -59,6 +75,52 @@ export default function GrowAssistant() {
     },
   ])
   const listRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef({
+    pointerId: 0,
+    startX: 0,
+    startY: 0,
+    initialX: 0,
+    initialY: 0,
+    moved: false,
+    suppressClick: false,
+  })
+
+  useEffect(() => {
+    const defaultPosition = {
+      x: window.innerWidth - BUBBLE_WIDTH - 20,
+      y: window.innerHeight - BUBBLE_HEIGHT - 20,
+    }
+
+    try {
+      const saved = localStorage.getItem(POSITION_STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (typeof parsed?.x === 'number' && typeof parsed?.y === 'number') {
+          setPosition(clampPosition(parsed))
+          return
+        }
+      }
+    } catch {
+      // Ignore invalid saved positions and use the default.
+    }
+
+    setPosition(clampPosition(defaultPosition))
+  }, [])
+
+  useEffect(() => {
+    const handleResize = () => {
+      setPosition(prev => {
+        const next = clampPosition(prev)
+        try {
+          localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(next))
+        } catch {}
+        return next
+      })
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     if (!isOpen) return
@@ -125,10 +187,76 @@ export default function GrowAssistant() {
     }
   }
 
+  const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      initialX: position.x,
+      initialY: position.y,
+      moved: false,
+      suppressClick: false,
+    }
+    setIsDragging(true)
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!isDragging || dragRef.current.pointerId !== event.pointerId) return
+
+    const deltaX = event.clientX - dragRef.current.startX
+    const deltaY = event.clientY - dragRef.current.startY
+
+    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+      dragRef.current.moved = true
+      dragRef.current.suppressClick = true
+    }
+
+    const next = clampPosition({
+      x: dragRef.current.initialX + deltaX,
+      y: dragRef.current.initialY + deltaY,
+    })
+
+    setPosition(next)
+  }
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (dragRef.current.pointerId === event.pointerId) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      } catch {}
+
+      if (dragRef.current.moved) {
+        try {
+          localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(position))
+        } catch {}
+      }
+    }
+
+    setIsDragging(false)
+  }
+
+  const handleBubbleClick = () => {
+    if (dragRef.current.suppressClick) {
+      dragRef.current.suppressClick = false
+      return
+    }
+
+    setIsOpen(prev => !prev)
+  }
+
+  const panelVerticalClass = position.y > 360
+    ? 'bottom-[calc(100%+1rem)]'
+    : 'top-[calc(100%+1rem)]'
+  const panelHorizontalClass = position.x > 260 ? 'right-0' : 'left-0'
+
   return (
-    <div className="fixed bottom-5 right-5 z-[2147482000]">
+    <div
+      className="fixed z-[2147482000]"
+      style={{ left: position.x || undefined, top: position.y || undefined }}
+    >
       {isOpen && (
-        <div className="mb-4 flex h-[min(640px,calc(100vh-7rem))] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/92 shadow-[0_24px_80px_rgba(15,23,42,0.22)] backdrop-blur-2xl">
+        <div className={`absolute ${panelVerticalClass} ${panelHorizontalClass} flex h-[min(640px,calc(100vh-7rem))] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/92 shadow-[0_24px_80px_rgba(15,23,42,0.22)] backdrop-blur-2xl`}>
           <div className="flex items-center justify-between border-b border-gray-100 bg-white/80 px-4 py-3">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-red-600 to-red-800 text-sm font-bold text-white shadow-lg shadow-red-900/20">
@@ -242,9 +370,16 @@ export default function GrowAssistant() {
       )}
 
       <button
-        onClick={() => setIsOpen(prev => !prev)}
-        className="group flex h-16 items-center gap-3 rounded-2xl bg-gradient-to-br from-red-600 via-red-700 to-red-900 px-4 pr-5 text-white shadow-[0_18px_50px_rgba(185,28,28,0.35)] ring-1 ring-white/20 transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(185,28,28,0.42)]"
+        onClick={handleBubbleClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className={`group flex h-16 touch-none select-none items-center gap-3 rounded-2xl bg-gradient-to-br from-red-600 via-red-700 to-red-900 px-4 pr-5 text-white shadow-[0_18px_50px_rgba(185,28,28,0.35)] ring-1 ring-white/20 transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(185,28,28,0.42)] ${
+          isDragging ? 'cursor-grabbing scale-[1.02]' : 'cursor-grab'
+        }`}
         aria-label="Buka Grow Assistant"
+        title="Klik untuk buka, drag untuk pindahkan posisi"
       >
         {isOpen ? (
           <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
