@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useData } from '@/hooks/useData'
 import VisitorDetail from './VisitorDetail'
 
@@ -15,6 +15,7 @@ export default function AttendedVisitors() {
   
   // Filter state
   const [meetingFilter, setMeetingFilter] = useState<string>('')
+  const [search, setSearch] = useState('')
   
   // Filter: hanya visitor dengan status attended atau final statuses
   let attendedVisitors = visitors.filter(v => 
@@ -25,6 +26,20 @@ export default function AttendedVisitors() {
   // Apply meeting filter if selected
   if (meetingFilter) {
     attendedVisitors = attendedVisitors.filter(v => v.meeting_date === meetingFilter)
+  }
+
+  if (search.trim()) {
+    const keyword = search.trim().toLowerCase()
+    attendedVisitors = attendedVisitors.filter(visitor => {
+      return (
+        visitor.name?.toLowerCase().includes(keyword) ||
+        visitor.phone?.toLowerCase().includes(keyword) ||
+        visitor.email?.toLowerCase().includes(keyword) ||
+        visitor.business_field?.toLowerCase().includes(keyword) ||
+        visitor.company?.toLowerCase().includes(keyword) ||
+        visitor.pic_name?.toLowerCase().includes(keyword)
+      )
+    })
   }
   
   // Group by status
@@ -47,6 +62,10 @@ export default function AttendedVisitors() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, meetingFilter, filterStatus])
 
   const handleOpenDetail = (visitor: any) => {
     setSelectedVisitor(visitor)
@@ -157,6 +176,13 @@ export default function AttendedVisitors() {
     ? attendedVisitors 
     : grouped[filterStatus as keyof typeof grouped] || []
 
+  const pipelineStages = [
+    { key: 'attended', label: 'Hadir', description: 'Siap diproses MCQA', color: 'emerald', visitors: grouped.attended },
+    { key: 'interview', label: 'Interview', description: 'Dalam proses interview', color: 'purple', visitors: grouped.interview },
+    { key: 'member', label: 'Jadi Member', description: 'Berhasil dikonversi', color: 'cyan', visitors: grouped.member },
+    { key: 'not_continue', label: 'Tidak Lanjut', description: 'Tidak masuk proses', color: 'gray', visitors: grouped.not_continue },
+  ]
+
   // Pagination
   const totalPages = Math.ceil(filteredVisitors.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -168,7 +194,7 @@ export default function AttendedVisitors() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Visitor Hadir</h1>
+          <h1 className="text-xl font-bold text-gray-900">MCQA</h1>
           <p className="text-sm text-gray-500 mt-1">Kelola visitor yang sudah hadir</p>
         </div>
       </div>
@@ -219,58 +245,118 @@ export default function AttendedVisitors() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+        {pipelineStages.map(stage => (
+          <button
+            key={stage.key}
+            onClick={() => setFilterStatus(stage.key)}
+            className={`rounded-xl border bg-white p-4 text-left shadow transition-all hover:-translate-y-0.5 hover:border-red-200 hover:bg-orange-50/70 ${
+              filterStatus === stage.key ? 'border-red-200 ring-2 ring-red-100' : 'border-transparent'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wide text-gray-400">{stage.label}</div>
+                <div className="mt-1 text-xs text-gray-500">{stage.description}</div>
+              </div>
+              <div className="text-2xl font-black text-gray-950">{stage.visitors.length}</div>
+            </div>
+            <div className="mt-4 space-y-2">
+              {stage.visitors.slice(0, 3).map(visitor => (
+                <div key={visitor.id} className="truncate rounded-lg bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700">
+                  {visitor.name}
+                </div>
+              ))}
+              {stage.visitors.length === 0 && (
+                <div className="rounded-lg border border-dashed border-gray-200 px-3 py-2 text-xs text-gray-400">
+                  Kosong
+                </div>
+              )}
+              {stage.visitors.length > 3 && (
+                <div className="text-xs font-semibold text-red-600">+{stage.visitors.length - 3} lainnya</div>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+
       {/* Filter Tabs */}
-      <div className="flex gap-2 bg-gray-100 p-1 rounded-lg w-fit">
-        <button
-          onClick={() => setFilterStatus('all')}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            filterStatus === 'all'
-              ? 'bg-white text-red-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Semua ({attendedVisitors.length})
-        </button>
-        <button
-          onClick={() => setFilterStatus('attended')}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            filterStatus === 'attended'
-              ? 'bg-white text-emerald-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Hadir ({grouped.attended.length})
-        </button>
-        <button
-          onClick={() => setFilterStatus('interview')}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            filterStatus === 'interview'
-              ? 'bg-white text-purple-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Interview ({grouped.interview.length})
-        </button>
-        <button
-          onClick={() => setFilterStatus('member')}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            filterStatus === 'member'
-              ? 'bg-white text-cyan-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Jadi Member ({grouped.member.length})
-        </button>
-        <button
-          onClick={() => setFilterStatus('not_continue')}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            filterStatus === 'not_continue'
-              ? 'bg-white text-gray-700 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Tidak Lanjut ({grouped.not_continue.length})
-        </button>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative w-full lg:max-w-md">
+          <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="m21 21-4.35-4.35" />
+            <circle cx="11" cy="11" r="7" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Cari nama, WA, email, bidang usaha, perusahaan, PIC..."
+            className="w-full rounded-xl border border-gray-200 bg-white px-10 py-2.5 text-sm text-gray-800 shadow-sm transition-colors focus:border-red-300 focus:ring-2 focus:ring-red-100"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-semibold text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              aria-label="Clear search"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        <div className="flex w-full gap-2 overflow-x-auto rounded-lg bg-gray-100 p-1 lg:w-fit">
+          <button
+            onClick={() => setFilterStatus('all')}
+            className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              filterStatus === 'all'
+                ? 'bg-white text-red-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Semua ({attendedVisitors.length})
+          </button>
+          <button
+            onClick={() => setFilterStatus('attended')}
+            className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              filterStatus === 'attended'
+                ? 'bg-white text-emerald-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Hadir ({grouped.attended.length})
+          </button>
+          <button
+            onClick={() => setFilterStatus('interview')}
+            className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              filterStatus === 'interview'
+                ? 'bg-white text-purple-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Interview ({grouped.interview.length})
+          </button>
+          <button
+            onClick={() => setFilterStatus('member')}
+            className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              filterStatus === 'member'
+                ? 'bg-white text-cyan-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Jadi Member ({grouped.member.length})
+          </button>
+          <button
+            onClick={() => setFilterStatus('not_continue')}
+            className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              filterStatus === 'not_continue'
+                ? 'bg-white text-gray-700 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Tidak Lanjut ({grouped.not_continue.length})
+          </button>
+        </div>
       </div>
 
       {/* Visitors Table */}

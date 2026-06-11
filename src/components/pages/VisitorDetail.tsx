@@ -188,6 +188,26 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
     applyDraftUpdates(updates, 'Follow-up dijadwalkan. Tekan Save untuk menyimpan.')
   }
 
+  const trackWaActivity = async () => {
+    const currentNotes = currentVisitor.notes || ''
+    const note = `[${getTimestamp()}] Template WA dibuka dari detail visitor\n`
+    const updates = {
+      notes: currentNotes + note,
+      updated_at: new Date().toISOString(),
+    }
+
+    setCurrentVisitor((prev: any) => ({ ...prev, ...updates }))
+    setOriginalVisitor((prev: any) => ({ ...prev, ...updates }))
+
+    try {
+      await updateVisitor(currentVisitor.id, updates)
+      await reload()
+      await onSaved?.({ ...currentVisitor, ...updates })
+    } catch (err) {
+      console.error('Gagal mencatat aktivitas WA:', err)
+    }
+  }
+
   const handleSave = async () => {
     setUpdating(true)
     try {
@@ -322,6 +342,7 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
                 href={formatWaLink(currentVisitor.phone, currentVisitor.name, (currentVisitor as any).referred_by_member_name, currentVisitor.gender)} 
                 target="_blank" 
                 rel="noopener noreferrer"
+                onClick={trackWaActivity}
                 className="text-green-600 hover:underline font-medium"
               >
                 {currentVisitor.phone}
@@ -339,6 +360,7 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
                 href={formatWaLink(currentVisitor.phone, currentVisitor.name, (currentVisitor as any).referred_by_member_name, currentVisitor.gender)}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={trackWaActivity}
                 className="inline-flex items-center justify-center rounded-xl bg-green-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
               >
                 Kirim WA

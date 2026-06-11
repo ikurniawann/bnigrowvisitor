@@ -9,9 +9,16 @@ type AssistantMessage = {
 }
 
 const starterPrompts = [
-  'Ringkas kondisi visitor minggu ini',
+  'Buat prioritas follow-up hari ini',
+  'Tampilkan data yang belum lengkap',
+  'Analisa conversion funnel',
   'Siapa top visitor brought?',
-  'Data apa yang perlu dilengkapi?',
+]
+
+const actionShortcuts = [
+  { label: 'Buka Visitor', path: '/visitors' },
+  { label: 'Buka MCQA', path: '/attended' },
+  { label: 'Text Format WA', path: '/text-format' },
 ]
 
 function createId() {
@@ -171,6 +178,20 @@ export default function GrowAssistant() {
           </div>
 
           <div className="border-t border-gray-100 bg-white p-3">
+            <div className="mb-2 flex gap-2 overflow-x-auto">
+              {actionShortcuts.map(action => (
+                <button
+                  key={action.path}
+                  onClick={() => {
+                    window.location.href = action.path
+                    setIsOpen(false)
+                  }}
+                  className="whitespace-nowrap rounded-full bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100"
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
             <div className="mb-2 flex flex-wrap gap-2">
               {starterPrompts.map(prompt => (
                 <button

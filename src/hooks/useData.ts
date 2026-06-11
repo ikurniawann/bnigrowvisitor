@@ -440,7 +440,7 @@ export function useData() {
 
     return Object.entries(distribution)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
+      .slice(0, 10)
   }
 
   function getStatusDistribution() {

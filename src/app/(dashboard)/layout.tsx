@@ -34,7 +34,7 @@ const pageTitles: Record<string, string> = {
   dashboard: 'Dashboard',
   kanban: 'Pipeline',
   visitors: 'Visitors',
-  attended: 'Visitor Hadir',
+  attended: 'MCQA',
   members: 'Member Grow',
   'export-import': 'Export / Import',
   'text-format': 'Text Format',

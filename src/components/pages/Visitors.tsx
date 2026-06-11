@@ -359,6 +359,28 @@ export default function Visitors() {
     return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`
   }
 
+  const trackWaActivity = async (visitor: any) => {
+    const timestamp = new Date().toLocaleString('id-ID', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    const currentNotes = visitor.notes || ''
+    const note = `[${timestamp}] Template WA dibuka dari tabel visitor\n`
+
+    try {
+      await updateVisitor(visitor.id, {
+        notes: currentNotes + note,
+        updated_at: new Date().toISOString(),
+      })
+      await reload()
+    } catch (err) {
+      console.error('Gagal mencatat aktivitas WA:', err)
+    }
+  }
+
   const getDataQualityIssues = (visitor: any) => {
     const issues: string[] = []
     const cleanPhone = (visitor.phone || '').replace(/[^0-9]/g, '')
@@ -712,6 +734,7 @@ export default function Visitors() {
                           href={buildWaLink(visitor)}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() => trackWaActivity(visitor)}
                           className="p-1.5 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
                           title="Kirim WhatsApp"
                         >

@@ -111,6 +111,33 @@ body {
     -webkit-backdrop-filter: var(--blur);
   }
 
+  button.dashboard-focus-card.dashboard-focus-card.dashboard-focus-card {
+    background: rgba(255, 255, 255, 0.82) !important;
+    transition:
+      background 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease;
+  }
+
+  button.dashboard-focus-card.dashboard-focus-card.dashboard-focus-card:hover,
+  button.dashboard-focus-card.is-focus-hover.dashboard-focus-card.dashboard-focus-card {
+    background: linear-gradient(135deg, #fed7aa 0%, #fff1e6 48%, #fecaca 100%) !important;
+    border-color: rgba(249, 115, 22, 0.42) !important;
+    box-shadow: 0 18px 45px rgba(234, 88, 12, 0.18) !important;
+  }
+
+  .meeting-trend-tooltip {
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 140ms ease, transform 140ms ease;
+  }
+
+  .meeting-trend-node:hover .meeting-trend-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
   .glass-toast {
     display: flex;
     align-items: flex-start;
