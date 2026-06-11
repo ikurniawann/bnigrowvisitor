@@ -33,6 +33,15 @@ export default function AttendedVisitors() {
     return option ? `Opsi ${choice} - ${option.label}` : 'Belum Ada Opsi'
   }
 
+  const getWeeklyMeetingLabel = (visitor: any) => {
+    const rawDate = visitor.meeting_date || visitor.meeting?.meeting_date
+    const dateLabel = rawDate
+      ? new Date(rawDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '-'
+
+    return visitor.meeting_title ? `${visitor.meeting_title} - ${dateLabel}` : dateLabel
+  }
+
   // Filter: visitor yang benar-benar hadir atau sudah masuk pipeline MCQA.
   let actualAttendanceVisitors = visitors.filter(v => 
     v.status === 'attended' || 
@@ -447,7 +456,7 @@ export default function AttendedVisitors() {
                   <th className="text-left font-semibold px-4 py-3 hidden lg:table-cell">Email</th>
                   <th className="text-left font-semibold px-4 py-3">PIC</th>
                   <th className="text-left font-semibold px-4 py-3">Status Airtime</th>
-                  <th className="text-left font-semibold px-4 py-3">Status MCQA</th>
+                  <th className="text-left font-semibold px-4 py-3">Weekly Meeting</th>
                   <th className="text-left font-semibold px-4 py-3">Aksi Cepat</th>
                   <th className="text-left font-semibold px-4 py-3"></th>
                 </tr>
@@ -498,11 +507,8 @@ export default function AttendedVisitors() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                        visitor.status === 'attended' ? 'bg-emerald-100 text-emerald-800' :
-                        FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES]?.badge || 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {visitor.status === 'attended' ? 'Hadir' : FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES]?.label || visitor.status}
+                      <span className="inline-block rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                        {getWeeklyMeetingLabel(visitor)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
