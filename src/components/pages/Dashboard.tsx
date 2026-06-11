@@ -237,11 +237,16 @@ export default function Dashboard() {
     ? `${meetingTrendPath} L ${meetingTrendPoints[meetingTrendPoints.length - 1].x} ${chartPadding.top + chartInnerHeight} L ${meetingTrendPoints[0].x} ${chartPadding.top + chartInnerHeight} Z`
     : ''
   const maxIndustryCount = Math.max(...topIndustryDist.map(([, c]) => c), 1)
+  const actualAttendanceVisitors = filteredVisitors.filter(visitor => ['attended', 'interview', 'member', 'not_continue'].includes(visitor.status))
+  const airtimeQualifiedVisitors = filteredVisitors.filter(visitor =>
+    (visitor.status === 'attended' && Number((visitor as any).attended_choice_number) === 1) ||
+    ['interview', 'member'].includes(visitor.status)
+  )
   const funnelSteps = [
     { label: 'Visitor', count: filteredVisitors.length, color: 'from-slate-400 to-slate-500' },
     { label: 'Confirmed', count: filteredVisitors.filter(visitor => visitor.status === 'confirmed').length, color: 'from-green-400 to-green-500' },
-    { label: 'Hadir', count: filteredVisitors.filter(visitor => ['attended', 'interview', 'member', 'not_continue'].includes(visitor.status)).length, color: 'from-emerald-400 to-emerald-500' },
-    { label: 'Interview', count: filteredVisitors.filter(visitor => visitor.status === 'interview').length, color: 'from-purple-400 to-purple-500' },
+    { label: 'Hadir', count: actualAttendanceVisitors.length, color: 'from-emerald-400 to-emerald-500' },
+    { label: 'Airtime Qualified', count: airtimeQualifiedVisitors.length, color: 'from-orange-400 to-red-500' },
     { label: 'Member', count: filteredVisitors.filter(visitor => visitor.status === 'member').length, color: 'from-cyan-400 to-cyan-500' },
   ]
   const funnelBase = Math.max(funnelSteps[0]?.count || 0, 1)
@@ -434,16 +439,23 @@ export default function Dashboard() {
                     Visitor: [],
                     Confirmed: ['confirmed'],
                     Hadir: ['attended', 'interview', 'member', 'not_continue'],
-                    Interview: ['interview'],
                     Member: ['member'],
                   }
                   const statuses = statusMap[step.label] || []
                   openInsightList({
                     title: step.label,
                     subtitle: `Visitor pada tahap ${step.label}`,
-                    visitors: statuses.length ? filteredVisitors.filter(visitor => statuses.includes(visitor.status)) : filteredVisitors,
+                    visitors: step.label === 'Airtime Qualified'
+                      ? airtimeQualifiedVisitors
+                      : statuses.length ? filteredVisitors.filter(visitor => statuses.includes(visitor.status)) : filteredVisitors,
                     accent: 'text-red-600',
-                    meta: visitor => visitor.pic_name ? `PIC: ${visitor.pic_name}` : 'Belum ada PIC',
+                    meta: visitor => {
+                      const choice = Number((visitor as any).attended_choice_number)
+                      if (step.label === 'Airtime Qualified') return visitor.pic_name ? `Qualified Airtime • PIC: ${visitor.pic_name}` : 'Qualified Airtime'
+                      if (step.label === 'Hadir' && choice === 2) return 'Pikir-pikir dulu'
+                      if (step.label === 'Hadir' && choice === 3) return 'Tidak tertarik'
+                      return visitor.pic_name ? `PIC: ${visitor.pic_name}` : 'Belum ada PIC'
+                    },
                   })
                 }}
                 className="rounded-xl border border-gray-100 bg-white/75 p-3 text-left transition-colors hover:border-orange-200 hover:bg-orange-50/70"

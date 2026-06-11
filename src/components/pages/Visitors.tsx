@@ -315,9 +315,13 @@ export default function Visitors() {
   const getStatusLabel = (status: string, attendedChoiceNumber?: number) => {
     const baseLabel = STATUSES[status as keyof typeof STATUSES]?.label || status
     
-    // If status is 'attended' (Hadir) and has attended_choice_number, append it
     if (status === 'attended' && attendedChoiceNumber) {
-      return `${baseLabel}-${attendedChoiceNumber}`
+      const airtimeLabels: Record<number, string> = {
+        1: 'Airtime: Bersedia Bergabung',
+        2: 'Airtime: Pikir-pikir Dulu',
+        3: 'Airtime: Tidak Tertarik',
+      }
+      return airtimeLabels[attendedChoiceNumber] || baseLabel
     }
     
     return baseLabel
@@ -1058,11 +1062,11 @@ export default function Visitors() {
                   </select>
                 </div>
 
-                {/* Attended Choice - Only show when status is 'attended' (Hadir) */}
+                {/* Airtime result - only show when status is attended. */}
                 {formData.status === 'attended' && (
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                      Pilihan Kehadiran *
+                      Hasil Airtime *
                     </label>
                     <select
                       value={formData.attended_choice_number || ''}
@@ -1073,13 +1077,13 @@ export default function Visitors() {
                         // Map number to description
                         switch(num) {
                           case 1:
-                            note = 'Bersedia di-interview'
+                            note = 'Bersedia Bergabung'
                             break
                           case 2:
-                            note = 'Masih pikir-pikir'
+                            note = 'Pikir-pikir Dulu'
                             break
                           case 3:
-                            note = 'Menolak untuk bergabung'
+                            note = 'Tidak Tertarik'
                             break
                         }
                         
@@ -1093,11 +1097,11 @@ export default function Visitors() {
                       required
                     >
                       <option value="">— Pilih —</option>
-                      <option value="1">1 - Bersedia di-interview</option>
-                      <option value="2">2 - Masih pikir-pikir</option>
-                      <option value="3">3 - Menolak untuk bergabung</option>
+                      <option value="1">1 - Bersedia Bergabung</option>
+                      <option value="2">2 - Pikir-pikir Dulu</option>
+                      <option value="3">3 - Tidak Tertarik</option>
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">Pilih salah satu opsi</p>
+                    <p className="text-xs text-gray-500 mt-1">Diisi setelah visitor benar-benar hadir dan mengikuti sesi Airtime.</p>
                   </div>
                 )}
               </div>

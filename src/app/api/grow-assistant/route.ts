@@ -19,6 +19,12 @@ const STATUS_LABELS: Record<string, string> = {
   not_continue: 'Tidak Lanjut',
 }
 
+const AIRTIME_LABELS: Record<number, string> = {
+  1: 'Bersedia Bergabung',
+  2: 'Pikir-pikir Dulu',
+  3: 'Tidak Tertarik',
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -47,9 +53,12 @@ function topEntries(record: Record<string, number>, limit = 12) {
 }
 
 function cleanVisitor(visitor: any) {
+  const airtimeChoice = Number(visitor.attended_choice_number || 0)
+
   return {
     nama: visitor.name,
     status: STATUS_LABELS[visitor.status] || visitor.status,
+    hasil_airtime: AIRTIME_LABELS[airtimeChoice] || visitor.attended_choice_note || null,
     gender: visitor.gender || null,
     no_wa: visitor.phone || null,
     email: visitor.email || null,
@@ -132,6 +141,17 @@ async function buildDashboardContext() {
     return meetingDate >= tomorrow && meetingDate < dayAfterTomorrow
   })
 
+  const actualAttendance = visitors.filter((visitor: any) =>
+    ['attended', 'interview', 'member', 'not_continue'].includes(visitor.status)
+  )
+  const airtimeQualified = visitors.filter((visitor: any) =>
+    (visitor.status === 'attended' && Number(visitor.attended_choice_number || 0) === 1) ||
+    ['interview', 'member'].includes(visitor.status)
+  )
+  const airtimeRevisit = visitors.filter((visitor: any) =>
+    visitor.status === 'attended' && Number(visitor.attended_choice_number || 0) === 2
+  )
+
   return {
     generated_at: new Date().toISOString(),
     app: 'BNI Grow Visitor Manager',
@@ -141,11 +161,15 @@ async function buildDashboardContext() {
       total_pic_aktif: pics.length,
       total_weekly_meeting: meetings.length,
       perlu_follow_up: visitors.filter((visitor: any) => ['new', 'followup'].includes(visitor.status)).length,
+      actual_hadir: actualAttendance.length,
+      airtime_bersedia_bergabung: airtimeQualified.length,
+      airtime_pikir_pikir: airtimeRevisit.length,
       belum_assigned_pic: visitors.filter((visitor: any) => !visitor.pic_id).length,
       data_quality_butuh_dilengkapi: missingData.length,
       reminder_h_minus_1: reminderH1.length,
     },
     distribusi_status: topEntries(countBy(visitors, (visitor: any) => STATUS_LABELS[visitor.status] || visitor.status), 20),
+    distribusi_hasil_airtime: topEntries(countBy(actualAttendance, (visitor: any) => AIRTIME_LABELS[Number(visitor.attended_choice_number || 0)] || visitor.attended_choice_note), 10),
     top_industri: topEntries(countBy(visitors, (visitor: any) => visitor.business_field), 20),
     top_diajak_oleh: topEntries(countBy(visitors, (visitor: any) => visitor.referred_by_member?.name || visitor.referral_name), 20),
     distribusi_pic: topEntries(countBy(visitors, (visitor: any) => visitor.pic?.name), 20),
@@ -161,6 +185,8 @@ async function buildDashboardContext() {
     })),
     reminder_h_minus_1: reminderH1.slice(0, 30).map(cleanVisitor),
     data_quality_issues: missingData.slice(0, 30).map(cleanVisitor),
+    mcqa_bersedia_bergabung: airtimeQualified.slice(0, 50).map(cleanVisitor),
+    mcqa_pikir_pikir: airtimeRevisit.slice(0, 50).map(cleanVisitor),
     visitor_terbaru: visitors.slice(0, 40).map(cleanVisitor),
     visitor_records: visitors.map(cleanVisitor),
     member_records: members.map((member: any) => ({
@@ -229,7 +255,7 @@ export async function POST(request: Request) {
           {
             role: 'system',
             content:
-              'Kamu adalah Grow Assistant, AI assistant internal untuk BNI Grow Visitor Manager. Jawab dalam bahasa Indonesia yang ringkas, jelas, natural, dan actionable. Gunakan hanya konteks data dashboard yang diberikan. Jika data tidak tersedia, bilang jujur bahwa datanya belum ada di konteks. Jangan mengarang. Jangan tampilkan markdown, jangan pakai tanda **, jangan bullet markdown yang kaku, jangan heading markdown, dan jangan menulis sumber/keterangan sumber. Tulis seperti obrolan chat biasa. Saat menjawab angka, sebutkan angka spesifik secara natural. Biasakan memberi next action konkret, misalnya arahkan user membuka halaman Visitor untuk follow-up, MCQA untuk proses hadir/interview/member, atau Text Format untuk template WA jika relevan. Akhiri jawaban dengan pertanyaan pendek seperti "Mau saya bantu lihat daftar prioritasnya?" atau variasinya.',
+              'Kamu adalah Grow Assistant, AI assistant internal untuk BNI Grow Visitor Manager. Jawab dalam bahasa Indonesia yang ringkas, jelas, natural, dan actionable. Gunakan hanya konteks data dashboard yang diberikan. Jika data tidak tersedia, bilang jujur bahwa datanya belum ada di konteks. Jangan mengarang. Jangan tampilkan markdown, jangan pakai tanda **, jangan bullet markdown yang kaku, jangan heading markdown, dan jangan menulis sumber/keterangan sumber. Tulis seperti obrolan chat biasa. Saat menjawab angka, sebutkan angka spesifik secara natural. Pahami alur baru: Konfirmasi Hadir baru janji hadir, Hadir berarti benar-benar datang, lalu hasil Airtime menentukan MCQA. MCQA utama adalah visitor hadir dengan hasil Airtime Bersedia Bergabung; Pikir-pikir Dulu perlu follow-up ulang; Tidak Tertarik tidak masuk proses member. Biasakan memberi next action konkret, misalnya arahkan user membuka halaman Visitor untuk follow-up, MCQA untuk proses Airtime/interview/member, atau Text Format untuk template WA jika relevan. Akhiri jawaban dengan pertanyaan pendek seperti "Mau saya bantu lihat daftar prioritasnya?" atau variasinya.',
           },
           {
             role: 'system',

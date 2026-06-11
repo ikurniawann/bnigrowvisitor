@@ -17,10 +17,17 @@ const STATUSES = {
   confirmed:    { label: 'Konfirmasi Hadir',  badge: 'bg-green-100 text-green-800', btn: 'bg-orange-500 text-white hover:bg-orange-600 shadow-[0_10px_22px_rgba(249,115,22,0.24)]' },
   attended:     { label: 'Hadir',             badge: 'bg-emerald-100 text-emerald-800', btn: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' },
   no_show:      { label: 'Tidak Hadir',       badge: 'bg-red-100 text-red-800', btn: 'bg-red-100 text-red-700 hover:bg-red-200' },
-  // Interview, Member, Not Continue will be managed from "Visitor Hadir" page
+  interview:    { label: 'Interview',         badge: 'bg-purple-100 text-purple-800', btn: 'bg-purple-100 text-purple-700 hover:bg-purple-200' },
+  member:       { label: 'Jadi Member',       badge: 'bg-cyan-100 text-cyan-800', btn: 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200' },
+  not_continue: { label: 'Tidak Lanjut',      badge: 'bg-gray-100 text-gray-800', btn: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
 }
 
 const STATUS_FLOW = ['new', 'followup', 'confirmed', 'attended'] as const
+const AIRTIME_OPTIONS = {
+  1: { label: 'Bersedia Bergabung', short: 'Qualified', badge: 'bg-orange-100 text-orange-800', btn: 'bg-orange-500 text-white hover:bg-orange-600 shadow-[0_10px_22px_rgba(249,115,22,0.22)]' },
+  2: { label: 'Pikir-pikir Dulu', short: 'Follow-up Ulang', badge: 'bg-amber-100 text-amber-800', btn: 'bg-amber-100 text-amber-800 hover:bg-amber-200' },
+  3: { label: 'Tidak Tertarik', short: 'Tidak Lanjut', badge: 'bg-rose-100 text-rose-800', btn: 'bg-rose-100 text-rose-800 hover:bg-rose-200' },
+} as const
 
 export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDetailProps) {
   const { updateVisitor, reload } = useData()
@@ -30,7 +37,6 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
   const [noteText, setNoteText] = useState('')
   const [addingNote, setAddingNote] = useState(false)
   const [showAttendedOptions, setShowAttendedOptions] = useState(false)
-  const [pendingStatus, setPendingStatus] = useState<string | null>(null)
   const [feedbackMessage, setFeedbackMessage] = useState('')
 
   useEffect(() => {
@@ -52,6 +58,11 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
 
   const getStatusLabel = (status: string) => {
     return STATUSES[status as keyof typeof STATUSES]?.label || status
+  }
+
+  const getAirtimeResult = (visitorData = currentVisitor) => {
+    const choice = Number((visitorData as any).attended_choice_number)
+    return AIRTIME_OPTIONS[choice as keyof typeof AIRTIME_OPTIONS]
   }
 
   const getTimestamp = () => new Date().toLocaleString('id-ID', {
@@ -93,7 +104,6 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
     
     // If changing to 'attended', show options first
     if (newStatus === 'attended') {
-      setPendingStatus(newStatus)
       setShowAttendedOptions(true)
       return
     }
@@ -122,27 +132,27 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
   }
 
   const handleAttendedOptionSelect = (option: string) => {
-    if (!pendingStatus) return
-
     let note = ''
     let choiceNumber = 0
     let choiceNote = ''
+    let nextStatus = 'attended'
     
     switch (option) {
-      case 'interview':
-        note = '[Hadir] Bersedia di-interview'
+      case 'join':
+        note = '[Airtime] Bersedia bergabung'
         choiceNumber = 1
-        choiceNote = 'Bersedia di-interview'
+        choiceNote = 'Bersedia Bergabung'
         break
       case 'thinking':
-        note = '[Hadir] Masih pikir-pikir'
+        note = '[Airtime] Pikir-pikir dulu, bisa dijadwalkan kembali'
         choiceNumber = 2
-        choiceNote = 'Masih pikir-pikir'
+        choiceNote = 'Pikir-pikir Dulu'
         break
       case 'reject':
-        note = '[Hadir] Menolak untuk bergabung'
+        note = '[Airtime] Tidak tertarik bergabung'
         choiceNumber = 3
-        choiceNote = 'Menolak untuk bergabung'
+        choiceNote = 'Tidak Tertarik'
+        nextStatus = 'not_continue'
         break
     }
     
@@ -151,15 +161,14 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
     const newNote = note ? `[${timestamp}] ${note}\n` : ''
 
     const updates: any = {
-      status: 'attended',
+      status: nextStatus,
       attended_choice_number: choiceNumber,
       attended_choice_note: choiceNote,
       notes: currentNotes + newNote,
     }
 
-    applyDraftUpdates(updates, 'Status diubah ke Hadir. Tekan Save untuk menyimpan.')
+    applyDraftUpdates(updates, `${nextStatus === 'not_continue' ? 'Status diubah ke Tidak Lanjut' : 'Status diubah ke Hadir'} dengan hasil Airtime: ${choiceNote}. Tekan Save untuk menyimpan.`)
     setShowAttendedOptions(false)
-    setPendingStatus(null)
   }
 
   const handleAddNote = () => {
@@ -308,21 +317,13 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
                 {currentVisitor.business_field || 'Bidang Usaha'} {currentVisitor.company && `- ${currentVisitor.company}`}
               </p>
               <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(currentVisitor.status)}`}>
-                {(() => {
-                  const baseLabel = STATUSES[currentVisitor.status as keyof typeof STATUSES]?.label || currentVisitor.status
-                  // If status is 'attended' and has attended_choice_number, append it
-                  if (currentVisitor.status === 'attended' && (currentVisitor as any).attended_choice_number) {
-                    return `${baseLabel} - ${(currentVisitor as any).attended_choice_number}`
-                  }
-                  return baseLabel
-                })()}
+                {STATUSES[currentVisitor.status as keyof typeof STATUSES]?.label || currentVisitor.status}
               </span>
               
-              {/* Show attended choice note if available */}
-              {currentVisitor.status === 'attended' && (currentVisitor as any).attended_choice_note && (
-                <p className="text-xs text-gray-600 mt-1">
-                  {(currentVisitor as any).attended_choice_note}
-                </p>
+              {getAirtimeResult() && (
+                <span className={`ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getAirtimeResult()?.badge}`}>
+                  Airtime: {getAirtimeResult()?.label}
+                </span>
               )}
             </div>
           </div>
@@ -457,12 +458,55 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
               </button>
             </div>
             
-            {/* Info for final statuses */}
             {['interview', 'member', 'not_continue'].includes(currentVisitor.status) && (
               <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-xs text-blue-800">
-                  ℹ️ Status {STATUSES[currentVisitor.status as keyof typeof STATUSES]?.label || currentVisitor.status} dikelola dari halaman <strong>Visitor Hadir</strong>.
+                  Status {STATUSES[currentVisitor.status as keyof typeof STATUSES]?.label || currentVisitor.status} dikelola dari halaman <strong>MCQA</strong>.
                 </p>
+              </div>
+            )}
+
+            {['attended', 'interview', 'member', 'not_continue'].includes(currentVisitor.status) && (
+              <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/70 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Hasil Airtime</h5>
+                    <p className="mt-1 text-xs text-gray-600">
+                      {getAirtimeResult()
+                        ? getAirtimeResult()?.label
+                        : 'Belum ada hasil Airtime. Pilih opsi setelah visitor benar-benar hadir.'}
+                    </p>
+                  </div>
+                  {getAirtimeResult() && (
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${getAirtimeResult()?.badge}`}>
+                      {getAirtimeResult()?.short}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {[
+                    { key: 'join', choice: 1, label: AIRTIME_OPTIONS[1].label },
+                    { key: 'thinking', choice: 2, label: AIRTIME_OPTIONS[2].label },
+                    { key: 'reject', choice: 3, label: AIRTIME_OPTIONS[3].label },
+                  ].map(option => {
+                    const isActive = Number((currentVisitor as any).attended_choice_number) === option.choice
+                    const style = AIRTIME_OPTIONS[option.choice as keyof typeof AIRTIME_OPTIONS].btn
+
+                    return (
+                      <button
+                        key={option.key}
+                        onClick={() => handleAttendedOptionSelect(option.key)}
+                        disabled={updating || isActive}
+                        className={`rounded-xl px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                          isActive ? `ring-2 ring-offset-1 ring-orange-400 ${style}` : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="block text-[10px] font-bold uppercase tracking-wide opacity-60">Opsi {option.choice}</span>
+                        <span>{option.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             )}
             
@@ -470,16 +514,16 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
             {showAttendedOptions && (
               <div className="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
                 <p className="text-sm font-semibold text-emerald-900 mb-3">
-                  👋 Visitor hadir. Apa tindak lanjutnya?
+                  Visitor benar-benar hadir. Apa hasil Airtime-nya?
                 </p>
                 <div className="space-y-2">
                   <button
-                    onClick={() => handleAttendedOptionSelect('interview')}
+                    onClick={() => handleAttendedOptionSelect('join')}
                     disabled={updating}
-                    className="w-full px-4 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 flex items-center justify-start gap-3"
+                    className="w-full px-4 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 flex items-center justify-start gap-3"
                   >
                     <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">1</span>
-                    <span>Bersedia di-Interview</span>
+                    <span>Bersedia Bergabung</span>
                   </button>
                   <button
                     onClick={() => handleAttendedOptionSelect('thinking')}
@@ -487,7 +531,7 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
                     className="w-full px-4 py-2.5 bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 flex items-center justify-start gap-3"
                   >
                     <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">2</span>
-                    <span>Masih Pikir-pikir</span>
+                    <span>Pikir-pikir Dulu, Jadwalkan Kembali</span>
                   </button>
                   <button
                     onClick={() => handleAttendedOptionSelect('reject')}
@@ -495,12 +539,11 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
                     className="w-full px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 flex items-center justify-start gap-3"
                   >
                     <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">3</span>
-                    <span>Menolak</span>
+                    <span>Tidak Tertarik</span>
                   </button>
                   <button
                     onClick={() => {
                       setShowAttendedOptions(false)
-                      setPendingStatus(null)
                     }}
                     className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
                   >

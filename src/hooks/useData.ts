@@ -423,11 +423,11 @@ export function useData() {
       confirmed: filtered.filter(visitor => visitor.status === 'confirmed').length,
       pending: filtered.filter(visitor => visitor.status === 'followup').length,
       member: filtered.filter(visitor => visitor.status === 'member').length,
-      attended: filtered.filter(visitor => visitor.status === 'attended').length,
+      attended: filtered.filter(visitor => ['attended', 'interview', 'member', 'not_continue'].includes(visitor.status)).length,
       no_show: filtered.filter(visitor => visitor.status === 'no_show').length,
       interview: filtered.filter(visitor => visitor.status === 'interview').length,
       not_continue: filtered.filter(visitor => visitor.status === 'not_continue').length,
-      hadir: filtered.filter(visitor => visitor.status === 'attended').length,
+      hadir: filtered.filter(visitor => ['attended', 'interview', 'member', 'not_continue'].includes(visitor.status)).length,
     }
   }
 

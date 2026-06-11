@@ -10,27 +10,50 @@ const FINAL_STATUSES = {
   not_continue: { label: 'Tidak Lanjut',   badge: 'bg-gray-100 text-gray-800', color: 'border-gray-500' },
 }
 
+const AIRTIME_OPTIONS = {
+  1: { label: 'Bersedia Bergabung', badge: 'bg-orange-100 text-orange-800', color: 'border-orange-500' },
+  2: { label: 'Pikir-pikir Dulu', badge: 'bg-amber-100 text-amber-800', color: 'border-amber-500' },
+  3: { label: 'Tidak Tertarik', badge: 'bg-rose-100 text-rose-800', color: 'border-rose-500' },
+} as const
+
 export default function AttendedVisitors() {
   const { visitors, meetings, loading, reload, updateVisitor } = useData()
   
   // Filter state
   const [meetingFilter, setMeetingFilter] = useState<string>('')
+  const [airtimeFilter, setAirtimeFilter] = useState<string>('')
   const [search, setSearch] = useState('')
   
-  // Filter: hanya visitor dengan status attended atau final statuses
-  let attendedVisitors = visitors.filter(v => 
+  const getAirtimeChoice = (visitor: any) => Number(visitor.attended_choice_number || 0)
+  const getAirtimeOption = (visitor: any) => AIRTIME_OPTIONS[getAirtimeChoice(visitor) as keyof typeof AIRTIME_OPTIONS]
+  const getAirtimeStatusLabel = (visitor: any) => {
+    const choice = getAirtimeChoice(visitor)
+    const option = getAirtimeOption(visitor)
+
+    return option ? `Opsi ${choice} - ${option.label}` : 'Belum Ada Opsi'
+  }
+
+  // Filter: visitor yang benar-benar hadir atau sudah masuk pipeline MCQA.
+  let actualAttendanceVisitors = visitors.filter(v => 
     v.status === 'attended' || 
     ['interview', 'member', 'not_continue'].includes(v.status)
   )
   
   // Apply meeting filter if selected
   if (meetingFilter) {
-    attendedVisitors = attendedVisitors.filter(v => v.meeting_date === meetingFilter)
+    actualAttendanceVisitors = actualAttendanceVisitors.filter(v => v.meeting_date === meetingFilter)
+  }
+
+  if (airtimeFilter) {
+    actualAttendanceVisitors = actualAttendanceVisitors.filter(v => {
+      if (airtimeFilter === 'none') return getAirtimeChoice(v) === 0
+      return getAirtimeChoice(v) === Number(airtimeFilter)
+    })
   }
 
   if (search.trim()) {
     const keyword = search.trim().toLowerCase()
-    attendedVisitors = attendedVisitors.filter(visitor => {
+    actualAttendanceVisitors = actualAttendanceVisitors.filter(visitor => {
       return (
         visitor.name?.toLowerCase().includes(keyword) ||
         visitor.phone?.toLowerCase().includes(keyword) ||
@@ -42,18 +65,23 @@ export default function AttendedVisitors() {
     })
   }
   
-  // Group by status
+  // Group by Airtime and MCQA pipeline.
   const grouped = {
-    attended: attendedVisitors.filter(v => v.status === 'attended'),
-    interview: attendedVisitors.filter(v => v.status === 'interview'),
-    member: attendedVisitors.filter(v => v.status === 'member'),
-    not_continue: attendedVisitors.filter(v => v.status === 'not_continue'),
+    actual: actualAttendanceVisitors,
+    qualified: actualAttendanceVisitors.filter(v =>
+      (v.status === 'attended' && getAirtimeChoice(v) === 1) ||
+      ['interview', 'member'].includes(v.status)
+    ),
+    revisit: actualAttendanceVisitors.filter(v => v.status === 'attended' && getAirtimeChoice(v) === 2),
+    no_interest: actualAttendanceVisitors.filter(v => getAirtimeChoice(v) === 3 || v.status === 'not_continue'),
+    interview: actualAttendanceVisitors.filter(v => v.status === 'interview'),
+    member: actualAttendanceVisitors.filter(v => v.status === 'member'),
   }
   
   // State
   const [selectedVisitor, setSelectedVisitor] = useState<any>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
-  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useState<string>('qualified')
   const [showSubStatusModal, setShowSubStatusModal] = useState(false)
   const [selectedSubStatus, setSelectedSubStatus] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
@@ -65,7 +93,7 @@ export default function AttendedVisitors() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, meetingFilter, filterStatus])
+  }, [search, meetingFilter, airtimeFilter, filterStatus])
 
   const handleOpenDetail = (visitor: any) => {
     setSelectedVisitor(visitor)
@@ -111,10 +139,10 @@ export default function AttendedVisitors() {
       
       switch (subStatus) {
         case 'contacted_no_answer':
-          note = `[${timestamp}] [Follow Up] Sudah dihubungi, belum jawab`
+          note = `[${timestamp}] [MCQA] Sudah dihubungi, belum jawab`
           break
         case 'interview_pending_date':
-          note = `[${timestamp}] [Interview] Akan di-interview, menunggu jadwal`
+          note = `[${timestamp}] [MCQA] Bersedia bergabung, menunggu jadwal interview`
           break
         case 'interview_scheduled':
           note = `[${timestamp}] [Interview] Sudah ada tanggal: ${extraData}`
@@ -129,12 +157,6 @@ export default function AttendedVisitors() {
       
       // Add note to visitor
       const currentNotes = selectedVisitor.notes || ''
-      await updateVisitor(selectedVisitor.id, {
-        notes: currentNotes + (note ? '\n' + note : ''),
-        updated_at: new Date().toISOString()
-      })
-      
-      // Auto-change status based on sub-status
       let newStatus = selectedVisitor.status
       if (['interview_completed_accept'].includes(subStatus)) {
         newStatus = 'member'
@@ -143,13 +165,12 @@ export default function AttendedVisitors() {
       } else if (['interview_scheduled', 'interview_pending_date'].includes(subStatus)) {
         newStatus = 'interview'
       }
-      
-      if (newStatus !== selectedVisitor.status) {
-        await updateVisitor(selectedVisitor.id, {
-          status: newStatus as any,
-          updated_at: new Date().toISOString()
-        })
-      }
+
+      await updateVisitor(selectedVisitor.id, {
+        status: newStatus as any,
+        notes: currentNotes + (note ? '\n' + note : ''),
+        updated_at: new Date().toISOString()
+      })
       
       await reload()
       setShowSubStatusModal(false)
@@ -173,14 +194,15 @@ export default function AttendedVisitors() {
   }
 
   const filteredVisitors = filterStatus === 'all' 
-    ? attendedVisitors 
+    ? actualAttendanceVisitors 
     : grouped[filterStatus as keyof typeof grouped] || []
 
   const pipelineStages = [
-    { key: 'attended', label: 'Hadir', description: 'Siap diproses MCQA', color: 'emerald', visitors: grouped.attended },
-    { key: 'interview', label: 'Interview', description: 'Dalam proses interview', color: 'purple', visitors: grouped.interview },
-    { key: 'member', label: 'Jadi Member', description: 'Berhasil dikonversi', color: 'cyan', visitors: grouped.member },
-    { key: 'not_continue', label: 'Tidak Lanjut', description: 'Tidak masuk proses', color: 'gray', visitors: grouped.not_continue },
+    { key: 'qualified', label: 'Bersedia Bergabung', description: 'Masuk follow-up MCQA', visitors: grouped.qualified },
+    { key: 'revisit', label: 'Pikir-pikir Dulu', description: 'Jadwalkan follow-up ulang', visitors: grouped.revisit },
+    { key: 'interview', label: 'Interview', description: 'Dalam proses interview', visitors: grouped.interview },
+    { key: 'member', label: 'Jadi Member', description: 'Berhasil dikonversi', visitors: grouped.member },
+    { key: 'no_interest', label: 'Tidak Tertarik', description: 'Tidak masuk proses', visitors: grouped.no_interest },
   ]
 
   // Pagination
@@ -195,12 +217,12 @@ export default function AttendedVisitors() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">MCQA</h1>
-          <p className="text-sm text-gray-500 mt-1">Kelola visitor yang sudah hadir</p>
+          <p className="text-sm text-gray-500 mt-1">Kelola visitor hadir yang qualified dari hasil Airtime</p>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-7 gap-4">
         {/* Meeting Filter */}
         <div className="bg-white rounded-xl shadow p-4 col-span-2 lg:col-span-1">
           <label className="block text-xs font-semibold text-gray-600 uppercase mb-2">
@@ -226,10 +248,31 @@ export default function AttendedVisitors() {
               ))}
           </select>
         </div>
+
+        <div className="bg-white rounded-xl shadow p-4 col-span-2 lg:col-span-1">
+          <label className="block text-xs font-semibold text-gray-600 uppercase mb-2">
+            Filter Opsi Hadir
+          </label>
+          <select
+            value={airtimeFilter}
+            onChange={(e) => setAirtimeFilter(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 bg-white"
+          >
+            <option value="">Semua Opsi</option>
+            <option value="1">Opsi 1 - Bersedia Bergabung</option>
+            <option value="2">Opsi 2 - Pikir-pikir Dulu</option>
+            <option value="3">Opsi 3 - Tidak Tertarik</option>
+            <option value="none">Belum Ada Opsi</option>
+          </select>
+        </div>
         
         <div className="bg-white rounded-xl shadow p-4 border-l-4 border-emerald-500">
-          <div className="text-3xl font-bold text-emerald-600">{grouped.attended.length}</div>
-          <div className="text-xs text-gray-500 mt-1">Hadir</div>
+          <div className="text-3xl font-bold text-emerald-600">{grouped.actual.length}</div>
+          <div className="text-xs text-gray-500 mt-1">Actual Hadir</div>
+        </div>
+        <div className="bg-white rounded-xl shadow p-4 border-l-4 border-orange-500">
+          <div className="text-3xl font-bold text-orange-600">{grouped.qualified.length}</div>
+          <div className="text-xs text-gray-500 mt-1">Airtime Qualified</div>
         </div>
         <div className="bg-white rounded-xl shadow p-4 border-l-4 border-purple-500">
           <div className="text-3xl font-bold text-purple-600">{grouped.interview.length}</div>
@@ -240,8 +283,8 @@ export default function AttendedVisitors() {
           <div className="text-xs text-gray-500 mt-1">Jadi Member</div>
         </div>
         <div className="bg-white rounded-xl shadow p-4 border-l-4 border-gray-500">
-          <div className="text-3xl font-bold text-gray-600">{grouped.not_continue.length}</div>
-          <div className="text-xs text-gray-500 mt-1">Tidak Lanjut</div>
+          <div className="text-3xl font-bold text-gray-600">{grouped.no_interest.length}</div>
+          <div className="text-xs text-gray-500 mt-1">Tidak Tertarik</div>
         </div>
       </div>
 
@@ -263,7 +306,7 @@ export default function AttendedVisitors() {
             </div>
             <div className="mt-4 space-y-2">
               {stage.visitors.slice(0, 3).map(visitor => (
-                <div key={visitor.id} className="truncate rounded-lg bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700">
+                <div key={visitor.id} className="truncate rounded-lg bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-900 ring-1 ring-orange-100">
                   {visitor.name}
                 </div>
               ))}
@@ -314,17 +357,27 @@ export default function AttendedVisitors() {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Semua ({attendedVisitors.length})
+            Semua ({actualAttendanceVisitors.length})
           </button>
           <button
-            onClick={() => setFilterStatus('attended')}
+            onClick={() => setFilterStatus('qualified')}
             className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              filterStatus === 'attended'
-                ? 'bg-white text-emerald-600 shadow-sm'
+              filterStatus === 'qualified'
+                ? 'bg-white text-orange-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Hadir ({grouped.attended.length})
+            Bersedia Bergabung ({grouped.qualified.length})
+          </button>
+          <button
+            onClick={() => setFilterStatus('revisit')}
+            className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              filterStatus === 'revisit'
+                ? 'bg-white text-amber-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Pikir-pikir ({grouped.revisit.length})
           </button>
           <button
             onClick={() => setFilterStatus('interview')}
@@ -347,14 +400,14 @@ export default function AttendedVisitors() {
             Jadi Member ({grouped.member.length})
           </button>
           <button
-            onClick={() => setFilterStatus('not_continue')}
+            onClick={() => setFilterStatus('no_interest')}
             className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              filterStatus === 'not_continue'
-                ? 'bg-white text-gray-700 shadow-sm'
+              filterStatus === 'no_interest'
+                ? 'bg-white text-rose-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Tidak Lanjut ({grouped.not_continue.length})
+            Tidak Tertarik ({grouped.no_interest.length})
           </button>
         </div>
       </div>
@@ -364,6 +417,11 @@ export default function AttendedVisitors() {
         <div className="px-4 py-3 border-b border-gray-200">
           <h3 className="text-sm font-semibold text-gray-800">
             Daftar Visitor - {filterStatus === 'all' ? 'Semua Status' : FINAL_STATUSES[filterStatus as keyof typeof FINAL_STATUSES]?.label || 'Hadir'}
+            {airtimeFilter && (
+              <span className="ml-2 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
+                {airtimeFilter === 'none' ? 'Belum Ada Opsi' : `Opsi ${airtimeFilter}`}
+              </span>
+            )}
           </h3>
         </div>
         
@@ -388,14 +446,15 @@ export default function AttendedVisitors() {
                   <th className="text-left font-semibold px-4 py-3">No WA</th>
                   <th className="text-left font-semibold px-4 py-3 hidden lg:table-cell">Email</th>
                   <th className="text-left font-semibold px-4 py-3">PIC</th>
-                  <th className="text-left font-semibold px-4 py-3">Status</th>
+                  <th className="text-left font-semibold px-4 py-3">Status Airtime</th>
+                  <th className="text-left font-semibold px-4 py-3">Status MCQA</th>
                   <th className="text-left font-semibold px-4 py-3">Aksi Cepat</th>
                   <th className="text-left font-semibold px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedVisitors.map((visitor, index) => (
-                  <tr key={visitor.id} className={`border-t border-gray-100 hover:bg-gray-50 ${FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES] ? `border-l-4 ${FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES].color}` : ''}`}>
+                  <tr key={visitor.id} className={`border-t border-gray-100 hover:bg-gray-50 ${getAirtimeOption(visitor) ? `border-l-4 ${getAirtimeOption(visitor)?.color}` : FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES] ? `border-l-4 ${FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES].color}` : ''}`}>
                     <td className="px-4 py-3 text-[13px] text-gray-600 font-medium">{startIndex + index + 1}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900 text-[13px]">{visitor.name}</div>
@@ -433,23 +492,21 @@ export default function AttendedVisitors() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-medium ${
-                        visitor.status === 'attended' ? 'bg-emerald-100 text-emerald-800' :
-                        FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES]?.badge || 'bg-gray-100 text-gray-800'
+                        getAirtimeOption(visitor)?.badge || 'bg-gray-100 text-gray-800'
                       }`}>
-                        {(() => {
-                          if (visitor.status === 'attended') {
-                            const num = (visitor as any).attended_choice_number
-                            if (num) {
-                              return `Hadir-${num}`
-                            }
-                            return 'Hadir'
-                          }
-                          return FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES]?.label || visitor.status
-                        })()}
+                        {getAirtimeStatusLabel(visitor)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {visitor.status === 'attended' && (
+                      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-medium ${
+                        visitor.status === 'attended' ? 'bg-emerald-100 text-emerald-800' :
+                        FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES]?.badge || 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {visitor.status === 'attended' ? 'Hadir' : FINAL_STATUSES[visitor.status as keyof typeof FINAL_STATUSES]?.label || visitor.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {visitor.status === 'attended' && getAirtimeChoice(visitor) === 1 && (
                         <button
                           onClick={() => {
                             setSelectedVisitor(visitor)
@@ -457,10 +514,21 @@ export default function AttendedVisitors() {
                           }}
                           className="px-3 py-1.5 text-[11px] bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded transition-colors shadow-sm"
                         >
-                          📋 Pilih Tindak Lanjut
+                          Pilih Tindak Lanjut
                         </button>
                       )}
-                      {['interview', 'member', 'not_continue'].includes(visitor.status) && (
+                      {visitor.status === 'attended' && getAirtimeChoice(visitor) === 2 && (
+                        <button
+                          onClick={() => {
+                            setSelectedVisitor(visitor)
+                            setShowSubStatusModal(true)
+                          }}
+                          className="px-3 py-1.5 text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-medium rounded transition-colors"
+                        >
+                          Follow-up Ulang
+                        </button>
+                      )}
+                      {(['interview', 'member', 'not_continue'].includes(visitor.status) || getAirtimeChoice(visitor) === 3) && (
                         <span className="text-xs text-gray-400">-</span>
                       )}
                     </td>
@@ -536,10 +604,10 @@ export default function AttendedVisitors() {
           <div>
             <h4 className="text-sm font-semibold text-blue-900 mb-1">Cara Menggunakan</h4>
             <ul className="text-xs text-blue-700 space-y-1">
-              <li>• Visitor yang hadir akan muncul di tab <strong>Hadir</strong></li>
-              <li>• Gunakan tombol aksi cepat untuk ubah status ke Interview, Member, atau Tidak Lanjut</li>
-              <li>• Atau klik detail untuk melihat informasi lengkap dan catatan</li>
-              <li>• Status Interview, Member, dan Tidak Lanjut hanya bisa diubah dari halaman ini</li>
+              <li>• Visitor masuk MCQA utama hanya jika hasil Airtime adalah <strong>Bersedia Bergabung</strong></li>
+              <li>• Visitor <strong>Pikir-pikir Dulu</strong> tetap muncul untuk dijadwalkan follow-up ulang</li>
+              <li>• Gunakan aksi cepat untuk lanjut ke interview, member, atau tidak lanjut</li>
+              <li>• Klik detail untuk melihat informasi lengkap dan riwayat catatan</li>
             </ul>
           </div>
         </div>

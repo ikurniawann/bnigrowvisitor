@@ -44,8 +44,8 @@ export interface Visitor {
   meeting_date?: string
   pic_id?: string
   status: VisitorStatus
-  attended_choice_number?: number  // 1, 2, or 3 when status is 'attended'
-  attended_choice_note?: string     // Description of the choice
+  attended_choice_number?: number  // Airtime result: 1 join, 2 revisit, 3 not interested
+  attended_choice_note?: string     // Airtime result label
   notes?: string
   created_by?: string
   created_at: string
