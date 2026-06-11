@@ -27,7 +27,7 @@ type DashboardListModal = {
 
 export default function Dashboard() {
   const router = useRouter()
-  const { getStats, getIndustryDistribution, getReferrerDistribution, visitors, meetings, reload } = useData()
+  const { getIndustryDistribution, getReferrerDistribution, visitors, meetings, reload } = useData()
   
   // Filter state
   const [meetingFilter, setMeetingFilter] = useState<string>('')
@@ -41,15 +41,6 @@ export default function Dashboard() {
     ? visitors.filter(v => v.meeting_id === meetingFilter)
     : visitors
   
-  const stats = getStats()
-  const filteredStats = meetingFilter
-    ? {
-        total: filteredVisitors.length,
-        confirmed: filteredVisitors.filter(v => v.status === 'confirmed').length,
-        pending: filteredVisitors.filter(v => v.status === 'followup').length,
-        member: filteredVisitors.filter(v => v.status === 'member').length,
-      }
-    : stats
   const recentVisitors = filteredVisitors.slice(0, 8)
 
   const needsFollowUp = filteredVisitors.filter(visitor => ['new', 'followup'].includes(visitor.status))
@@ -373,49 +364,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl shadow p-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="text-3xl font-bold text-blue-600">{filteredStats.total}</div>
-              <div className="text-xs text-gray-500 mt-1">Total Visitor</div>
-            </div>
-            <div className="text-2xl opacity-40">👥</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow p-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="text-3xl font-bold text-green-600">{filteredStats.confirmed}</div>
-              <div className="text-xs text-gray-500 mt-1">Konfirmasi Hadir</div>
-            </div>
-            <div className="text-2xl opacity-40">✅</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow p-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="text-3xl font-bold text-yellow-600">{filteredStats.pending}</div>
-              <div className="text-xs text-gray-500 mt-1">Pending Follow Up</div>
-            </div>
-            <div className="text-2xl opacity-40">⏳</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow p-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="text-3xl font-bold text-purple-600">{filteredStats.member}</div>
-              <div className="text-xs text-gray-500 mt-1">Jadi Member</div>
-            </div>
-            <div className="text-2xl opacity-40">🏆</div>
-          </div>
-        </div>
-      </div>
 
       <div className="bg-white rounded-xl shadow p-4">
         <div className="mb-4 flex items-center justify-between">
