@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react'
 import { supabase, Visitor, Meeting, VisitorStatus } from '@/lib/supabase'
 import { notifyDataChanged } from '@/lib/ui/toast'
 import { getLocalPicBusinessClassification } from '@/lib/picBusinessClassification'
+import { logActivity } from '@/lib/activityLog'
 
 export interface PIC {
   id: string
   name: string
   role: string
   wa: string
+  email?: string
   business_classification?: string
   is_active?: boolean
 }
@@ -34,6 +36,8 @@ export interface Member {
   joined_date: string
   status: string
   notes?: string
+  account_role?: string
+  account_active?: boolean
   created_at: string
   updated_at: string
 }
@@ -133,14 +137,14 @@ export function useData() {
   async function loadPics() {
     let { data, error }: { data: any[] | null; error: any } = await supabase
       .from('users')
-      .select('id, name, role, phone, business_classification, is_active')
+      .select('id, name, email, role, phone, business_classification, is_active')
       .eq('role', 'pic')
       .eq('is_active', true)
 
     if (error && error.message?.includes('business_classification')) {
       const fallback = await supabase
         .from('users')
-        .select('id, name, role, phone, is_active')
+        .select('id, name, email, role, phone, is_active')
         .eq('role', 'pic')
         .eq('is_active', true)
 
@@ -159,6 +163,7 @@ export function useData() {
       name: pic.name,
       role: pic.role || 'PIC',
       wa: pic.phone || '',
+      email: pic.email || '',
       business_classification: pic.business_classification || getLocalPicBusinessClassification(pic.id),
       is_active: pic.is_active,
     })))
@@ -177,7 +182,41 @@ export function useData() {
       return
     }
 
-    setMembers(data || [])
+    const memberRows = data || []
+    const memberEmailValues = Array.from(new Set(
+      memberRows
+        .map(member => member.email?.trim())
+        .filter(Boolean)
+    ))
+
+    let accountByEmail = new Map<string, { role: string; is_active: boolean }>()
+
+    if (memberEmailValues.length > 0) {
+      const { data: accounts, error: accountError } = await supabase
+        .from('users')
+        .select('email, role, is_active')
+        .in('email', memberEmailValues)
+
+      if (accountError) {
+        console.error('Error loading member accounts:', accountError)
+      } else {
+        accountByEmail = new Map(
+          (accounts || []).map(account => [
+            account.email?.trim().toLowerCase(),
+            { role: account.role, is_active: account.is_active },
+          ])
+        )
+      }
+    }
+
+    setMembers(memberRows.map(member => {
+      const account = member.email ? accountByEmail.get(member.email.trim().toLowerCase()) : undefined
+      return {
+        ...member,
+        account_role: account?.role,
+        account_active: account?.is_active,
+      }
+    }))
   }
 
   async function addMember(member: Partial<Member>) {
@@ -189,11 +228,19 @@ export function useData() {
 
     if (error) throw error
     await loadMembers()
+    await logActivity({
+      action: 'insert',
+      entity: 'member',
+      entityId: data.id,
+      entityLabel: data.name,
+      newData: data as Record<string, unknown>,
+    })
     notifyDataChanged('insert')
     return data
   }
 
   async function updateMember(id: string, member: Partial<Member>) {
+    const oldMember = members.find(item => item.id === id)
     const { data, error } = await supabase
       .from('members')
       .update(member)
@@ -203,11 +250,20 @@ export function useData() {
 
     if (error) throw error
     await loadMembers()
+    await logActivity({
+      action: 'update',
+      entity: 'member',
+      entityId: id,
+      entityLabel: data.name || oldMember?.name,
+      oldData: oldMember as Record<string, unknown> | undefined,
+      newData: data as Record<string, unknown>,
+    })
     notifyDataChanged('update')
     return data
   }
 
   async function deleteMember(id: string) {
+    const oldMember = members.find(item => item.id === id)
     const { error } = await supabase
       .from('members')
       .delete()
@@ -215,6 +271,13 @@ export function useData() {
 
     if (error) throw error
     await loadMembers()
+    await logActivity({
+      action: 'delete',
+      entity: 'member',
+      entityId: id,
+      entityLabel: oldMember?.name,
+      oldData: oldMember as Record<string, unknown> | undefined,
+    })
     notifyDataChanged('delete')
   }
 
@@ -227,11 +290,19 @@ export function useData() {
 
     if (error) throw error
     await loadVisitors()
+    await logActivity({
+      action: 'insert',
+      entity: 'visitor',
+      entityId: data.id,
+      entityLabel: data.name,
+      newData: data as Record<string, unknown>,
+    })
     notifyDataChanged('insert')
     return data
   }
 
   async function updateVisitor(id: string, updates: Partial<Visitor>) {
+    const oldVisitor = visitors.find(visitor => visitor.id === id)
     setVisitors(prev => prev.map(visitor =>
       visitor.id === id ? { ...visitor, ...updates } : visitor
     ))
@@ -246,10 +317,20 @@ export function useData() {
       throw error
     }
 
+    await logActivity({
+      action: 'update',
+      entity: 'visitor',
+      entityId: id,
+      entityLabel: oldVisitor?.name,
+      oldData: oldVisitor as Record<string, unknown> | undefined,
+      newData: { ...oldVisitor, ...updates } as Record<string, unknown>,
+      metadata: { updates },
+    })
     notifyDataChanged('update')
   }
 
   async function deleteVisitor(id: string) {
+    const oldVisitor = visitors.find(visitor => visitor.id === id)
     const { error } = await supabase
       .from('visitors')
       .delete()
@@ -257,6 +338,13 @@ export function useData() {
 
     if (error) throw error
     await loadVisitors()
+    await logActivity({
+      action: 'delete',
+      entity: 'visitor',
+      entityId: id,
+      entityLabel: oldVisitor?.name,
+      oldData: oldVisitor as Record<string, unknown> | undefined,
+    })
     notifyDataChanged('delete')
   }
 
@@ -295,6 +383,13 @@ export function useData() {
 
     if (error) throw error
     await loadPics()
+    await logActivity({
+      action: 'insert',
+      entity: 'pic',
+      entityId: data.id,
+      entityLabel: data.name,
+      newData: data as Record<string, unknown>,
+    })
     notifyDataChanged('insert')
 
     return {
@@ -308,6 +403,7 @@ export function useData() {
   }
 
   async function updatePic(id: string, updates: Partial<PIC>) {
+    const oldPic = pics.find(pic => pic.id === id)
     let { error } = await supabase
       .from('users')
       .update({
@@ -333,10 +429,20 @@ export function useData() {
 
     if (error) throw error
     await loadPics()
+    await logActivity({
+      action: 'update',
+      entity: 'pic',
+      entityId: id,
+      entityLabel: updates.name || oldPic?.name,
+      oldData: oldPic as Record<string, unknown> | undefined,
+      newData: { ...oldPic, ...updates } as Record<string, unknown>,
+      metadata: { updates },
+    })
     notifyDataChanged('update')
   }
 
   async function deletePic(id: string) {
+    const oldPic = pics.find(pic => pic.id === id)
     const { error } = await supabase
       .from('users')
       .update({ is_active: false })
@@ -344,6 +450,14 @@ export function useData() {
 
     if (error) throw error
     await loadPics()
+    await logActivity({
+      action: 'delete',
+      entity: 'pic',
+      entityId: id,
+      entityLabel: oldPic?.name,
+      oldData: oldPic as Record<string, unknown> | undefined,
+      newData: { ...oldPic, is_active: false } as Record<string, unknown>,
+    })
     notifyDataChanged('delete')
   }
 
@@ -356,11 +470,19 @@ export function useData() {
 
     if (error) throw error
     await loadMeetings()
+    await logActivity({
+      action: 'insert',
+      entity: 'meeting',
+      entityId: data.id,
+      entityLabel: data.title,
+      newData: data as Record<string, unknown>,
+    })
     notifyDataChanged('insert')
     return data
   }
 
   async function updateMeeting(id: string, updates: Partial<Meeting>) {
+    const oldMeeting = meetings.find(meeting => meeting.id === id)
     const { error } = await supabase
       .from('meetings')
       .update(updates)
@@ -368,10 +490,20 @@ export function useData() {
 
     if (error) throw error
     await loadMeetings()
+    await logActivity({
+      action: 'update',
+      entity: 'meeting',
+      entityId: id,
+      entityLabel: updates.title || oldMeeting?.title,
+      oldData: oldMeeting as Record<string, unknown> | undefined,
+      newData: { ...oldMeeting, ...updates } as Record<string, unknown>,
+      metadata: { updates },
+    })
     notifyDataChanged('update')
   }
 
   async function deleteMeeting(id: string) {
+    const oldMeeting = meetings.find(meeting => meeting.id === id)
     const { error } = await supabase
       .from('meetings')
       .delete()
@@ -379,6 +511,13 @@ export function useData() {
 
     if (error) throw error
     await loadMeetings()
+    await logActivity({
+      action: 'delete',
+      entity: 'meeting',
+      entityId: id,
+      entityLabel: oldMeeting?.title,
+      oldData: oldMeeting as Record<string, unknown> | undefined,
+    })
     notifyDataChanged('delete')
   }
 

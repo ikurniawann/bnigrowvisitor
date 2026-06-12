@@ -2,11 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { useData, Member } from '@/hooks/useData'
+import { supabase, User } from '@/lib/supabase'
+import { logActivity } from '@/lib/activityLog'
+
+const SUPER_ADMIN_EMAIL = 'admin@bnigrow.com'
 
 interface MemberForm {
   name: string
   phone: string
   email: string
+  password: string
   business_field: string
   company: string
   chapter: string
@@ -17,6 +22,7 @@ const initialForm: MemberForm = {
   name: '',
   phone: '',
   email: '',
+  password: '',
   business_field: '',
   company: '',
   chapter: '',
@@ -29,39 +35,159 @@ export default function Members() {
   // State
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingEmail, setEditingEmail] = useState('')
   const [formData, setFormData] = useState<MemberForm>(initialForm)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
+  const isSuperAdmin = currentUser?.email?.toLowerCase() === SUPER_ADMIN_EMAIL
+  const accessLabel = isSuperAdmin ? 'Super Admin' : 'PIC'
+
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('user')
+      setCurrentUser(storedUser ? JSON.parse(storedUser) : null)
+    } catch {
+      setCurrentUser(null)
+    }
+  }, [])
+
+  const isOwnMember = (member: Member) => {
+    if (!currentUser) return false
+
+    const userEmail = currentUser.email?.trim().toLowerCase()
+    const memberEmail = member.email?.trim().toLowerCase()
+
+    if (userEmail && memberEmail && userEmail === memberEmail) return true
+    return !memberEmail && member.name.trim().toLowerCase() === currentUser.name?.trim().toLowerCase()
+  }
+
+  const canEditMember = (member: Member) => isSuperAdmin || isOwnMember(member)
 
   const handleOpenAdd = () => {
+    if (!isSuperAdmin) {
+      alert('Hanya Super Admin yang bisa menambahkan member.')
+      return
+    }
+
     setFormData(initialForm)
     setEditingId(null)
     setIsModalOpen(true)
   }
 
   const handleOpenEdit = (member: Member) => {
+    if (!canEditMember(member)) {
+      alert('PIC hanya bisa mengubah data member miliknya sendiri.')
+      return
+    }
+
     setFormData({
       name: member.name,
       phone: member.phone || '',
       email: member.email || '',
+      password: '',
       business_field: member.business_field || '',
       company: member.company || '',
       chapter: member.chapter || '',
       notes: member.notes || '',
     })
     setEditingId(member.id)
+    setEditingEmail(member.email || '')
     setIsModalOpen(true)
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setEditingId(null)
+    setEditingEmail('')
     setFormData(initialForm)
+  }
+
+  const syncMemberAccount = async (member: MemberForm, previousEmail?: string) => {
+    const email = member.email.trim().toLowerCase()
+    const oldEmail = previousEmail?.trim().toLowerCase()
+    const password = member.password.trim()
+
+    if (!email) return
+
+    const lookupEmails = Array.from(new Set([oldEmail, email].filter(Boolean) as string[]))
+    const { data: existingUsers, error: findError } = await supabase
+      .from('users')
+      .select('id, email, role')
+      .in('email', lookupEmails)
+
+    if (findError) throw findError
+
+    const users = existingUsers || []
+    const accountByOldEmail = oldEmail ? users.find(user => user.email?.toLowerCase() === oldEmail) : undefined
+    const accountByNewEmail = users.find(user => user.email?.toLowerCase() === email)
+    const account = accountByOldEmail || accountByNewEmail
+
+    if (account) {
+      const targetEmailIsUsedByAnotherAccount = accountByNewEmail && accountByOldEmail && accountByNewEmail.id !== accountByOldEmail.id
+      const updates: Record<string, string | boolean | undefined> = {
+        name: member.name.trim(),
+        phone: member.phone.trim() || undefined,
+        is_active: true,
+      }
+
+      if (!targetEmailIsUsedByAnotherAccount) {
+        updates.email = email
+      }
+
+      if (password) {
+        updates.password_hash = password
+      }
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', account.id)
+
+      if (updateError) throw updateError
+      await logActivity({
+        action: 'update',
+        entity: password ? 'user_password' : 'user_account',
+        entityId: account.id,
+        entityLabel: email,
+        metadata: {
+          source: 'member_management',
+          password_changed: Boolean(password),
+          role_preserved: account.role,
+        },
+      })
+      return
+    }
+
+    if (!password) return
+
+    const { error: insertError } = await supabase
+      .from('users')
+      .insert({
+        name: member.name.trim(),
+        email,
+        password_hash: password,
+        role: 'pic',
+        phone: member.phone.trim() || null,
+        is_active: true,
+      })
+
+    if (insertError) throw insertError
+    await logActivity({
+      action: 'insert',
+      entity: 'user_account',
+      entityLabel: email,
+      metadata: {
+        source: 'member_management',
+        role: 'pic',
+        password_created: true,
+      },
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,16 +198,52 @@ export default function Members() {
       return
     }
 
+    if (formData.password.trim() && !formData.email.trim()) {
+      alert('Email wajib diisi untuk membuat akun login member!')
+      return
+    }
+
+    if (!isSuperAdmin && formData.password.trim()) {
+      alert('PIC tidak bisa mengubah password akun.')
+      return
+    }
+
     setSaving(true)
     try {
+      const currentMember = editingId ? members.find(member => member.id === editingId) : undefined
+
+      if (!isSuperAdmin) {
+        if (!editingId || !currentMember || !isOwnMember(currentMember)) {
+          throw new Error('PIC hanya bisa mengubah data member miliknya sendiri.')
+        }
+      }
+
+      const memberPayload = {
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        business_field: formData.business_field,
+        company: formData.company,
+        chapter: formData.chapter,
+        notes: formData.notes,
+      }
+
       if (editingId) {
-        await updateMember(editingId, formData)
+        await updateMember(editingId, memberPayload)
+        if (isSuperAdmin) {
+          await syncMemberAccount(formData, editingEmail)
+        }
       } else {
+        if (!isSuperAdmin) {
+          throw new Error('Hanya Super Admin yang bisa menambahkan member.')
+        }
+
         await addMember({
-          ...formData,
+          ...memberPayload,
           joined_date: new Date().toISOString().split('T')[0],
           status: 'active',
         })
+        await syncMemberAccount(formData)
       }
       
       handleCloseModal()
@@ -94,6 +256,11 @@ export default function Members() {
   }
 
   const handleDelete = async (id: string, name: string) => {
+    if (!isSuperAdmin) {
+      alert('Hanya Super Admin yang bisa menghapus member.')
+      return
+    }
+
     if (!confirm(`Hapus member "${name}"?`)) return
     
     try {
@@ -145,18 +312,31 @@ export default function Members() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Member Grow</h1>
-          <p className="text-sm text-gray-500 mt-1">Database member BNI Grow yang sudah bergabung</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900">Member Grow</h1>
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+              isSuperAdmin ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'
+            }`}>
+              {accessLabel}
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            {isSuperAdmin
+              ? 'Database member BNI Grow yang sudah bergabung'
+              : 'Akses PIC: hanya bisa mengubah data member milik akun sendiri'}
+          </p>
         </div>
-        <button
-          onClick={handleOpenAdd}
-          className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-medium rounded-lg shadow transition-all flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Tambah Member
-        </button>
+        {isSuperAdmin && (
+          <button
+            onClick={handleOpenAdd}
+            className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-medium rounded-lg shadow transition-all flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Tambah Member
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -219,6 +399,7 @@ export default function Members() {
               <tr className="text-[11px] text-white font-bold uppercase tracking-wide">
                 <th className="text-left font-semibold px-4 py-3">No</th>
                 <th className="text-left font-semibold px-4 py-3">Nama</th>
+                <th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Email / Akun</th>
                 <th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Bidang Usaha</th>
                 <th className="text-left font-semibold px-4 py-3 hidden lg:table-cell">Perusahaan</th>
                 <th className="text-left font-semibold px-4 py-3">Status</th>
@@ -228,7 +409,7 @@ export default function Members() {
             <tbody>
               {paginatedMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                     <svg className="w-12 h-12 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                       <circle cx="9" cy="7" r="4" />
@@ -238,6 +419,7 @@ export default function Members() {
                     <p>Belum ada member</p>
                     <button 
                       onClick={handleOpenAdd}
+                      disabled={!isSuperAdmin}
                       className="mt-3 text-red-600 hover:text-red-700 text-sm font-medium"
                     >
                       + Tambah member pertama
@@ -250,9 +432,24 @@ export default function Members() {
                     <td className="px-4 py-3 text-[13px] text-gray-600 font-medium">{index + 1}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900 text-[13px]">{member.name}</div>
-                      {member.business_field && (
-                        <div className="text-xs text-gray-500 mt-0.5">{member.business_field}</div>
+                      {member.phone && (
+                        <div className="text-xs text-gray-500 mt-0.5">{member.phone}</div>
                       )}
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <div className="text-[13px] text-gray-700">{member.email || '-'}</div>
+                      <div className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        member.account_active
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {member.account_active
+                          ? (member.account_role === 'admin' ? 'Akun Super Admin' : 'Akun PIC')
+                          : 'Belum ada akun'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-[13px] text-gray-600 hidden md:table-cell">
+                      {member.business_field || '-'}
                     </td>
                     <td className="px-4 py-3 text-[13px] text-gray-600 hidden lg:table-cell">
                       {member.company || '-'}
@@ -270,25 +467,31 @@ export default function Members() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleOpenEdit(member)}
-                          className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="Edit"
-                        >
-                          <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(member.id, member.name)}
-                          className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Hapus"
-                        >
-                          <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          </svg>
-                        </button>
+                        {canEditMember(member) ? (
+                          <button
+                            onClick={() => handleOpenEdit(member)}
+                            className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Edit"
+                          >
+                            <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+                        ) : (
+                          <span className="text-[11px] font-medium text-gray-400">Terkunci</span>
+                        )}
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => handleDelete(member.id, member.name)}
+                            className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Hapus"
+                          >
+                            <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -399,15 +602,19 @@ export default function Members() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                    Email
+                    Email Login
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    disabled={!isSuperAdmin}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
                     placeholder="email@example.com"
                   />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    {isSuperAdmin ? 'Email ini dipakai untuk login member.' : 'Email login hanya bisa diubah oleh Super Admin.'}
+                  </p>
                 </div>
 
                 <div>
@@ -423,6 +630,40 @@ export default function Members() {
                   />
                 </div>
               </div>
+
+              {isSuperAdmin ? (
+                <div className="rounded-xl border border-red-100 bg-red-50/60 p-4">
+                  <div className="mb-3">
+                    <div className="text-sm font-bold text-gray-900">Akun Login Member</div>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      Isi password untuk membuat akun baru atau reset password member.
+                    </p>
+                  </div>
+                  <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                    Password Login {editingId ? '(optional)' : ''}
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-3 py-2 border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500 bg-white"
+                    placeholder={editingId ? 'Kosongkan jika tidak reset password' : 'Contoh: member123'}
+                  />
+                  <div className="mt-2 flex items-start gap-2 text-[11px] text-gray-600">
+                    <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 16v-4M12 8h.01" />
+                    </svg>
+                    <span>
+                      Kalau email sudah dipakai akun PIC/admin, sistem akan update data dan password tanpa mengubah role akun tersebut.
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-xs text-gray-600">
+                  Akses PIC tidak bisa mengubah password akun. Hubungi Super Admin untuk reset password.
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

@@ -7,25 +7,25 @@ import { notifyDataChanged } from '@/lib/ui/toast'
 import { saveLocalPicBusinessClassification } from '@/lib/picBusinessClassification'
 
 interface PICForm {
+  member_id: string
   name: string
   role: string
   wa: string
   business_classification: string
   email: string
-  password: string
 }
 
 const initialForm: PICForm = {
+  member_id: '',
   name: '',
   role: 'Visitor Followup Specialist',
   wa: '',
   business_classification: '',
   email: '',
-  password: '',
 }
 
 export default function PICManagement() {
-  const { pics, visitors, loading, reload, updatePic, deletePic } = useData()
+  const { pics, visitors, members, loading, reload, updatePic, deletePic } = useData()
   
   // State
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -34,6 +34,7 @@ export default function PICManagement() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [memberSearch, setMemberSearch] = useState('')
 
   // Calculate workload for each PIC
   const getPICWorkload = (picId: string) => {
@@ -45,11 +46,50 @@ export default function PICManagement() {
     }
   }
 
-  const handleOpenAdd = () => {
-    setFormData({
-      ...initialForm,
-      email: `pic${Date.now()}@bnigrow.com`,
+  const availableMembers = members
+    .filter(member => member.status !== 'inactive')
+    .filter(member => {
+      const memberEmail = (member.email || '').trim().toLowerCase()
+      const memberName = member.name.trim().toLowerCase()
+
+      return !pics.some(pic => {
+        const picEmail = (pic.email || '').trim().toLowerCase()
+        const picName = pic.name.trim().toLowerCase()
+        return (memberEmail && picEmail === memberEmail) || picName === memberName
+      })
     })
+
+  const selectedMember = members.find(member => member.id === formData.member_id)
+  const memberSuggestions = memberSearch.trim().length >= 3
+    ? availableMembers
+        .filter(member => {
+          const keyword = memberSearch.trim().toLowerCase()
+          return (
+            member.name.toLowerCase().includes(keyword) ||
+            (member.phone || '').toLowerCase().includes(keyword) ||
+            (member.email || '').toLowerCase().includes(keyword) ||
+            (member.business_field || '').toLowerCase().includes(keyword) ||
+            (member.company || '').toLowerCase().includes(keyword)
+          )
+        })
+        .slice(0, 8)
+    : []
+
+  const handleSelectMember = (member: typeof members[number]) => {
+    setMemberSearch(member.name)
+    setFormData({
+      ...formData,
+      member_id: member.id,
+      name: member.name || '',
+      wa: member.phone || '',
+      email: member.email || '',
+      business_classification: member.business_field || '',
+    })
+  }
+
+  const handleOpenAdd = () => {
+    setFormData(initialForm)
+    setMemberSearch('')
     setEditingId(null)
     setError('')
     setIsModalOpen(true)
@@ -62,14 +102,20 @@ export default function PICManagement() {
       wa: pic.wa || '',
       business_classification: pic.business_classification || '',
       email: '', // Email tidak bisa diubah
-      password: '',
+      member_id: '',
     })
+    setMemberSearch('')
     setEditingId(pic.id)
     setError('')
     setIsModalOpen(true)
   }
 
   const handleSave = async () => {
+    if (!editingId && !selectedMember) {
+      setError('Pilih member yang akan dijadikan PIC')
+      return
+    }
+
     if (!formData.name.trim()) {
       setError('Nama PIC wajib diisi')
       return
@@ -89,55 +135,107 @@ export default function PICManagement() {
           business_classification: formData.business_classification,
         })
       } else {
-        // Create new PIC with user account
-        if (!formData.email.trim() || !formData.password.trim()) {
-          setError('Email dan password wajib diisi untuk PIC baru')
+        const memberForPic = selectedMember
+        if (!memberForPic) {
+          setError('Pilih member yang akan dijadikan PIC')
           setSaving(false)
           return
         }
 
-        // Create user in database
-        let { data: insertedPic, error: insertError }: { data: any | null; error: any } = await supabase
-          .from('users')
-          .insert({
-            name: formData.name,
-            email: formData.email,
-            password_hash: formData.password,
-            role: 'pic',
-            phone: formData.wa,
-            business_classification: formData.business_classification,
-            is_active: true,
-          })
-          .select('id')
-          .single()
+        const memberEmail = (memberForPic.email || '').trim()
+        const generatedEmail = `member+${memberForPic.id}@bnigrow.com`
+        const picEmail = memberEmail || generatedEmail
+        const picPayload = {
+          name: memberForPic.name,
+          email: picEmail,
+          password_hash: 'temp',
+          role: 'pic',
+          phone: memberForPic.phone || '',
+          business_classification: formData.business_classification || memberForPic.business_field || '',
+          is_active: true,
+        }
 
-        if (insertError && insertError.message?.includes('business_classification')) {
-          const fallback = await supabase
+        const existingUser = await supabase
+          .from('users')
+          .select('id, role, name')
+          .eq('email', picEmail)
+          .maybeSingle()
+
+        if (existingUser.error) throw existingUser.error
+        if (existingUser.data?.role === 'admin') {
+          setError(`Email ${picEmail} sudah dipakai akun admin (${existingUser.data.name}). Gunakan member lain atau ubah data email member terlebih dahulu.`)
+          setSaving(false)
+          return
+        }
+
+        let insertedPic: any | null = null
+        let insertError: any = null
+
+        if (existingUser.data?.id) {
+          let updateResult = await supabase
             .from('users')
-            .insert({
-              name: formData.name,
-              email: formData.email,
-              password_hash: formData.password,
-              role: 'pic',
-              phone: formData.wa,
-              is_active: true,
-            })
+            .update(picPayload)
+            .eq('id', existingUser.data.id)
             .select('id')
             .single()
 
-          insertedPic = fallback.data
-          insertError = fallback.error
+          if (updateResult.error && updateResult.error.message?.includes('business_classification')) {
+            updateResult = await supabase
+              .from('users')
+              .update({
+                name: picPayload.name,
+                email: picPayload.email,
+                password_hash: picPayload.password_hash,
+                role: picPayload.role,
+                phone: picPayload.phone,
+                is_active: picPayload.is_active,
+              })
+              .eq('id', existingUser.data.id)
+              .select('id')
+              .single()
+          }
+
+          insertedPic = updateResult.data
+          insertError = updateResult.error
+        } else {
+          const insertResult = await supabase
+            .from('users')
+            .insert(picPayload)
+            .select('id')
+            .single()
+
+          insertedPic = insertResult.data
+          insertError = insertResult.error
+
+          if (insertError && insertError.message?.includes('business_classification')) {
+            const fallback = await supabase
+              .from('users')
+              .insert({
+                name: picPayload.name,
+                email: picPayload.email,
+                password_hash: picPayload.password_hash,
+                role: picPayload.role,
+                phone: picPayload.phone,
+                is_active: picPayload.is_active,
+              })
+              .select('id')
+              .single()
+
+            insertedPic = fallback.data
+            insertError = fallback.error
+          }
         }
 
         if (insertError) throw insertError
         if (insertedPic?.id) {
-          saveLocalPicBusinessClassification(insertedPic.id, formData.business_classification)
+          saveLocalPicBusinessClassification(insertedPic.id, picPayload.business_classification)
         }
         notifyDataChanged('insert')
       }
 
       setIsModalOpen(false)
       setFormData(initialForm)
+      setMemberSearch('')
       await reload()
     } catch (err: any) {
       console.error('Save error:', err)
@@ -377,7 +475,7 @@ export default function PICManagement() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">
-                {editingId ? 'Edit PIC' : 'Tambah PIC Baru'}
+                {editingId ? 'Edit PIC' : 'Tambah PIC dari Member'}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -396,6 +494,74 @@ export default function PICManagement() {
                 </div>
               )}
 
+              {!editingId && (
+                <div className="relative">
+                  <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                    Pilih Member *
+                  </label>
+                  <input
+                    type="text"
+                    value={memberSearch}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setMemberSearch(value)
+                      setFormData({
+                        ...formData,
+                        member_id: '',
+                        name: '',
+                        wa: '',
+                        email: '',
+                        business_classification: '',
+                      })
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
+                    placeholder="Ketik minimal 3 huruf nama member..."
+                    autoFocus
+                  />
+
+                  {memberSearch.trim().length > 0 && memberSearch.trim().length < 3 && (
+                    <p className="text-[10px] text-gray-500 mt-1">Ketik minimal 3 huruf untuk menampilkan suggestion.</p>
+                  )}
+
+                  {memberSearch.trim().length >= 3 && memberSuggestions.length > 0 && !formData.member_id && (
+                    <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
+                      {memberSuggestions.map(member => (
+                        <button
+                          key={member.id}
+                          type="button"
+                          onClick={() => handleSelectMember(member)}
+                          className="flex w-full items-start gap-3 border-b border-gray-100 px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-red-50"
+                        >
+                          <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">
+                            {member.name.charAt(0).toUpperCase()}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-gray-900">{member.name}</span>
+                            <span className="block truncate text-xs text-gray-500">
+                              {[member.business_field, member.company, member.phone].filter(Boolean).join(' - ') || 'Data member'}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {memberSearch.trim().length >= 3 && memberSuggestions.length === 0 && !formData.member_id && (
+                    <div className="mt-1 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                      Tidak ada member yang cocok atau member sudah menjadi PIC.
+                    </div>
+                  )}
+
+                  {selectedMember && (
+                    <div className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+                      Terpilih: {selectedMember.name}
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-gray-500 mt-1">PIC dibuat dari data Member Grow yang sudah ada.</p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
                   Nama Lengkap *
@@ -404,9 +570,9 @@ export default function PICManagement() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
-                  placeholder="Contoh: Ilham Ramadhan"
-                  autoFocus
+                  disabled={!editingId}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  placeholder="Pilih member terlebih dahulu"
                 />
               </div>
 
@@ -431,7 +597,8 @@ export default function PICManagement() {
                   type="tel"
                   value={formData.wa}
                   onChange={(e) => setFormData({ ...formData, wa: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
+                  disabled={!editingId}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500 disabled:bg-gray-50 disabled:text-gray-500"
                   placeholder="0812xxxx"
                 />
               </div>
@@ -451,35 +618,12 @@ export default function PICManagement() {
               </div>
 
               {!editingId && (
-                <>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                      Email Login *
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
-                      placeholder="pic@bnigrow.com"
-                    />
-                    <p className="text-[10px] text-gray-500 mt-1">Email untuk login ke sistem</p>
+                <div className="rounded-xl border border-red-100 bg-red-50/70 p-3">
+                  <div className="text-xs font-semibold text-red-800">Data login mengikuti data member</div>
+                  <div className="mt-1 text-xs text-red-700">
+                    Email: {selectedMember?.email || 'Akan dibuat otomatis karena member belum punya email'}
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                      Password Sementara *
-                    </label>
-                    <input
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
-                      placeholder="Masukkan password sementara"
-                    />
-                    <p className="text-[10px] text-gray-500 mt-1">Password awal, bisa diubah setelah login</p>
-                  </div>
-                </>
+                </div>
               )}
 
               {editingId && (

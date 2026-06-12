@@ -3,19 +3,28 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn } from '@/lib/auth'
+import { changePassword, signIn, verifyOldPassword } from '@/lib/auth'
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [mode, setMode] = useState<'login' | 'change-password'>('login')
+  const [oldPassword, setOldPassword] = useState('')
+  const [oldPasswordVerified, setOldPasswordVerified] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changeLoading, setChangeLoading] = useState(false)
+  const [verifyLoading, setVerifyLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccess('')
     setLoading(true)
 
     try {
@@ -32,6 +41,91 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const resetChangePasswordForm = () => {
+    setOldPassword('')
+    setOldPasswordVerified(false)
+    setNewPassword('')
+    setConfirmPassword('')
+  }
+
+  const handleVerifyOldPassword = async () => {
+    setError('')
+    setSuccess('')
+
+    if (!email.trim()) {
+      setError('Email wajib diisi.')
+      return
+    }
+
+    if (!oldPassword.trim()) {
+      setError('Password lama wajib diisi.')
+      return
+    }
+
+    setVerifyLoading(true)
+    try {
+      const result = await verifyOldPassword(email, oldPassword)
+
+      if (result.success) {
+        setOldPasswordVerified(true)
+        setSuccess('Password lama valid. Silakan masukkan password baru.')
+      } else {
+        setOldPasswordVerified(false)
+        setError(result.error || 'Password lama salah.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Gagal validasi password lama.')
+    } finally {
+      setVerifyLoading(false)
+    }
+  }
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!oldPasswordVerified) {
+      setError('Validasi password lama terlebih dahulu.')
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setError('Password baru minimal 6 karakter.')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Konfirmasi password baru tidak sama.')
+      return
+    }
+
+    setChangeLoading(true)
+    try {
+      const result = await changePassword(email, oldPassword, newPassword)
+
+      if (result.success) {
+        setSuccess('Password berhasil diubah. Silakan login dengan password baru.')
+        setPassword('')
+        resetChangePasswordForm()
+        setMode('login')
+      } else {
+        setError(result.error || 'Gagal mengubah password.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Gagal mengubah password.')
+    } finally {
+      setChangeLoading(false)
+    }
+  }
+
+  const switchMode = (nextMode: 'login' | 'change-password') => {
+    setMode(nextMode)
+    setError('')
+    setSuccess('')
+    resetChangePasswordForm()
   }
 
   return (
@@ -112,17 +206,21 @@ export default function LoginPage() {
           {/* Welcome Text */}
           <div className="mb-8">
             <h2 className="text-3xl font-semibold tracking-[-0.01em] text-gray-950 mb-2">
-              Selamat Datang
+              {mode === 'login' ? 'Selamat Datang' : 'Change Password'}
             </h2>
             <p className="text-gray-600">
-              Silakan login untuk melanjutkan
+              {mode === 'login'
+                ? 'Silakan login untuk melanjutkan'
+                : 'Validasi password lama sebelum membuat password baru'}
             </p>
           </div>
 
           {/* Login Card */}
           <div className="glass-panel-strong rounded-[22px] p-8">
             <div className="mb-6">
-              <h3 className="text-xl font-semibold text-gray-800">Login Portal</h3>
+              <h3 className="text-xl font-semibold text-gray-800">
+                {mode === 'login' ? 'Login Portal' : 'Ubah Password'}
+              </h3>
             </div>
 
             {error && (
@@ -131,7 +229,13 @@ export default function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            {success && (
+              <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-sm">
+                {success}
+              </div>
+            )}
+
+            <form onSubmit={mode === 'login' ? handleSubmit : handleChangePasswordSubmit} className="space-y-5">
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
@@ -151,59 +255,124 @@ export default function LoginPage() {
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 font-medium placeholder-gray-400 transition-all"
                     placeholder="Masukkan email"
                     required
-                    disabled={loading}
+                    disabled={loading || changeLoading || verifyLoading || oldPasswordVerified}
                   />
                 </div>
               </div>
 
-              {/* Password */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
-                  Password
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
+              {mode === 'login' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      </svg>
+                    </div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 font-medium placeholder-gray-400 transition-all"
+                      placeholder="••••••••"
+                      required
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      {showPassword ? (
+                        <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                          <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                      ) : (
+                        <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      )}
+                    </button>
                   </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 font-medium placeholder-gray-400 transition-all"
-                    placeholder="••••••••"
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showPassword ? (
-                      <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                        <line x1="1" y1="1" x2="23" y2="23"/>
-                      </svg>
-                    ) : (
-                      <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                      </svg>
-                    )}
-                  </button>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
+                      Password Lama
+                    </label>
+                    <input
+                      type="password"
+                      value={oldPassword}
+                      onChange={(e) => {
+                        setOldPassword(e.target.value)
+                        setOldPasswordVerified(false)
+                      }}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 font-medium placeholder-gray-400 transition-all"
+                      placeholder="Masukkan password lama"
+                      required
+                      disabled={changeLoading || verifyLoading || oldPasswordVerified}
+                    />
+                    {!oldPasswordVerified && (
+                      <button
+                        type="button"
+                        onClick={handleVerifyOldPassword}
+                        disabled={verifyLoading || changeLoading}
+                        className="mt-3 w-full border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {verifyLoading ? 'Memvalidasi...' : 'Validasi Password Lama'}
+                      </button>
+                    )}
+                  </div>
+
+                  {oldPasswordVerified && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
+                          Password Baru
+                        </label>
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 font-medium placeholder-gray-400 transition-all"
+                          placeholder="Minimal 6 karakter"
+                          required
+                          disabled={changeLoading}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 uppercase tracking-wide">
+                          Konfirmasi Password Baru
+                        </label>
+                        <input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-900 font-medium placeholder-gray-400 transition-all"
+                          placeholder="Ulangi password baru"
+                          required
+                          disabled={changeLoading}
+                        />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
 
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || changeLoading || verifyLoading || (mode === 'change-password' && !oldPasswordVerified)}
                 className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
               >
-                {loading ? (
+                {loading || changeLoading ? (
                   <span className="flex items-center justify-center gap-2">
                     <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -211,11 +380,21 @@ export default function LoginPage() {
                     </svg>
                     Loading...
                   </span>
-                ) : (
+                ) : mode === 'login' ? (
                   'Masuk ke Akun'
+                ) : (
+                  'Simpan Password Baru'
                 )}
               </button>
             </form>
+
+            <button
+              type="button"
+              onClick={() => switchMode(mode === 'login' ? 'change-password' : 'login')}
+              className="mt-5 w-full text-center text-sm font-semibold text-red-600 hover:text-red-700 transition-colors"
+            >
+              {mode === 'login' ? 'Change Password' : 'Kembali ke Login'}
+            </button>
 
             {/* Terms */}
             <p className="mt-6 text-xs text-gray-500 text-center">

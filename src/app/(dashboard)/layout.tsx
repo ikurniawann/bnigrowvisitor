@@ -28,6 +28,7 @@ const pathToPage: Record<string, string> = {
   '/ocr': 'ocr',
   '/pic': 'pic',
   '/weekly': 'weekly',
+  '/logs': 'logs',
 }
 
 const pageTitles: Record<string, string> = {
@@ -40,6 +41,7 @@ const pageTitles: Record<string, string> = {
   'text-format': 'Text Format',
   pic: 'Kelola PIC',
   weekly: 'Weekly Meeting',
+  logs: 'Log',
 }
 
 // Pages that should hide sidebar (fullscreen mode)
@@ -57,16 +59,32 @@ export default function DashboardLayout({
   const currentPage = pathToPage[pathname] || 'dashboard'
 
   useEffect(() => {
+    let isMounted = true
+
     const loadUser = async () => {
-      const currentUser = await getCurrentUser()
-      if (!currentUser) {
-        router.push('/login')
-        return
+      try {
+        const currentUser = await getCurrentUser()
+        if (!isMounted) return
+
+        if (!currentUser) {
+          setLoading(false)
+          router.push('/login')
+          return
+        }
+
+        setUser(currentUser)
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
       }
-      setUser(currentUser)
-      setLoading(false)
     }
+
     loadUser()
+
+    return () => {
+      isMounted = false
+    }
   }, [router])
 
   const handleLogout = async () => {

@@ -1,7 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { User } from '@/lib/supabase'
+
+const SUPER_ADMIN_EMAIL = 'admin@bnigrow.com'
 
 interface SidebarProps {
   currentPage: string
@@ -17,11 +20,24 @@ const navItems = [
   { id: 'text-format', label: 'Text Format', path: '/text-format', icon: 'M4 6h16M4 12h10M4 18h16' },
   { id: 'pic', label: 'Kelola PIC', path: '/pic', icon: 'M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 6c-4.4 0-8 3.6-8 8h16c0-4.4-3.6-8-8-8z' },
   { id: 'weekly', label: 'Weekly Meeting', path: '/weekly', icon: 'M3 4h18v18H3V4zm13-2v4M8 2v4M3 10h18' },
+  { id: 'logs', label: 'Log', path: '/logs', icon: 'M9 11H5a2 2 0 0 0-2 2v6h6v-8zm6-6h-4a2 2 0 0 0-2 2v12h6V5zm6 4h-4a2 2 0 0 0-2 2v8h6V9z' },
 ]
 
 export default function Sidebar({ currentPage }: SidebarProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const isSuperAdmin = currentUser?.email?.toLowerCase() === SUPER_ADMIN_EMAIL
+  const dataNavItems = navItems.slice(5).filter(item => item.id !== 'logs' || isSuperAdmin)
+
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('user')
+      setCurrentUser(storedUser ? JSON.parse(storedUser) : null)
+    } catch {
+      setCurrentUser(null)
+    }
+  }, [])
 
   const handleNavigate = (path: string) => {
     router.push(path)
@@ -87,7 +103,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
             <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider px-3 py-2 mb-1">
               DATA
             </div>
-            {navItems.slice(5).map((item) => (
+            {dataNavItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleNavigate(item.path)}
