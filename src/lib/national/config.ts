@@ -47,4 +47,13 @@ export const ALERT_THRESHOLDS = {
   poorDataQualityPct: 50,
 } as const
 
+// Fallback KPI targets used when no national-default row exists in the DB.
+// Mirrors the column defaults in migration 012.
+export const DEFAULT_TARGETS = {
+  visitors_per_meeting: 10,
+  member_conversion_pct: 15,
+  min_active_pic: 3,
+  min_weekly_meetings_per_month: 4,
+} as const
+
 export type AlertSeverity = 'critical' | 'warning' | 'info'

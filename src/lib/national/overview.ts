@@ -1,5 +1,6 @@
 import { computeChapterStats, computeHealth, buildFunnel } from './metrics'
 import { deriveAlerts } from './alerts'
+import { resolveTarget, computeKpiProgress } from './targets'
 import type {
   ChapterRow,
   VisitorRow,
@@ -8,6 +9,7 @@ import type {
   ChapterUserRow,
   ActivityRow,
   ChapterReport,
+  ChapterTarget,
   RankingEntry,
   RegionRollup,
   NationalOverview,
@@ -20,6 +22,8 @@ export interface OverviewInput {
   meetings: MeetingRow[]
   users: ChapterUserRow[]
   activities: ActivityRow[]
+  defaultTarget?: Partial<ChapterTarget> | null
+  targetsByChapter?: Map<string, Partial<ChapterTarget>>
   scope: { cityId: string | null; areaId: string | null; chapterId: string | null }
   period: { from: string | null; to: string | null; label: string }
   now: number
@@ -69,6 +73,8 @@ export function assembleNationalOverview(input: OverviewInput): NationalOverview
       activitiesByChapter.get(chapter.id) || [],
       now
     )
+    const override = input.targetsByChapter?.get(chapter.id)
+    const target = resolveTarget(override ?? input.defaultTarget)
     return {
       id: chapter.id,
       name: chapter.name,
@@ -80,6 +86,9 @@ export function assembleNationalOverview(input: OverviewInput): NationalOverview
       isActive: chapter.is_active,
       stats,
       health: computeHealth(stats),
+      target,
+      targetIsOverride: Boolean(override),
+      kpis: computeKpiProgress(stats, target),
     }
   })
 

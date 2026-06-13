@@ -5,6 +5,7 @@ import type { ChapterReport, RankingEntry } from '@/lib/national/types'
 import { toneClasses, severityTone, SEVERITY_LABEL } from '@/lib/national/format'
 import { useNationalOverview, DEFAULT_FILTERS, OverviewFilters } from './useNationalOverview'
 import ChapterDrilldownModal from './ChapterDrilldownModal'
+import TargetEditorModal from './TargetEditorModal'
 
 interface ChapterOption {
   id: string
@@ -40,6 +41,7 @@ export default function NationalOverview() {
   const [chapterOptions, setChapterOptions] = useState<ChapterOption[]>([])
   const [selectedChapter, setSelectedChapter] = useState<ChapterReport | null>(null)
   const [rankingTab, setRankingTab] = useState<string>('visitors')
+  const [showTargets, setShowTargets] = useState(false)
   const { data, loading, error, refetch } = useNationalOverview(filters)
 
   useEffect(() => {
@@ -122,12 +124,20 @@ export default function NationalOverview() {
             onChange={value => updateFilter({ chapterId: value })}
             options={[{ value: '', label: 'Semua Chapter' }, ...chapterPickOptions.map(c => ({ value: c.id, label: c.display_name }))]}
           />
-          <button
-            onClick={() => refetch()}
-            className="ml-auto rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
-          >
-            Refresh
-          </button>
+          <div className="ml-auto flex gap-2">
+            <button
+              onClick={() => setShowTargets(true)}
+              className="rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-700"
+            >
+              Atur Target
+            </button>
+            <button
+              onClick={() => refetch()}
+              className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 
@@ -165,6 +175,14 @@ export default function NationalOverview() {
 
       {selectedChapter && (
         <ChapterDrilldownModal chapter={selectedChapter} now={now} onClose={() => setSelectedChapter(null)} />
+      )}
+
+      {showTargets && (
+        <TargetEditorModal
+          chapters={chapterOptions.map(c => ({ id: c.id, display_name: c.display_name }))}
+          onClose={() => setShowTargets(false)}
+          onSaved={() => refetch()}
+        />
       )}
     </div>
   )

@@ -9,10 +9,13 @@ import {
   findActiveUserByEmail,
   verifyAndUpgradePassword,
 } from '@/lib/server/userService'
+import { recordLoginAttempt, clientIpFromHeaders } from '@/lib/server/loginAudit'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
+  const ip = clientIpFromHeaders(request)
+  const userAgent = request.headers.get('user-agent')
   try {
     const body = await request.json().catch(() => null)
     const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
@@ -25,8 +28,28 @@ export async function POST(request: Request) {
     const user = await findActiveUserByEmail(email, true)
 
     if (!user || !(await verifyAndUpgradePassword(user, password))) {
+      await recordLoginAttempt({
+        email,
+        success: false,
+        reason: user ? 'wrong_password' : 'user_not_found',
+        ip,
+        userAgent,
+        userId: user?.id ?? null,
+        chapterId: user?.chapter_id ?? null,
+        organizationId: user?.organization_id ?? null,
+      })
       return NextResponse.json({ error: 'Email atau password salah.' }, { status: 401 })
     }
+
+    await recordLoginAttempt({
+      email,
+      success: true,
+      ip,
+      userAgent,
+      userId: user.id,
+      chapterId: user.chapter_id ?? null,
+      organizationId: user.organization_id ?? null,
+    })
 
     const safeUser = await enrichUserScope(user)
     const token = createSessionToken({

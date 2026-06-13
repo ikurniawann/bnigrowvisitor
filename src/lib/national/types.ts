@@ -89,6 +89,23 @@ export interface ChapterHealth {
   components: HealthComponents
 }
 
+export interface ChapterTarget {
+  visitors_per_meeting: number
+  member_conversion_pct: number
+  min_active_pic: number
+  min_weekly_meetings_per_month: number
+}
+
+export interface KpiProgress {
+  key: string
+  label: string
+  target: number
+  actual: number
+  pct: number
+  met: boolean
+  unit: string
+}
+
 export interface ChapterReport {
   id: string
   name: string
@@ -100,6 +117,9 @@ export interface ChapterReport {
   isActive: boolean
   stats: ChapterStats
   health: ChapterHealth
+  target: ChapterTarget
+  targetIsOverride: boolean
+  kpis: KpiProgress[]
 }
 
 export interface FunnelStep {

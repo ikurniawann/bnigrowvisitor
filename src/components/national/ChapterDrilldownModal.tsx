@@ -93,6 +93,31 @@ export default function ChapterDrilldownModal({ chapter, now, onClose }: Chapter
           </div>
         </div>
 
+        <div className="mt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-black text-gray-950">Target &amp; KPI</h3>
+            <span className="text-[11px] font-semibold text-gray-400">
+              {chapter.kpis.filter(k => k.met).length}/{chapter.kpis.length} tercapai{chapter.targetIsOverride ? ' · override' : ''}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {chapter.kpis.map(kpi => (
+              <div key={kpi.key} className="rounded-2xl border border-gray-100 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-medium text-gray-500">{kpi.label}</span>
+                  <span className={`text-[10px] font-bold ${kpi.met ? 'text-emerald-600' : 'text-orange-500'}`}>{kpi.met ? '✓ tercapai' : 'belum'}</span>
+                </div>
+                <div className="mt-1 text-sm font-black text-gray-900">
+                  {kpi.actual}{kpi.unit} <span className="text-[11px] font-medium text-gray-400">/ {kpi.target}{kpi.unit}</span>
+                </div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                  <div className={`h-full rounded-full ${kpi.met ? 'bg-emerald-500' : 'bg-orange-400'}`} style={{ width: `${kpi.pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="mt-5 grid grid-cols-2 gap-3 text-xs">
           <div className="rounded-2xl border border-gray-100 p-3">
             <div className="font-medium text-gray-500">Meeting terakhir</div>

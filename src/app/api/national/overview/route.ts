@@ -3,6 +3,7 @@ import { getSession } from '@/lib/server/session'
 import { getSupabaseAdmin } from '@/lib/server/supabaseAdmin'
 import { findActiveUserById } from '@/lib/server/userService'
 import { assembleNationalOverview } from '@/lib/national/overview'
+import { loadTargets } from '@/lib/server/targetsService'
 import type { ChapterRow } from '@/lib/national/types'
 
 export const dynamic = 'force-dynamic'
@@ -93,6 +94,8 @@ export async function GET(request: Request) {
       .limit(ROW_LIMIT)
     if (period.from) memberQuery = memberQuery.gte('created_at', period.from)
 
+    const targetsPromise = loadTargets()
+
     const [chaptersRes, visitorsRes, membersRes, meetingsRes, usersRes, activityRes] = await Promise.all([
       admin
         .from('chapters')
@@ -132,6 +135,8 @@ export async function GET(request: Request) {
       )
     }
 
+    const targets = await targetsPromise
+
     const overview = assembleNationalOverview({
       chapters: flattenChapters(chaptersRes.data || []),
       visitors: (visitorsRes.data as any) || [],
@@ -139,6 +144,8 @@ export async function GET(request: Request) {
       meetings: (meetingsRes.data as any) || [],
       users: (usersRes.data as any) || [],
       activities: (activityRes.data as any) || [],
+      defaultTarget: targets.default,
+      targetsByChapter: targets.overrides,
       scope,
       period,
       now,
