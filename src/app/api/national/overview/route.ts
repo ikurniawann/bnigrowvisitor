@@ -118,6 +118,20 @@ export async function GET(request: Request) {
       activityRes.error
     if (firstError) throw firstError
 
+    // Surface silent truncation: hitting ROW_LIMIT means aggregates undercount.
+    const truncated = [
+      ['visitors', visitorsRes.data?.length],
+      ['members', membersRes.data?.length],
+      ['meetings', meetingsRes.data?.length],
+      ['users', usersRes.data?.length],
+      ['activity_logs', activityRes.data?.length],
+    ].filter(([, count]) => count === ROW_LIMIT)
+    if (truncated.length) {
+      console.warn(
+        `National overview hit ROW_LIMIT (${ROW_LIMIT}) for: ${truncated.map(([name]) => name).join(', ')}. Aggregates may undercount — add pagination.`
+      )
+    }
+
     const overview = assembleNationalOverview({
       chapters: flattenChapters(chaptersRes.data || []),
       visitors: (visitorsRes.data as any) || [],

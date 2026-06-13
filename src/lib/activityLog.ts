@@ -1,4 +1,5 @@
 import { supabase, User } from './supabase'
+import { getActiveChapterId } from './chapterRoute'
 
 export type ActivityAction = 'insert' | 'update' | 'delete'
 
@@ -43,13 +44,16 @@ function getCurrentActor(): User | null {
 
 export async function logActivity(input: LogActivityInput) {
   const actor = getCurrentActor()
+  // Attribute the log to the chapter actually being operated on (e.g. a national
+  // admin working inside another chapter), falling back to the actor's home chapter.
+  const chapterId = getActiveChapterId(actor) || actor?.chapter_id
 
   const { error } = await supabase
     .from('activity_logs')
     .insert({
       actor_id: actor?.id,
       organization_id: actor?.organization_id,
-      chapter_id: actor?.chapter_id,
+      chapter_id: chapterId,
       actor_name: actor?.name,
       actor_email: actor?.email,
       actor_role: actor?.role,
