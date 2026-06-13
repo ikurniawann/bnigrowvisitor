@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/server/session'
 import { getSupabaseAdmin } from '@/lib/server/supabaseAdmin'
 import { findActiveUserById, hashPassword } from '@/lib/server/userService'
+import { ensureChapterDomain } from '@/lib/server/chapterDomain'
 
 export const dynamic = 'force-dynamic'
 
@@ -210,6 +211,30 @@ export async function POST(request: Request) {
       }
 
       assertRequiredColumns(table, payload)
+
+      // Creating a chapter auto-provisions its primary subdomain (<slug>.<base>)
+      // when APP_BASE_DOMAIN is configured. Dormant no-op otherwise.
+      if (table === 'chapters') {
+        const { data: inserted, error } = await admin
+          .from('chapters')
+          .insert(payload)
+          .select('id, name, display_name')
+          .single()
+        if (error) throw error
+
+        let domain: string | null = null
+        try {
+          domain = await ensureChapterDomain(
+            admin,
+            inserted.id,
+            (inserted.name as string) || (inserted.display_name as string) || ''
+          )
+        } catch (domainError) {
+          // Chapter exists; only the auto-domain failed. Don't roll back.
+          console.error('Auto-domain gagal dibuat:', domainError)
+        }
+        return NextResponse.json({ success: true, id: inserted.id, domain })
+      }
 
       const { error } = await admin.from(table).insert(payload)
       if (error) throw error

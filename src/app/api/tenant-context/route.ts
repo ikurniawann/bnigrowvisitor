@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/server/supabaseAdmin'
+import { getBaseDomain } from '@/lib/server/chapterDomain'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +19,13 @@ export async function GET() {
 
     if (!host) {
       return NextResponse.json({ host: '', matched: false })
+    }
+
+    // Apex / main domain = National entry (no chapter context). Chapters live on
+    // their own subdomains; everything else falls through to a chapter lookup.
+    const baseDomain = getBaseDomain()
+    if (baseDomain && host === baseDomain) {
+      return NextResponse.json({ host, matched: false, scope: 'national' })
     }
 
     const { data, error } = await getSupabaseAdmin()
