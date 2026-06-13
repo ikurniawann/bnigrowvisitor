@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Tabel policy belum dibuat. Jalankan migration 012.' }, { status: 503 })
     }
     console.error('Upsert policy error:', error)
-    return NextResponse.json({ error: error?.message || 'Gagal menyimpan policy.' }, { status: 400 })
+    return NextResponse.json({ error: 'Gagal menyimpan policy.' }, { status: 500 })
   }
 }
 

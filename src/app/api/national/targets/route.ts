@@ -64,22 +64,26 @@ export async function POST(request: Request) {
   const guard = await requireNationalAdmin()
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status })
 
-  try {
-    const body = await request.json().catch(() => null)
-    const chapterId = typeof body?.chapterId === 'string' && body.chapterId ? body.chapterId : null
-    const values = parseTargets(body)
+  const body = await request.json().catch(() => null)
+  const chapterId = typeof body?.chapterId === 'string' && body.chapterId ? body.chapterId : null
 
-    await upsertTarget({
-      chapterId,
-      organizationId: guard.user.organization_id ?? null,
-      ...values,
-    })
+  // Validation errors carry safe, user-facing messages.
+  let values
+  try {
+    values = parseTargets(body)
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Input tidak valid.' }, { status: 400 })
+  }
+
+  try {
+    await upsertTarget({ chapterId, organizationId: guard.user.organization_id ?? null, ...values })
     return NextResponse.json({ success: true })
   } catch (error: any) {
     if (isMissingTableError(error)) {
       return NextResponse.json({ error: 'Tabel target belum dibuat. Jalankan migration 012.' }, { status: 503 })
     }
-    return NextResponse.json({ error: error?.message || 'Gagal menyimpan target.' }, { status: 400 })
+    console.error('Upsert target error:', error)
+    return NextResponse.json({ error: 'Gagal menyimpan target.' }, { status: 500 })
   }
 }
 

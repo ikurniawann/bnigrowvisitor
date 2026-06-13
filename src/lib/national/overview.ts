@@ -109,6 +109,9 @@ export function assembleNationalOverview(input: OverviewInput): NationalOverview
   const cityMap = new Map<string, RegionRollup>()
   const areaMap = new Map<string, RegionRollup>()
   for (const report of reports) {
+    // Skip chapters with no resolved city/area so region rollups don't emit
+    // entries keyed by undefined.
+    if (!report.cityId || !report.areaId) continue
     const city = cityMap.get(report.cityId) || {
       id: report.cityId,
       name: report.cityName,

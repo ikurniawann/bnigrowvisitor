@@ -38,10 +38,9 @@ const AIRTIME_LABELS: Record<number, string> = {
 }
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  ''
+// Service role only — never silently fall back to the anon key, which would run
+// queries with reduced privileges and return wrong/RLS-filtered data.
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 const supabaseServer = supabaseUrl && supabaseKey
   ? createClient(supabaseUrl, supabaseKey, {
@@ -451,9 +450,7 @@ export async function POST(request: Request) {
       answer: answer || `Maaf, ${assistantName} belum menerima jawaban dari model.`,
     })
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Assistant sedang bermasalah.' },
-      { status: 500 }
-    )
+    console.error('Grow assistant error:', error)
+    return NextResponse.json({ error: 'Assistant sedang bermasalah.' }, { status: 500 })
   }
 }

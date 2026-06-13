@@ -16,8 +16,9 @@ export async function GET(request: Request) {
     const requested = url.searchParams.get('chapterId')
     const isNational = session.role === 'national_admin' || session.role === 'admin'
 
-    // Non-national users are pinned to their own chapter.
-    const chapterId = isNational && requested ? requested : session.chapter_id || requested || ''
+    // Non-national users are pinned to their own chapter — never honor a
+    // requested chapterId, so they can't read another chapter's policy.
+    const chapterId = isNational ? requested || session.chapter_id || '' : session.chapter_id || ''
     if (!chapterId) return NextResponse.json({ policies: {} })
 
     const policies = await resolvePoliciesForChapter(chapterId)
