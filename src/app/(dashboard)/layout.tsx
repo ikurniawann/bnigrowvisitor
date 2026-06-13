@@ -23,6 +23,7 @@ const pathToPage: Record<string, string> = {
   '/dashboard': 'dashboard',
   '/national-overview': 'national-overview',
   '/national-governance': 'national-governance',
+  '/national-policies': 'national-policies',
   '/national-dashboard': 'national-dashboard',
   '/chapter-dashboard': 'chapter-dashboard',
   '/kanban': 'kanban',
@@ -42,6 +43,7 @@ const pageTitles: Record<string, string> = {
   dashboard: 'Dashboard',
   'national-overview': 'Dashboard Nasional',
   'national-governance': 'Governance & Audit',
+  'national-policies': 'Template & Policy',
   'national-dashboard': 'Manage Chapter',
   'chapter-dashboard': 'Chapter Dashboard',
   kanban: 'Pipeline',
@@ -160,7 +162,7 @@ export default function DashboardLayout({
 
   // Check if current page should be fullscreen
   const isFullscreen = FULLSCREEN_PAGES.includes(pathname) || currentPage === 'kanban'
-  const isNationalArea = ['national-overview', 'national-governance', 'national-dashboard', 'master'].includes(currentPage)
+  const isNationalArea = ['national-overview', 'national-governance', 'national-policies', 'national-dashboard', 'master'].includes(currentPage)
 
   if (loading) {
     return (
