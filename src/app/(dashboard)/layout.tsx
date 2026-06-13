@@ -21,6 +21,7 @@ export const DashboardContext = React.createContext<DashboardContextType>({
 // Map pathname to page id
 const pathToPage: Record<string, string> = {
   '/dashboard': 'dashboard',
+  '/national-overview': 'national-overview',
   '/national-dashboard': 'national-dashboard',
   '/chapter-dashboard': 'chapter-dashboard',
   '/kanban': 'kanban',
@@ -38,6 +39,7 @@ const pathToPage: Record<string, string> = {
 
 const pageTitles: Record<string, string> = {
   dashboard: 'Dashboard',
+  'national-overview': 'Dashboard Nasional',
   'national-dashboard': 'Manage Chapter',
   'chapter-dashboard': 'Chapter Dashboard',
   kanban: 'Pipeline',
@@ -156,7 +158,7 @@ export default function DashboardLayout({
 
   // Check if current page should be fullscreen
   const isFullscreen = FULLSCREEN_PAGES.includes(pathname) || currentPage === 'kanban'
-  const isNationalArea = ['national-dashboard', 'master'].includes(currentPage)
+  const isNationalArea = ['national-overview', 'national-dashboard', 'master'].includes(currentPage)
 
   if (loading) {
     return (

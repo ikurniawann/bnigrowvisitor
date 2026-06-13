@@ -13,7 +13,7 @@ export default function DashboardPage() {
     try {
       const storedUser = localStorage.getItem('user')
       const user = storedUser ? JSON.parse(storedUser) : null
-      router.replace(isNationalAdmin(user) ? '/national-dashboard' : getChapterRoute('dashboard', user))
+      router.replace(isNationalAdmin(user) ? '/national-overview' : getChapterRoute('dashboard', user))
     } catch {
       router.replace('/chapter-dashboard')
     }
