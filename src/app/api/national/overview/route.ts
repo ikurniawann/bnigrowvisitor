@@ -8,7 +8,7 @@ import type { ChapterRow } from '@/lib/national/types'
 
 export const dynamic = 'force-dynamic'
 
-const NATIONAL_ADMIN_EMAIL = 'admin@bnigrow.com'
+const NATIONAL_ADMIN_EMAIL = 'admin@bniindonesia.com'
 const ROW_LIMIT = 10000
 const DAY_MS = 24 * 60 * 60 * 1000
 

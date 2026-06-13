@@ -5,7 +5,7 @@ import { findActiveUserById, hashPassword } from '@/lib/server/userService'
 
 export const dynamic = 'force-dynamic'
 
-const NATIONAL_ADMIN_EMAIL = 'admin@bnigrow.com'
+const NATIONAL_ADMIN_EMAIL = 'admin@bniindonesia.com'
 
 // Columns each table accepts from the client. Anything else is dropped so the
 // service-role client can never be used for mass assignment.

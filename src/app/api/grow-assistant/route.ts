@@ -65,7 +65,7 @@ function topEntries(record: Record<string, number>, limit = 12) {
 }
 
 function isNationalUser(user: AssistantUser) {
-  return user.role === 'admin' || user.role === 'national_admin' || user.email === 'admin@bnigrow.com'
+  return user.role === 'admin' || user.role === 'national_admin' || user.email === 'admin@bniindonesia.com'
 }
 
 function getEffectiveChapterId(user: AssistantUser) {

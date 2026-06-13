@@ -1,6 +1,6 @@
 import { User } from './supabase'
 
-export const NATIONAL_ADMIN_EMAIL = 'admin@bnigrow.com'
+export const NATIONAL_ADMIN_EMAIL = 'admin@bniindonesia.com'
 
 export function isNationalAdmin(user?: Pick<User, 'email' | 'role'> | null) {
   if (!user) return false

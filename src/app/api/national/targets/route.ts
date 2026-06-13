@@ -7,7 +7,7 @@ import { DEFAULT_TARGETS } from '@/lib/national/config'
 
 export const dynamic = 'force-dynamic'
 
-const NATIONAL_ADMIN_EMAIL = 'admin@bnigrow.com'
+const NATIONAL_ADMIN_EMAIL = 'admin@bniindonesia.com'
 
 const NUMERIC_FIELDS = [
   'visitors_per_meeting',

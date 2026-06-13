@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     const callerIsNational =
       caller.role === 'admin' ||
       caller.role === 'national_admin' ||
-      caller.email?.toLowerCase() === 'admin@bnigrow.com'
+      caller.email?.toLowerCase() === 'admin@bniindonesia.com'
 
     if (!callerIsNational && target.chapter_id && caller.chapter_id !== target.chapter_id) {
       return NextResponse.json(

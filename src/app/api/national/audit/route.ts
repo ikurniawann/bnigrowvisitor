@@ -6,7 +6,7 @@ import { isMissingTableError } from '@/lib/server/dbErrors'
 
 export const dynamic = 'force-dynamic'
 
-const NATIONAL_ADMIN_EMAIL = 'admin@bnigrow.com'
+const NATIONAL_ADMIN_EMAIL = 'admin@bniindonesia.com'
 const PAGE_LIMIT = 200
 
 // National-only audit feed: login attempts + data-change activity, optionally

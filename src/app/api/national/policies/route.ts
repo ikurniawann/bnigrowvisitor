@@ -7,7 +7,7 @@ import { isPolicyType, defaultPolicyConfig, POLICY_TYPES } from '@/lib/national/
 
 export const dynamic = 'force-dynamic'
 
-const NATIONAL_ADMIN_EMAIL = 'admin@bnigrow.com'
+const NATIONAL_ADMIN_EMAIL = 'admin@bniindonesia.com'
 
 type Guard =
   | { ok: false; error: string; status: 401 | 403 }
