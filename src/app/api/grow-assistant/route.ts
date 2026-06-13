@@ -8,6 +8,17 @@ type ChatMessage = {
   content: string
 }
 
+type AssistantUser = {
+  id: string
+  name: string
+  email?: string | null
+  role: string
+  is_active: boolean
+  organization_id?: string | null
+  chapter_id?: string | null
+  selected_chapter_id?: string | null
+}
+
 const STATUS_LABELS: Record<string, string> = {
   new: 'Baru Daftar',
   followup: 'Follow Up',
@@ -52,6 +63,27 @@ function topEntries(record: Record<string, number>, limit = 12) {
     .map(([name, count]) => ({ name, count }))
 }
 
+function isNationalUser(user: AssistantUser) {
+  return user.role === 'admin' || user.role === 'national_admin' || user.email === 'admin@bnigrow.com'
+}
+
+function getEffectiveChapterId(user: AssistantUser) {
+  if (isNationalUser(user)) return user.selected_chapter_id || null
+  return user.chapter_id || null
+}
+
+function applyChapterScope<T>(query: T, user: AssistantUser): T {
+  const chapterId = getEffectiveChapterId(user)
+
+  if (isNationalUser(user) && !chapterId) return query
+
+  if (!chapterId) {
+    return (query as any).eq('chapter_id', '__missing_chapter__')
+  }
+
+  return (query as any).eq('chapter_id', chapterId)
+}
+
 function cleanVisitor(visitor: any) {
   const airtimeChoice = Number(visitor.attended_choice_number || 0)
 
@@ -76,11 +108,31 @@ function cleanVisitor(visitor: any) {
   }
 }
 
-async function buildDashboardContext() {
+async function buildDashboardContext(user: AssistantUser) {
   if (!supabaseServer) throw new Error('Supabase env belum lengkap')
+  const effectiveChapterId = getEffectiveChapterId(user)
 
-  const [visitorsResult, meetingsResult, picsResult, membersResult] = await Promise.all([
-    supabaseServer
+  const [chapterResult, visitorsResult, meetingsResult, picsResult, membersResult] = await Promise.all([
+    effectiveChapterId
+      ? supabaseServer
+          .from('chapters')
+          .select(`
+            id,
+            name,
+            display_name,
+            area:area_id (
+              id,
+              name,
+              city:city_id (
+                id,
+                name
+              )
+            )
+          `)
+          .eq('id', effectiveChapterId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null } as any),
+    applyChapterScope(supabaseServer
       .from('visitors')
       .select(`
         id, name, phone, email, business_field, company, chapter, gender, referral_name,
@@ -91,25 +143,26 @@ async function buildDashboardContext() {
         referred_by_member:referred_by_member_id (id, name)
       `)
       .order('created_at', { ascending: false })
-      .limit(500),
-    supabaseServer
+      .limit(500), user),
+    applyChapterScope(supabaseServer
       .from('meetings')
       .select('id, title, meeting_date, location, notes')
       .order('meeting_date', { ascending: false })
-      .limit(50),
-    supabaseServer
+      .limit(50), user),
+    applyChapterScope(supabaseServer
       .from('users')
       .select('id, name, role, phone, business_classification, is_active')
       .eq('role', 'pic')
       .eq('is_active', true)
-      .limit(50),
-    supabaseServer
+      .limit(50), user),
+    applyChapterScope(supabaseServer
       .from('members')
       .select('id, name, phone, email, business_field, company, chapter, status, created_at')
       .order('created_at', { ascending: false })
-      .limit(300),
+      .limit(300), user),
   ])
 
+  if (chapterResult.error) throw chapterResult.error
   if (visitorsResult.error) throw visitorsResult.error
   if (meetingsResult.error) throw meetingsResult.error
   if (picsResult.error) throw picsResult.error
@@ -119,6 +172,9 @@ async function buildDashboardContext() {
   const meetings = meetingsResult.data || []
   const pics = picsResult.data || []
   const members = membersResult.data || []
+  const chapterData: any = chapterResult.data || null
+  const area: any = chapterData?.area ? (Array.isArray(chapterData.area) ? chapterData.area[0] : chapterData.area) : null
+  const city: any = area?.city ? (Array.isArray(area.city) ? area.city[0] : area.city) : null
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -154,7 +210,18 @@ async function buildDashboardContext() {
 
   return {
     generated_at: new Date().toISOString(),
-    app: 'BNI Grow Visitor Manager',
+    app: `${chapterData?.name || 'BNI'} Visitor Manager`,
+    assistant_name: chapterData?.name ? `${chapterData.name.replace(/^BNI\s+/i, '')} Assistant` : 'Grow Assistant',
+    chapter_context: chapterData ? {
+      id: chapterData.id,
+      name: chapterData.name,
+      display_name: chapterData.display_name,
+      area: area?.name || null,
+      city: city?.name || null,
+    } : null,
+    data_scope: effectiveChapterId
+      ? `Chapter aktif (${chapterData?.display_name || chapterData?.name || effectiveChapterId})`
+      : 'Semua chapter',
     summary: {
       total_visitor: visitors.length,
       total_member_grow: members.length,
@@ -209,6 +276,13 @@ export async function POST(request: Request) {
     const body = await request.json()
     const messages = Array.isArray(body.messages) ? body.messages as ChatMessage[] : []
     const userId = typeof body.userId === 'string' ? body.userId : ''
+    const selectedChapterId = typeof body.chapterId === 'string' ? body.chapterId : ''
+    const assistantName = typeof body.assistantName === 'string' && body.assistantName.trim()
+      ? body.assistantName.trim().slice(0, 80)
+      : 'Grow Assistant'
+    const chapterName = typeof body.chapterName === 'string' && body.chapterName.trim()
+      ? body.chapterName.trim().slice(0, 120)
+      : 'BNI Grow'
     const prompt = messages[messages.length - 1]?.content?.trim() || ''
 
     if (!userId) {
@@ -217,7 +291,7 @@ export async function POST(request: Request) {
 
     const { data: user, error: userError } = await supabaseServer
       .from('users')
-      .select('id, name, role, is_active')
+      .select('id, name, email, role, is_active, organization_id, chapter_id')
       .eq('id', userId)
       .eq('is_active', true)
       .single()
@@ -235,7 +309,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'DEEPSEEK_API_KEY belum diset di server.' }, { status: 500 })
     }
 
-    const dashboardContext = await buildDashboardContext()
+    const assistantUser = {
+      ...(user as AssistantUser),
+      selected_chapter_id: selectedChapterId || null,
+    }
+    const dashboardContext = await buildDashboardContext(assistantUser)
     const safeMessages = messages.slice(-8).map(message => ({
       role: message.role,
       content: String(message.content || '').slice(0, 1600),
@@ -255,7 +333,7 @@ export async function POST(request: Request) {
           {
             role: 'system',
             content:
-              'Kamu adalah Grow Assistant, AI assistant internal untuk BNI Grow Visitor Manager. Jawab dalam bahasa Indonesia yang ringkas, jelas, natural, dan actionable. Gunakan hanya konteks data dashboard yang diberikan. Jika data tidak tersedia, bilang jujur bahwa datanya belum ada di konteks. Jangan mengarang. Jangan tampilkan markdown, jangan pakai tanda **, jangan bullet markdown yang kaku, jangan heading markdown, dan jangan menulis sumber/keterangan sumber. Tulis seperti obrolan chat biasa. Saat menjawab angka, sebutkan angka spesifik secara natural. Pahami alur baru: Konfirmasi Hadir baru janji hadir, Hadir berarti benar-benar datang, lalu hasil Airtime menentukan MCQA. MCQA utama adalah visitor hadir dengan hasil Airtime Bersedia Bergabung; Pikir-pikir Dulu perlu follow-up ulang; Tidak Tertarik tidak masuk proses member. Biasakan memberi next action konkret, misalnya arahkan user membuka halaman Visitor untuk follow-up, MCQA untuk proses Airtime/interview/member, atau Text Format untuk template WA jika relevan. Akhiri jawaban dengan pertanyaan pendek seperti "Mau saya bantu lihat daftar prioritasnya?" atau variasinya.',
+              `Kamu adalah ${assistantName}, AI assistant internal untuk ${chapterName} Visitor Manager. Jawab dalam bahasa Indonesia yang ringkas, jelas, natural, dan actionable. Gunakan hanya konteks data dashboard yang diberikan. Jika data tidak tersedia, bilang jujur bahwa datanya belum ada di konteks. Jangan mengarang. Jangan tampilkan markdown, jangan pakai tanda **, jangan bullet markdown yang kaku, jangan heading markdown, dan jangan menulis sumber/keterangan sumber. Tulis seperti obrolan chat biasa. Saat menjawab angka, sebutkan angka spesifik secara natural. Pahami alur baru: Konfirmasi Hadir baru janji hadir, Hadir berarti benar-benar datang, lalu hasil Airtime menentukan MCQA. MCQA utama adalah visitor hadir dengan hasil Airtime Bersedia Bergabung; Pikir-pikir Dulu perlu follow-up ulang; Tidak Tertarik tidak masuk proses member. Biasakan memberi next action konkret, misalnya arahkan user membuka halaman Visitor untuk follow-up, MCQA untuk proses Airtime/interview/member, atau Text Format untuk template WA jika relevan. Akhiri jawaban dengan pertanyaan pendek seperti "Mau saya bantu lihat daftar prioritasnya?" atau variasinya.`,
           },
           {
             role: 'system',
@@ -278,11 +356,11 @@ export async function POST(request: Request) {
     const answer = data?.choices?.[0]?.message?.content
 
     return NextResponse.json({
-      answer: answer || 'Maaf, Grow Assistant belum menerima jawaban dari model.',
+      answer: answer || `Maaf, ${assistantName} belum menerima jawaban dari model.`,
     })
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || 'Grow Assistant sedang bermasalah.' },
+      { error: error.message || 'Assistant sedang bermasalah.' },
       { status: 500 }
     )
   }

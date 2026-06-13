@@ -4,6 +4,8 @@ export type ActivityAction = 'insert' | 'update' | 'delete'
 
 export interface ActivityLog {
   id: string
+  organization_id?: string
+  chapter_id?: string
   actor_id?: string
   actor_name?: string
   actor_email?: string
@@ -46,6 +48,8 @@ export async function logActivity(input: LogActivityInput) {
     .from('activity_logs')
     .insert({
       actor_id: actor?.id,
+      organization_id: actor?.organization_id,
+      chapter_id: actor?.chapter_id,
       actor_name: actor?.name,
       actor_email: actor?.email,
       actor_role: actor?.role,

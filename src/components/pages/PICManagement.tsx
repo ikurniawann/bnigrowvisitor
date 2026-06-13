@@ -5,6 +5,7 @@ import { useData } from '@/hooks/useData'
 import { supabase } from '@/lib/supabase'
 import { notifyDataChanged } from '@/lib/ui/toast'
 import { saveLocalPicBusinessClassification } from '@/lib/picBusinessClassification'
+import { isNationalAdmin } from '@/lib/permissions'
 
 interface PICForm {
   member_id: string
@@ -22,6 +23,17 @@ const initialForm: PICForm = {
   wa: '',
   business_classification: '',
   email: '',
+}
+
+function getCurrentUserScope(): any | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const storedUser = localStorage.getItem('user')
+    return storedUser ? JSON.parse(storedUser) : null
+  } catch {
+    return null
+  }
 }
 
 export default function PICManagement() {
@@ -145,7 +157,8 @@ export default function PICManagement() {
         const memberEmail = (memberForPic.email || '').trim()
         const generatedEmail = `member+${memberForPic.id}@bnigrow.com`
         const picEmail = memberEmail || generatedEmail
-        const picPayload = {
+        const currentUser = getCurrentUserScope()
+        const picPayload: Record<string, any> = {
           name: memberForPic.name,
           email: picEmail,
           password_hash: 'temp',
@@ -155,15 +168,38 @@ export default function PICManagement() {
           is_active: true,
         }
 
+        if (currentUser?.organization_id) {
+          picPayload.organization_id = currentUser.organization_id
+        }
+
+        if (currentUser?.chapter_id) {
+          picPayload.chapter_id = currentUser.chapter_id
+        }
+
         const existingUser = await supabase
           .from('users')
-          .select('id, role, name')
+          .select('id, role, name, chapter_id')
           .eq('email', picEmail)
           .maybeSingle()
 
         if (existingUser.error) throw existingUser.error
-        if (existingUser.data?.role === 'admin') {
-          setError(`Email ${picEmail} sudah dipakai akun admin (${existingUser.data.name}). Gunakan member lain atau ubah data email member terlebih dahulu.`)
+
+        const existingRole = existingUser.data?.role
+        const existingName = existingUser.data?.name || picEmail
+
+        if (existingRole && ['admin', 'national_admin', 'chapter_admin'].includes(existingRole)) {
+          setError(`Email ${picEmail} sudah dipakai akun admin (${existingName}). Gunakan member lain atau ubah data email member terlebih dahulu.`)
+          setSaving(false)
+          return
+        }
+
+        if (
+          existingUser.data?.chapter_id &&
+          currentUser?.chapter_id &&
+          existingUser.data.chapter_id !== currentUser.chapter_id &&
+          !isNationalAdmin(currentUser)
+        ) {
+          setError(`Email ${picEmail} sudah dipakai PIC/member di chapter lain. Gunakan member dari chapter ini.`)
           setSaving(false)
           return
         }

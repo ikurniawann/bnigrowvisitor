@@ -3,45 +3,94 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { User } from '@/lib/supabase'
-
-const SUPER_ADMIN_EMAIL = 'admin@bnigrow.com'
+import { isNationalAdmin } from '@/lib/permissions'
+import { ChapterBranding, getChapterBranding } from '@/lib/chapterBranding'
 
 interface SidebarProps {
   currentPage: string
 }
 
 const navItems = [
-  { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'M3 3h7v7H3V3zm11 0h7v7h-7V3zm0 11h7v7h-7v-7zM3 14h7v7H3v-7z' },
-  { id: 'kanban', label: 'Pipeline', path: '/kanban', icon: 'M3 3h5v18H3V3zm7 0h5v12h-5V3zm7 0h5v15h-5V3z' },
-  { id: 'visitors', label: 'Visitor', path: '/visitors', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 1 1 0 7.75' },
-  { id: 'attended', label: 'MCQA', path: '/attended', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { id: 'members', label: 'Member Grow', path: '/members', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
-  { id: 'export-import', label: 'Export / Import', path: '/export-import', icon: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m0 0l5-5m0 5l-5-5m5 5V3' },
-  { id: 'text-format', label: 'Text Format', path: '/text-format', icon: 'M4 6h16M4 12h10M4 18h16' },
-  { id: 'pic', label: 'Kelola PIC', path: '/pic', icon: 'M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 6c-4.4 0-8 3.6-8 8h16c0-4.4-3.6-8-8-8z' },
-  { id: 'weekly', label: 'Weekly Meeting', path: '/weekly', icon: 'M3 4h18v18H3V4zm13-2v4M8 2v4M3 10h18' },
-  { id: 'logs', label: 'Log', path: '/logs', icon: 'M9 11H5a2 2 0 0 0-2 2v6h6v-8zm6-6h-4a2 2 0 0 0-2 2v12h6V5zm6 4h-4a2 2 0 0 0-2 2v8h6V9z' },
+  { id: 'national-dashboard', label: 'Manage Chapter', path: '/national-dashboard', icon: 'M3 3h7v7H3V3zm11 0h7v7h-7V3zm0 11h7v7h-7v-7zM3 14h7v7H3v-7z' },
+  { id: 'master', label: 'Master Wilayah', path: '/master', icon: 'M4 6h16M4 12h16M4 18h16M8 4v4M16 10v4M12 16v4' },
+  { id: 'chapter-dashboard', label: 'Chapter Dashboard', path: 'dashboard', fallbackPath: '/chapter-dashboard', icon: 'M4 5h16v14H4V5zm4 4h3v6H8V9zm5 2h3v4h-3v-4z' },
+  { id: 'kanban', label: 'Pipeline', path: 'pipeline', fallbackPath: '/kanban', icon: 'M3 3h5v18H3V3zm7 0h5v12h-5V3zm7 0h5v15h-5V3z' },
+  { id: 'visitors', label: 'Visitor', path: 'visitors', fallbackPath: '/visitors', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 1 1 0 7.75' },
+  { id: 'attended', label: 'MCQA', path: 'mcqa', fallbackPath: '/attended', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+  { id: 'members', label: 'Member Grow', path: 'members', fallbackPath: '/members', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+  { id: 'export-import', label: 'Export / Import', path: 'export-import', fallbackPath: '/export-import', icon: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m0 0l5-5m0 5l-5-5m5 5V3' },
+  { id: 'text-format', label: 'Text Format', path: 'text-format', fallbackPath: '/text-format', icon: 'M4 6h16M4 12h10M4 18h16' },
+  { id: 'pic', label: 'Kelola PIC', path: 'pic', fallbackPath: '/pic', icon: 'M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 6c-4.4 0-8 3.6-8 8h16c0-4.4-3.6-8-8-8z' },
+  { id: 'weekly', label: 'Weekly Meeting', path: 'weekly', fallbackPath: '/weekly', icon: 'M3 4h18v18H3V4zm13-2v4M8 2v4M3 10h18' },
+  { id: 'logs', label: 'Log', path: 'logs', fallbackPath: '/logs', icon: 'M9 11H5a2 2 0 0 0-2 2v6h6v-8zm6-6h-4a2 2 0 0 0-2 2v12h6V5zm6 4h-4a2 2 0 0 0-2 2v8h6V9z' },
 ]
 
 export default function Sidebar({ currentPage }: SidebarProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
-  const isSuperAdmin = currentUser?.email?.toLowerCase() === SUPER_ADMIN_EMAIL
-  const dataNavItems = navItems.slice(5).filter(item => item.id !== 'logs' || isSuperAdmin)
+  const [activeChapterId, setActiveChapterId] = useState('')
+  const [branding, setBranding] = useState<ChapterBranding>(() => ({
+    chapterName: 'BNI Grow',
+    displayName: 'BNI Grow Chapter',
+    shortName: 'Grow',
+    locationLabel: '',
+  }))
+  const isSuperAdmin = isNationalAdmin(currentUser)
+  const isNationalArea = isSuperAdmin && ['national-dashboard', 'master'].includes(currentPage)
+  const nationalNavItems = isSuperAdmin ? navItems.slice(0, 2) : []
+  const chapterNavItems = navItems.slice(2, 7)
+  const dataNavItems = navItems.slice(7).filter(item => item.id !== 'logs' || isSuperAdmin)
 
   useEffect(() => {
+    let cancelled = false
+
+    async function loadSidebarContext() {
     try {
       const storedUser = localStorage.getItem('user')
       setCurrentUser(storedUser ? JSON.parse(storedUser) : null)
+      const routeMatch = window.location.pathname.match(/^\/chapter\/([^/]+)/)
+      if (routeMatch?.[1]) {
+        const chapterId = decodeURIComponent(routeMatch[1])
+        setActiveChapterId(chapterId)
+        try {
+          const response = await fetch(`/api/chapter-context/${encodeURIComponent(chapterId)}`, { cache: 'no-store' })
+          const context = await response.json()
+          if (response.ok && context?.chapter?.id) {
+            localStorage.setItem('selectedChapterContext', JSON.stringify(context))
+          }
+        } catch {
+          // Keep existing local context if refresh fails.
+        }
+      } else {
+        const selected = localStorage.getItem('selectedChapterContext')
+        const selectedContext = selected ? JSON.parse(selected) : null
+        const tenant = localStorage.getItem('tenantContext')
+        const tenantContext = tenant ? JSON.parse(tenant) : null
+        const user = storedUser ? JSON.parse(storedUser) : null
+        setActiveChapterId(selectedContext?.chapter?.id || tenantContext?.chapter?.id || user?.chapter_id || '')
+      }
+      if (!cancelled) setBranding(getChapterBranding())
     } catch {
       setCurrentUser(null)
+    }
+    }
+
+    loadSidebarContext()
+
+    return () => {
+      cancelled = true
     }
   }, [])
 
   const handleNavigate = (path: string) => {
     router.push(path)
     setIsOpen(false)
+  }
+
+  const resolvePath = (item: any) => {
+    if (item.path?.startsWith('/')) return item.path
+    return activeChapterId ? `/chapter/${encodeURIComponent(activeChapterId)}/${item.path}` : item.fallbackPath
   }
 
   return (
@@ -64,10 +113,14 @@ export default function Sidebar({ currentPage }: SidebarProps) {
         {/* Logo */}
         <div className="px-5 py-5 border-b border-white/60">
           <div className="inline-flex bg-red-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full mb-2 tracking-wide shadow-sm">
-            BNI GROW
+            {isNationalArea ? 'BNI INDONESIA' : branding.chapterName.toUpperCase()}
           </div>
-          <div className="text-[17px] font-semibold text-gray-950 leading-tight tracking-[-0.01em]">Visitor Manager</div>
-          <div className="text-xs text-gray-500 mt-1">Follow Up Specialist</div>
+          <div className="text-[17px] font-semibold text-gray-950 leading-tight tracking-[-0.01em]">
+            {isNationalArea ? 'Chapter Manager' : branding.displayName}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {isNationalArea ? 'BNI Chapter Platform' : (branding.locationLabel || 'Visitor Manager')}
+          </div>
         </div>
 
         {/* Navigation */}
@@ -77,10 +130,10 @@ export default function Sidebar({ currentPage }: SidebarProps) {
             <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider px-3 py-2 mb-1">
               MENU
             </div>
-            {navItems.slice(0, 5).map((item) => (
+            {(isNationalArea ? nationalNavItems : chapterNavItems).map((item) => (
               <button
                 key={item.id}
-                onClick={() => handleNavigate(item.path)}
+                onClick={() => handleNavigate(resolvePath(item))}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1
                   text-[13px] font-medium transition-all duration-150
@@ -99,6 +152,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
           </div>
 
           {/* Data Section */}
+          {!isNationalArea && (
           <div>
             <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider px-3 py-2 mb-1">
               DATA
@@ -106,7 +160,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
             {dataNavItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => handleNavigate(item.path)}
+                onClick={() => handleNavigate(resolvePath(item))}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1
                   text-[13px] font-medium transition-all duration-150
@@ -123,6 +177,18 @@ export default function Sidebar({ currentPage }: SidebarProps) {
               </button>
             ))}
           </div>
+          )}
+
+          {isSuperAdmin && !isNationalArea && (
+            <div className="mt-5 border-t border-white/60 pt-4">
+              <button
+                onClick={() => handleNavigate('/national-dashboard')}
+                className="w-full rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-left text-[13px] font-semibold text-red-700 transition-colors hover:bg-red-100"
+              >
+                Kembali ke Manage Chapter
+              </button>
+            </div>
+          )}
         </nav>
 
         <div className="border-t border-white/60 px-5 py-4">

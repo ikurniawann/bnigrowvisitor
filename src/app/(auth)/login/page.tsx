@@ -4,6 +4,8 @@ import Image from 'next/image'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { changePassword, signIn, verifyOldPassword } from '@/lib/auth'
+import { isNationalAdmin } from '@/lib/permissions'
+import { getChapterRoute } from '@/lib/chapterRoute'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -32,7 +34,7 @@ export default function LoginPage() {
       
       if (result.success && result.user) {
         localStorage.setItem('user', JSON.stringify(result.user))
-        router.push('/dashboard')
+        router.push(isNationalAdmin(result.user) ? '/national-dashboard' : getChapterRoute('dashboard', result.user))
       } else {
         setError(result.error || 'Login gagal. Silakan coba lagi.')
       }

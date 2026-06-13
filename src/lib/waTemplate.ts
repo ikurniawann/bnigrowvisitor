@@ -26,11 +26,11 @@ const STORAGE_KEY = 'bni-grow-wa-template-settings'
 export const DEFAULT_WA_TEMPLATES: Record<WaTemplateMode, string> = {
   online: `Selamat Siang {sapaan} {nama},
 
-Perkenalkan saya {pic_nama} Visitor Host BNI Grow dengan bisnis {pic_bisnis}
-Chapter Jakarta.
+Perkenalkan saya {pic_nama} Visitor Host {chapter} dengan bisnis {pic_bisnis}
+Chapter {chapter}.
 
 Anda diundang oleh Bapak/Ibu {diajak_oleh} untuk ikut weekly 
-meeting BNI Grow besok:
+meeting {chapter} besok:
 {tanggal_meeting}
 Pagi jam {jam_meeting} WIB
 
@@ -41,14 +41,14 @@ Konfirmasi kehadiran ini penting untuk menentukan pembagian
 room/seat saat open networking.
 
 Terima kasih,
-Visitor Host BNI Grow Jakarta`,
+Visitor Host {chapter}`,
   offline: `Selamat Siang {sapaan} {nama},
 
-Perkenalkan saya {pic_nama} Visitor Host BNI Grow dengan bisnis {pic_bisnis}
-Chapter Jakarta.
+Perkenalkan saya {pic_nama} Visitor Host {chapter} dengan bisnis {pic_bisnis}
+Chapter {chapter}.
 
 Anda diundang oleh Bapak/Ibu {diajak_oleh} untuk ikut weekly 
-meeting BNI Grow:
+meeting {chapter}:
 {tanggal_meeting}
 Pagi jam {jam_meeting} WIB
 
@@ -61,7 +61,7 @@ Konfirmasi kehadiran ini penting untuk menentukan pembagian
 seat saat open networking.
 
 Terima kasih,
-Visitor Host BNI Grow Jakarta`,
+Visitor Host {chapter}`,
 }
 
 export const DEFAULT_WA_TEMPLATE_SETTINGS: WaTemplateSettings = {
@@ -87,6 +87,20 @@ function normalizeTemplate(template: string, fallback: string) {
   return (template || fallback)
     .replace(/saya XXX/g, 'saya {pic_nama}')
     .replace(/bisnis XXX/g, 'bisnis {pic_bisnis}')
+    .replace(/Visitor Host BNI\s+[A-Za-z]+ dengan bisnis/g, 'Visitor Host {chapter} dengan bisnis')
+    .replace(/Visitor Host BNI\s+[A-Za-z]+ bisnis/g, 'Visitor Host {chapter} dengan bisnis')
+    .replace(/meeting BNI\s+[A-Za-z]+ besok:/g, 'meeting {chapter} besok:')
+    .replace(/meeting BNI\s+[A-Za-z]+:/g, 'meeting {chapter}:')
+    .replace(/Visitor Host BNI\s+[A-Za-z]+\.?/g, 'Visitor Host {chapter}')
+    .replace(/Visitor Host \{chapter\}\s+[A-Za-z]+\.?/g, 'Visitor Host {chapter}')
+    .replace(/Visitor Host \{chapter\} bisnis/g, 'Visitor Host {chapter} dengan bisnis')
+    .replace(/Visitor Host BNI Grow\s+[A-Za-z]+\.?/g, 'Visitor Host {chapter}')
+    .replace(/Chapter Jakarta\./g, 'Chapter {chapter}.')
+    .replace(/Visitor Host BNI Grow dengan bisnis/g, 'Visitor Host {chapter} dengan bisnis')
+    .replace(/meeting BNI Grow besok:/g, 'meeting {chapter} besok:')
+    .replace(/meeting BNI Grow:/g, 'meeting {chapter}:')
+    .replace(/Visitor Host BNI Grow Jakarta/g, 'Visitor Host {chapter}')
+    .replace(/BNI Grow/g, '{chapter}')
 }
 
 export function getWaTemplateSettings(): WaTemplateSettings {

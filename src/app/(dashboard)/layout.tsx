@@ -6,6 +6,8 @@ import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
 import GrowAssistant from '@/components/assistant/GrowAssistant'
 import { getCurrentUser, signOut } from '@/lib/auth'
+import { isNationalAdmin } from '@/lib/permissions'
+import { getChapterRoute } from '@/lib/chapterRoute'
 
 // Context for global actions
 interface DashboardContextType {
@@ -19,10 +21,13 @@ export const DashboardContext = React.createContext<DashboardContextType>({
 // Map pathname to page id
 const pathToPage: Record<string, string> = {
   '/dashboard': 'dashboard',
+  '/national-dashboard': 'national-dashboard',
+  '/chapter-dashboard': 'chapter-dashboard',
   '/kanban': 'kanban',
   '/visitors': 'visitors',
   '/attended': 'attended',
   '/members': 'members',
+  '/master': 'master',
   '/export-import': 'export-import',
   '/text-format': 'text-format',
   '/ocr': 'ocr',
@@ -33,15 +38,40 @@ const pathToPage: Record<string, string> = {
 
 const pageTitles: Record<string, string> = {
   dashboard: 'Dashboard',
+  'national-dashboard': 'Manage Chapter',
+  'chapter-dashboard': 'Chapter Dashboard',
   kanban: 'Pipeline',
   visitors: 'Visitors',
   attended: 'MCQA',
   members: 'Member Grow',
+  master: 'Master Wilayah',
   'export-import': 'Export / Import',
   'text-format': 'Text Format',
   pic: 'Kelola PIC',
   weekly: 'Weekly Meeting',
   logs: 'Log',
+}
+
+function getPageFromPath(pathname: string) {
+  const chapterMatch = pathname.match(/^\/chapter\/[^/]+\/([^/]+)/)
+  if (chapterMatch?.[1]) {
+    const section = chapterMatch[1]
+    const sectionMap: Record<string, string> = {
+      dashboard: 'chapter-dashboard',
+      pipeline: 'kanban',
+      visitors: 'visitors',
+      mcqa: 'attended',
+      members: 'members',
+      'export-import': 'export-import',
+      'text-format': 'text-format',
+      pic: 'pic',
+      weekly: 'weekly',
+      logs: 'logs',
+    }
+    return sectionMap[section] || 'chapter-dashboard'
+  }
+
+  return pathToPage[pathname] || 'dashboard'
 }
 
 // Pages that should hide sidebar (fullscreen mode)
@@ -55,8 +85,9 @@ export default function DashboardLayout({
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState<any | null>(null)
+  const [tenantWarning, setTenantWarning] = useState('')
   const [loading, setLoading] = useState(true)
-  const currentPage = pathToPage[pathname] || 'dashboard'
+  const currentPage = getPageFromPath(pathname)
 
   useEffect(() => {
     let isMounted = true
@@ -73,6 +104,27 @@ export default function DashboardLayout({
         }
 
         setUser(currentUser)
+        localStorage.setItem('user', JSON.stringify(currentUser))
+
+        try {
+          const response = await fetch('/api/tenant-context', { cache: 'no-store' })
+          const tenantContext = await response.json()
+          localStorage.setItem('tenantContext', JSON.stringify(tenantContext))
+
+          if (
+            tenantContext?.matched &&
+            tenantContext?.chapter?.id &&
+            currentUser.chapter_id &&
+            tenantContext.chapter.id !== currentUser.chapter_id &&
+            !isNationalAdmin(currentUser)
+          ) {
+            setTenantWarning(`Domain ini untuk ${tenantContext.chapter.display_name}, sedangkan akun kamu terdaftar di chapter berbeda.`)
+          } else {
+            setTenantWarning('')
+          }
+        } catch {
+          localStorage.removeItem('tenantContext')
+        }
       } finally {
         if (isMounted) {
           setLoading(false)
@@ -95,7 +147,7 @@ export default function DashboardLayout({
 
   const handleAddVisitor = () => {
     // Navigate to visitors page and trigger modal
-    router.push('/visitors')
+    router.push(getChapterRoute('visitors', user))
     // Wait for navigation then dispatch event
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent('open-add-visitor'))
@@ -103,7 +155,8 @@ export default function DashboardLayout({
   }
 
   // Check if current page should be fullscreen
-  const isFullscreen = FULLSCREEN_PAGES.includes(pathname)
+  const isFullscreen = FULLSCREEN_PAGES.includes(pathname) || currentPage === 'kanban'
+  const isNationalArea = ['national-dashboard', 'master'].includes(currentPage)
 
   if (loading) {
     return (
@@ -135,10 +188,16 @@ export default function DashboardLayout({
               user={user}
               onLogout={handleLogout}
               onAddVisitor={handleAddVisitor}
+              showAddVisitor={!isNationalArea}
             />
           )}
           
           <main className="flex-1 p-4 lg:p-6 overflow-auto">
+            {tenantWarning && (
+              <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                {tenantWarning}
+              </div>
+            )}
             {children}
           </main>
         </div>

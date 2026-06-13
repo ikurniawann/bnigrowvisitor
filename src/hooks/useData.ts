@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase, Visitor, Meeting, VisitorStatus } from '@/lib/supabase'
+import { supabase, Visitor, Meeting, VisitorStatus, User } from '@/lib/supabase'
 import { notifyDataChanged } from '@/lib/ui/toast'
 import { getLocalPicBusinessClassification } from '@/lib/picBusinessClassification'
 import { logActivity } from '@/lib/activityLog'
+import { isNationalAdmin } from '@/lib/permissions'
 
 export interface PIC {
   id: string
@@ -27,6 +28,7 @@ export interface VisitorWithRelations extends Visitor {
 
 export interface Member {
   id: string
+  chapter_id?: string
   name: string
   phone?: string
   email?: string
@@ -55,7 +57,38 @@ export const STATUSES: Record<VisitorStatus, { label: string; color: string }> =
 
 export const KANBAN_COLS = ['new', 'followup', 'confirmed', 'attended', 'interview', 'member'] as const
 
+function getStoredUser(): User | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const storedUser = localStorage.getItem('user')
+    return storedUser ? JSON.parse(storedUser) : null
+  } catch {
+    return null
+  }
+}
+
+function getSelectedChapterId(): string {
+  if (typeof window === 'undefined') return ''
+
+  try {
+    const routeMatch = window.location.pathname.match(/^\/chapter\/([^/]+)/)
+    if (routeMatch?.[1]) return decodeURIComponent(routeMatch[1])
+
+    const storedContext = localStorage.getItem('selectedChapterContext')
+    const context = storedContext ? JSON.parse(storedContext) : null
+    if (context?.chapter?.id) return context.chapter.id
+
+    const storedTenant = localStorage.getItem('tenantContext')
+    const tenantContext = storedTenant ? JSON.parse(storedTenant) : null
+    return tenantContext?.chapter?.id || ''
+  } catch {
+    return ''
+  }
+}
+
 export function useData() {
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [visitors, setVisitors] = useState<VisitorWithRelations[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [pics, setPics] = useState<PIC[]>([])
@@ -63,18 +96,55 @@ export function useData() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadData()
+    const storedUser = getStoredUser()
+    setCurrentUser(storedUser)
+    loadData(storedUser)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function loadData() {
+  function applyChapterScope<T = any>(query: T, user = currentUser): T {
+    if (!user) return query
+
+    const selectedChapterId = getSelectedChapterId()
+
+    if (isNationalAdmin(user)) {
+      return selectedChapterId ? (query as any).eq('chapter_id', selectedChapterId) : query
+    }
+
+    if (!user.chapter_id) {
+      return (query as any).eq('chapter_id', '__missing_chapter__')
+    }
+
+    return (query as any).eq('chapter_id', user.chapter_id)
+  }
+
+  function withCreateScope<T extends Record<string, any>>(payload: T, user = currentUser): T {
+    const scopedPayload: Record<string, any> = { ...payload }
+    const selectedChapterId = getSelectedChapterId()
+
+    if (user?.organization_id && !scopedPayload.organization_id) {
+      scopedPayload.organization_id = user.organization_id
+    }
+
+    if (!scopedPayload.chapter_id) {
+      if (isNationalAdmin(user) && selectedChapterId) {
+        scopedPayload.chapter_id = selectedChapterId
+      } else if (user?.chapter_id) {
+        scopedPayload.chapter_id = user.chapter_id
+      }
+    }
+
+    return scopedPayload as T
+  }
+
+  async function loadData(user = currentUser) {
     setLoading(true)
-    await Promise.all([loadVisitors(), loadMeetings(), loadPics(), loadMembers()])
+    await Promise.all([loadVisitors(user), loadMeetings(user), loadPics(user), loadMembers(user)])
     setLoading(false)
   }
 
-  async function loadVisitors() {
-    const query = supabase
+  async function loadVisitors(user = currentUser) {
+    const query = applyChapterScope(supabase
       .from('visitors')
       .select(`
         *,
@@ -83,12 +153,12 @@ export function useData() {
         referred_by_member:referred_by_member_id (id, name)
       `)
       .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
+      .order('id', { ascending: false }), user)
 
     let { data, error } = await query
 
     if (error && error.message?.includes('business_classification')) {
-      const fallback = await supabase
+      const fallback = await applyChapterScope(supabase
         .from('visitors')
         .select(`
           *,
@@ -97,7 +167,7 @@ export function useData() {
           referred_by_member:referred_by_member_id (id, name)
         `)
         .order('created_at', { ascending: false })
-        .order('id', { ascending: false })
+        .order('id', { ascending: false }), user)
 
       data = fallback.data
       error = fallback.error
@@ -119,11 +189,11 @@ export function useData() {
     })))
   }
 
-  async function loadMeetings() {
-    const { data, error } = await supabase
+  async function loadMeetings(user = currentUser) {
+    const { data, error } = await applyChapterScope(supabase
       .from('meetings')
       .select('*')
-      .order('meeting_date', { ascending: false })
+      .order('meeting_date', { ascending: false }), user)
 
     if (error) {
       console.error('Error loading meetings:', error)
@@ -134,19 +204,19 @@ export function useData() {
     setMeetings(data || [])
   }
 
-  async function loadPics() {
-    let { data, error }: { data: any[] | null; error: any } = await supabase
+  async function loadPics(user = currentUser) {
+    let { data, error }: { data: any[] | null; error: any } = await applyChapterScope(supabase
       .from('users')
       .select('id, name, email, role, phone, business_classification, is_active')
       .eq('role', 'pic')
-      .eq('is_active', true)
+      .eq('is_active', true), user)
 
     if (error && error.message?.includes('business_classification')) {
-      const fallback = await supabase
+      const fallback = await applyChapterScope(supabase
         .from('users')
         .select('id, name, email, role, phone, is_active')
         .eq('role', 'pic')
-        .eq('is_active', true)
+        .eq('is_active', true), user)
 
       data = fallback.data
       error = fallback.error
@@ -169,12 +239,12 @@ export function useData() {
     })))
   }
 
-  async function loadMembers() {
-    const { data, error } = await supabase
+  async function loadMembers(user = currentUser) {
+    const { data, error } = await applyChapterScope(supabase
       .from('members')
       .select('*')
       .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
+      .order('id', { ascending: false }), user)
 
     if (error) {
       console.error('Error loading members:', error)
@@ -192,10 +262,10 @@ export function useData() {
     let accountByEmail = new Map<string, { role: string; is_active: boolean }>()
 
     if (memberEmailValues.length > 0) {
-      const { data: accounts, error: accountError } = await supabase
+      const { data: accounts, error: accountError } = await applyChapterScope(supabase
         .from('users')
         .select('email, role, is_active')
-        .in('email', memberEmailValues)
+        .in('email', memberEmailValues), user)
 
       if (accountError) {
         console.error('Error loading member accounts:', accountError)
@@ -222,7 +292,7 @@ export function useData() {
   async function addMember(member: Partial<Member>) {
     const { data, error } = await supabase
       .from('members')
-      .insert(member)
+      .insert(withCreateScope(member))
       .select()
       .single()
 
@@ -241,10 +311,12 @@ export function useData() {
 
   async function updateMember(id: string, member: Partial<Member>) {
     const oldMember = members.find(item => item.id === id)
-    const { data, error } = await supabase
+    const query = applyChapterScope(supabase
       .from('members')
       .update(member)
-      .eq('id', id)
+      .eq('id', id))
+
+    const { data, error } = await query
       .select()
       .single()
 
@@ -264,10 +336,10 @@ export function useData() {
 
   async function deleteMember(id: string) {
     const oldMember = members.find(item => item.id === id)
-    const { error } = await supabase
+    const { error } = await applyChapterScope(supabase
       .from('members')
       .delete()
-      .eq('id', id)
+      .eq('id', id))
 
     if (error) throw error
     await loadMembers()
@@ -284,7 +356,7 @@ export function useData() {
   async function addVisitor(visitor: Partial<Visitor>) {
     const { data, error } = await supabase
       .from('visitors')
-      .insert(visitor)
+      .insert(withCreateScope(visitor))
       .select()
       .single()
 
@@ -307,10 +379,10 @@ export function useData() {
       visitor.id === id ? { ...visitor, ...updates } : visitor
     ))
 
-    const { error } = await supabase
+    const { error } = await applyChapterScope(supabase
       .from('visitors')
       .update(updates)
-      .eq('id', id)
+      .eq('id', id))
 
     if (error) {
       await loadVisitors()
@@ -331,10 +403,10 @@ export function useData() {
 
   async function deleteVisitor(id: string) {
     const oldVisitor = visitors.find(visitor => visitor.id === id)
-    const { error } = await supabase
+    const { error } = await applyChapterScope(supabase
       .from('visitors')
       .delete()
-      .eq('id', id)
+      .eq('id', id))
 
     if (error) throw error
     await loadVisitors()
@@ -351,29 +423,29 @@ export function useData() {
   async function addPic(pic: Omit<PIC, 'id'>) {
     let { data, error }: { data: any | null; error: any } = await supabase
       .from('users')
-      .insert({
-        name: pic.name,
-        email: `pic+${Date.now()}@bnigrow.com`,
-        role: 'pic',
-        phone: pic.wa,
-        business_classification: pic.business_classification,
-        password_hash: 'temp',
-        is_active: true,
-      })
+        .insert(withCreateScope({
+          name: pic.name,
+          email: `pic+${Date.now()}@bnigrow.com`,
+          role: 'pic',
+          phone: pic.wa,
+          business_classification: pic.business_classification,
+          password_hash: 'temp',
+          is_active: true,
+        }))
       .select('id, name, role, phone, business_classification, is_active')
       .single()
 
     if (error && error.message?.includes('business_classification')) {
       const fallback = await supabase
         .from('users')
-        .insert({
+        .insert(withCreateScope({
           name: pic.name,
           email: `pic+${Date.now()}@bnigrow.com`,
           role: 'pic',
           phone: pic.wa,
           password_hash: 'temp',
           is_active: true,
-        })
+        }))
         .select('id, name, role, phone, is_active')
         .single()
 
@@ -404,7 +476,7 @@ export function useData() {
 
   async function updatePic(id: string, updates: Partial<PIC>) {
     const oldPic = pics.find(pic => pic.id === id)
-    let { error } = await supabase
+    let { error } = await applyChapterScope(supabase
       .from('users')
       .update({
         name: updates.name,
@@ -412,17 +484,17 @@ export function useData() {
         phone: updates.wa,
         business_classification: updates.business_classification,
       })
-      .eq('id', id)
+      .eq('id', id))
 
     if (error && error.message?.includes('business_classification')) {
-      const fallback = await supabase
+      const fallback = await applyChapterScope(supabase
         .from('users')
         .update({
           name: updates.name,
           role: updates.role,
           phone: updates.wa,
         })
-        .eq('id', id)
+        .eq('id', id))
 
       error = fallback.error
     }
@@ -443,10 +515,10 @@ export function useData() {
 
   async function deletePic(id: string) {
     const oldPic = pics.find(pic => pic.id === id)
-    const { error } = await supabase
+    const { error } = await applyChapterScope(supabase
       .from('users')
       .update({ is_active: false })
-      .eq('id', id)
+      .eq('id', id))
 
     if (error) throw error
     await loadPics()
@@ -464,7 +536,7 @@ export function useData() {
   async function addMeeting(meeting: Partial<Meeting>) {
     const { data, error } = await supabase
       .from('meetings')
-      .insert(meeting)
+      .insert(withCreateScope(meeting))
       .select()
       .single()
 
@@ -483,10 +555,10 @@ export function useData() {
 
   async function updateMeeting(id: string, updates: Partial<Meeting>) {
     const oldMeeting = meetings.find(meeting => meeting.id === id)
-    const { error } = await supabase
+    const { error } = await applyChapterScope(supabase
       .from('meetings')
       .update(updates)
-      .eq('id', id)
+      .eq('id', id))
 
     if (error) throw error
     await loadMeetings()
@@ -504,10 +576,10 @@ export function useData() {
 
   async function deleteMeeting(id: string) {
     const oldMeeting = meetings.find(meeting => meeting.id === id)
-    const { error } = await supabase
+    const { error } = await applyChapterScope(supabase
       .from('meetings')
       .delete()
-      .eq('id', id)
+      .eq('id', id))
 
     if (error) throw error
     await loadMeetings()
