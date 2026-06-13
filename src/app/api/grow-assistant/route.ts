@@ -109,9 +109,73 @@ function cleanVisitor(visitor: any) {
   }
 }
 
+// Per-chapter rollup for national users so the assistant can answer
+// cross-chapter questions (most active chapter, weakest conversion, etc.).
+function buildNationalRollup(visitors: any[], pics: any[], chaptersMeta: Map<string, any>) {
+  const picCountByChapter = new Map<string, number>()
+  for (const pic of pics) {
+    if (!pic.chapter_id) continue
+    picCountByChapter.set(pic.chapter_id, (picCountByChapter.get(pic.chapter_id) || 0) + 1)
+  }
+
+  const byChapter = new Map<string, any[]>()
+  for (const visitor of visitors) {
+    if (!visitor.chapter_id) continue
+    const list = byChapter.get(visitor.chapter_id)
+    if (list) list.push(visitor)
+    else byChapter.set(visitor.chapter_id, [visitor])
+  }
+
+  const perChapter = Array.from(chaptersMeta.values()).map((meta: any) => {
+    const list = byChapter.get(meta.id) || []
+    const attended = list.filter(v => ['attended', 'interview', 'member', 'not_continue'].includes(v.status)).length
+    const qualified = list.filter(
+      v => (v.status === 'attended' && Number(v.attended_choice_number || 0) === 1) || ['interview', 'member'].includes(v.status)
+    ).length
+    const members = list.filter(v => v.status === 'member').length
+    const unassigned = list.filter(v => !v.pic_id).length
+    return {
+      chapter: meta.display_name || meta.name,
+      kota: meta.city || null,
+      area: meta.area || null,
+      total_visitor: list.length,
+      hadir: attended,
+      airtime_qualified: qualified,
+      member: members,
+      konversi_member_persen: list.length ? Math.round((members / list.length) * 100) : 0,
+      pic_aktif: picCountByChapter.get(meta.id) || 0,
+      belum_assigned_pic: unassigned,
+    }
+  })
+
+  const areaAgg = new Map<string, { area: string; total: number; member: number }>()
+  for (const row of perChapter) {
+    const key = row.area || '—'
+    const agg = areaAgg.get(key) || { area: key, total: 0, member: 0 }
+    agg.total += row.total_visitor
+    agg.member += row.member
+    areaAgg.set(key, agg)
+  }
+  const perArea = Array.from(areaAgg.values()).map(a => ({
+    area: a.area,
+    total_visitor: a.total,
+    member: a.member,
+    konversi_member_persen: a.total ? Math.round((a.member / a.total) * 100) : 0,
+  }))
+
+  return {
+    per_chapter: perChapter.sort((a, b) => b.total_visitor - a.total_visitor),
+    per_area: perArea.sort((a, b) => b.total_visitor - a.total_visitor),
+    ranking_visitor_terbanyak: [...perChapter].sort((a, b) => b.total_visitor - a.total_visitor).slice(0, 5).map(c => c.chapter),
+    ranking_konversi_tertinggi: [...perChapter].sort((a, b) => b.konversi_member_persen - a.konversi_member_persen).slice(0, 5).map(c => c.chapter),
+    chapter_butuh_pic: perChapter.filter(c => c.belum_assigned_pic > 0 || c.pic_aktif === 0).map(c => c.chapter),
+  }
+}
+
 async function buildDashboardContext(user: AssistantUser) {
   if (!supabaseServer) throw new Error('Supabase env belum lengkap')
   const effectiveChapterId = getEffectiveChapterId(user)
+  const isNationalScope = isNationalUser(user) && !effectiveChapterId
 
   const [chapterResult, visitorsResult, meetingsResult, picsResult, membersResult] = await Promise.all([
     effectiveChapterId
@@ -136,7 +200,7 @@ async function buildDashboardContext(user: AssistantUser) {
     applyChapterScope(supabaseServer
       .from('visitors')
       .select(`
-        id, name, phone, email, business_field, company, chapter, gender, referral_name,
+        id, name, phone, email, business_field, company, chapter, chapter_id, gender, referral_name,
         meeting_id, meeting_date, pic_id, status, notes, attended_choice_number,
         attended_choice_note, created_at, updated_at,
         pic:pic_id (id, name, business_classification),
@@ -152,7 +216,7 @@ async function buildDashboardContext(user: AssistantUser) {
       .limit(50), user),
     applyChapterScope(supabaseServer
       .from('users')
-      .select('id, name, role, phone, business_classification, is_active')
+      .select('id, name, role, phone, business_classification, is_active, chapter_id')
       .eq('role', 'pic')
       .eq('is_active', true)
       .limit(50), user),
@@ -174,6 +238,27 @@ async function buildDashboardContext(user: AssistantUser) {
   const pics = picsResult.data || []
   const members = membersResult.data || []
   const chapterData: any = chapterResult.data || null
+
+  // National scope: pull chapter metadata and build a cross-chapter rollup.
+  let nationalRollup: any = null
+  if (isNationalScope) {
+    const { data: chaptersData } = await supabaseServer
+      .from('chapters')
+      .select('id, name, display_name, area:area_id (name, city:city_id (name))')
+    const chaptersMeta = new Map<string, any>()
+    for (const row of chaptersData || []) {
+      const ar: any = Array.isArray((row as any).area) ? (row as any).area[0] : (row as any).area
+      const ct: any = ar?.city ? (Array.isArray(ar.city) ? ar.city[0] : ar.city) : null
+      chaptersMeta.set((row as any).id, {
+        id: (row as any).id,
+        name: (row as any).name,
+        display_name: (row as any).display_name,
+        area: ar?.name || null,
+        city: ct?.name || null,
+      })
+    }
+    nationalRollup = buildNationalRollup(visitors, pics, chaptersMeta)
+  }
   const area: any = chapterData?.area ? (Array.isArray(chapterData.area) ? chapterData.area[0] : chapterData.area) : null
   const city: any = area?.city ? (Array.isArray(area.city) ? area.city[0] : area.city) : null
 
@@ -222,7 +307,8 @@ async function buildDashboardContext(user: AssistantUser) {
     } : null,
     data_scope: effectiveChapterId
       ? `Chapter aktif (${chapterData?.display_name || chapterData?.name || effectiveChapterId})`
-      : 'Semua chapter',
+      : 'Semua chapter (nasional)',
+    analitik_nasional: nationalRollup,
     summary: {
       total_visitor: visitors.length,
       total_member_grow: members.length,
@@ -339,7 +425,7 @@ export async function POST(request: Request) {
           {
             role: 'system',
             content:
-              `Kamu adalah ${assistantName}, AI assistant internal untuk ${chapterName} Visitor Manager. Jawab dalam bahasa Indonesia yang ringkas, jelas, natural, dan actionable. Gunakan hanya konteks data dashboard yang diberikan. Jika data tidak tersedia, bilang jujur bahwa datanya belum ada di konteks. Jangan mengarang. Jangan tampilkan markdown, jangan pakai tanda **, jangan bullet markdown yang kaku, jangan heading markdown, dan jangan menulis sumber/keterangan sumber. Tulis seperti obrolan chat biasa. Saat menjawab angka, sebutkan angka spesifik secara natural. Pahami alur baru: Konfirmasi Hadir baru janji hadir, Hadir berarti benar-benar datang, lalu hasil Airtime menentukan MCQA. MCQA utama adalah visitor hadir dengan hasil Airtime Bersedia Bergabung; Pikir-pikir Dulu perlu follow-up ulang; Tidak Tertarik tidak masuk proses member. Biasakan memberi next action konkret, misalnya arahkan user membuka halaman Visitor untuk follow-up, MCQA untuk proses Airtime/interview/member, atau Text Format untuk template WA jika relevan. Akhiri jawaban dengan pertanyaan pendek seperti "Mau saya bantu lihat daftar prioritasnya?" atau variasinya.`,
+              `Kamu adalah ${assistantName}, AI assistant internal untuk ${chapterName} Visitor Manager. Jawab dalam bahasa Indonesia yang ringkas, jelas, natural, dan actionable. Gunakan hanya konteks data dashboard yang diberikan. Jika data tidak tersedia, bilang jujur bahwa datanya belum ada di konteks. Jangan mengarang. Jangan tampilkan markdown, jangan pakai tanda **, jangan bullet markdown yang kaku, jangan heading markdown, dan jangan menulis sumber/keterangan sumber. Tulis seperti obrolan chat biasa. Saat menjawab angka, sebutkan angka spesifik secara natural. Pahami alur baru: Konfirmasi Hadir baru janji hadir, Hadir berarti benar-benar datang, lalu hasil Airtime menentukan MCQA. MCQA utama adalah visitor hadir dengan hasil Airtime Bersedia Bergabung; Pikir-pikir Dulu perlu follow-up ulang; Tidak Tertarik tidak masuk proses member. Biasakan memberi next action konkret, misalnya arahkan user membuka halaman Visitor untuk follow-up, MCQA untuk proses Airtime/interview/member, atau Text Format untuk template WA jika relevan. Jika data_scope adalah nasional dan tersedia field analitik_nasional, kamu boleh membandingkan antar chapter dan antar area: jawab pertanyaan seperti chapter mana paling aktif, area mana konversinya paling lemah, chapter mana butuh tambahan PIC, top referral nasional, atau industri terbanyak secara nasional, dengan menyebut nama chapter/area dan angkanya. Akhiri jawaban dengan pertanyaan pendek seperti "Mau saya bantu lihat daftar prioritasnya?" atau variasinya.`,
           },
           {
             role: 'system',
