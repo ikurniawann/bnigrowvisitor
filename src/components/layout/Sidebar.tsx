@@ -17,6 +17,13 @@ const NATIONAL_OVERVIEW_ITEM = {
   icon: 'M3 13h2l2 6 4-14 3 9 2-4h3',
 }
 
+const NATIONAL_GOVERNANCE_ITEM = {
+  id: 'national-governance',
+  label: 'Governance & Audit',
+  path: '/national-governance',
+  icon: 'M12 2l8 4v6c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-4z',
+}
+
 const navItems = [
   { id: 'national-dashboard', label: 'Manage Chapter', path: '/national-dashboard', icon: 'M3 3h7v7H3V3zm11 0h7v7h-7V3zm0 11h7v7h-7v-7zM3 14h7v7H3v-7z' },
   { id: 'master', label: 'Master Wilayah', path: '/master', icon: 'M4 6h16M4 12h16M4 18h16M8 4v4M16 10v4M12 16v4' },
@@ -44,8 +51,8 @@ export default function Sidebar({ currentPage }: SidebarProps) {
     locationLabel: '',
   }))
   const isSuperAdmin = isNationalAdmin(currentUser)
-  const isNationalArea = isSuperAdmin && ['national-overview', 'national-dashboard', 'master'].includes(currentPage)
-  const nationalNavItems = isSuperAdmin ? [NATIONAL_OVERVIEW_ITEM, ...navItems.slice(0, 2)] : []
+  const isNationalArea = isSuperAdmin && ['national-overview', 'national-governance', 'national-dashboard', 'master'].includes(currentPage)
+  const nationalNavItems = isSuperAdmin ? [NATIONAL_OVERVIEW_ITEM, ...navItems.slice(0, 2), NATIONAL_GOVERNANCE_ITEM] : []
   const chapterNavItems = navItems.slice(2, 7)
   const dataNavItems = navItems.slice(7).filter(item => item.id !== 'logs' || isSuperAdmin)
 
