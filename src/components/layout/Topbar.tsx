@@ -15,9 +15,9 @@ interface TopbarProps {
 
 export default function Topbar({ title, user, onLogout, onAddVisitor, showAddVisitor = true }: TopbarProps) {
   const [branding, setBranding] = useState<ChapterBranding>(() => ({
-    chapterName: 'BNI Grow',
-    displayName: 'BNI Grow Chapter',
-    shortName: 'Grow',
+    chapterName: 'BNI',
+    displayName: 'BNI Chapter',
+    shortName: 'BNI',
     locationLabel: '',
   }))
   const levelLabel = getUserLevelLabel(user)

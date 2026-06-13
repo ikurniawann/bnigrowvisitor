@@ -1,13 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useData } from '@/hooks/useData'
 import * as ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
+import { getChapterBranding } from '@/lib/chapterBranding'
+
+// Slug for filenames, e.g. "BNI Grow Chapter" → "BNI_Grow_Chapter".
+function brandFileSlug(): string {
+  const { displayName } = getChapterBranding()
+  return (displayName || 'BNI').replace(/[^\w]+/g, '_').replace(/^_+|_+$/g, '') || 'BNI'
+}
 
 export default function ExportImport() {
   const { visitors, members } = useData()
   const [isExporting, setIsExporting] = useState(false)
+  const [brandLabel, setBrandLabel] = useState('data chapter')
+
+  useEffect(() => {
+    setBrandLabel(getChapterBranding().displayName)
+  }, [])
 
   // Export Visitors to Excel
   const handleExportVisitors = async () => {
@@ -73,7 +85,7 @@ export default function ExportImport() {
       // Generate and download
       const buffer = await workbook.xlsx.writeBuffer()
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-      saveAs(blob, `BNI_Grow_Visitors_${new Date().toISOString().split('T')[0]}.xlsx`)
+      saveAs(blob, `${brandFileSlug()}_Visitors_${new Date().toISOString().split('T')[0]}.xlsx`)
     } catch (error) {
       console.error('Export error:', error)
       alert('Gagal export data visitors')
@@ -136,7 +148,7 @@ export default function ExportImport() {
       
       const buffer = await workbook.xlsx.writeBuffer()
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-      saveAs(blob, `BNI_Grow_Members_${new Date().toISOString().split('T')[0]}.xlsx`)
+      saveAs(blob, `${brandFileSlug()}_Members_${new Date().toISOString().split('T')[0]}.xlsx`)
     } catch (error) {
       console.error('Export error:', error)
       alert('Gagal export data members')
@@ -150,7 +162,7 @@ export default function ExportImport() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-900">Export / Import Data</h1>
-        <p className="text-sm text-gray-500 mt-1">Kelola export dan import data BNI Grow</p>
+        <p className="text-sm text-gray-500 mt-1">Kelola export dan import {brandLabel}</p>
       </div>
 
       {/* Export Section */}

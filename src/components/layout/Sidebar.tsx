@@ -38,9 +38,9 @@ export default function Sidebar({ currentPage }: SidebarProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [activeChapterId, setActiveChapterId] = useState('')
   const [branding, setBranding] = useState<ChapterBranding>(() => ({
-    chapterName: 'BNI Grow',
-    displayName: 'BNI Grow Chapter',
-    shortName: 'Grow',
+    chapterName: 'BNI',
+    displayName: 'BNI Chapter',
+    shortName: 'BNI',
     locationLabel: '',
   }))
   const isSuperAdmin = isNationalAdmin(currentUser)

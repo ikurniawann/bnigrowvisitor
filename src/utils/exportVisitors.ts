@@ -1,5 +1,6 @@
 import * as ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
+import { getChapterBranding } from '@/lib/chapterBranding'
 
 export interface VisitorData {
   no: number
@@ -73,5 +74,6 @@ export const handleExportExcel = async (visitors: any[], startIndex: number) => 
   // Generate and download
   const buffer = await workbook.xlsx.writeBuffer()
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-  saveAs(blob, `BNI_Grow_Visitors_${new Date().toISOString().split('T')[0]}.xlsx`)
+  const slug = (getChapterBranding().displayName || 'BNI').replace(/[^\w]+/g, '_').replace(/^_+|_+$/g, '') || 'BNI'
+  saveAs(blob, `${slug}_Visitors_${new Date().toISOString().split('T')[0]}.xlsx`)
 }

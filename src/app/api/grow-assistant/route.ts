@@ -286,7 +286,7 @@ export async function POST(request: Request) {
       : 'Grow Assistant'
     const chapterName = typeof body.chapterName === 'string' && body.chapterName.trim()
       ? body.chapterName.trim().slice(0, 120)
-      : 'BNI Grow'
+      : 'BNI'
     const prompt = messages[messages.length - 1]?.content?.trim() || ''
 
     const { data: user, error: userError } = await supabaseServer
