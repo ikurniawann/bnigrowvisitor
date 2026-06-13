@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/server/session'
 import { findActiveUserById } from '@/lib/server/userService'
 import { listTargets, upsertTarget, deleteTargetOverride } from '@/lib/server/targetsService'
+import { isMissingTableError } from '@/lib/server/dbErrors'
 import { DEFAULT_TARGETS } from '@/lib/national/config'
 
 export const dynamic = 'force-dynamic'
@@ -51,7 +52,7 @@ export async function GET() {
     const rows = await listTargets()
     return NextResponse.json({ defaults: DEFAULT_TARGETS, targets: rows })
   } catch (error: any) {
-    if (error?.code === '42P01') {
+    if (isMissingTableError(error)) {
       return NextResponse.json({ defaults: DEFAULT_TARGETS, targets: [], pendingMigration: true })
     }
     console.error('List targets error:', error)
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
     })
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    if (error?.code === '42P01') {
+    if (isMissingTableError(error)) {
       return NextResponse.json({ error: 'Tabel target belum dibuat. Jalankan migration 012.' }, { status: 503 })
     }
     return NextResponse.json({ error: error?.message || 'Gagal menyimpan target.' }, { status: 400 })

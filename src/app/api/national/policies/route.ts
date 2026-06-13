@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/server/session'
 import { findActiveUserById } from '@/lib/server/userService'
 import { listPolicies, upsertPolicy, deletePolicyOverride } from '@/lib/server/policyService'
+import { isMissingTableError } from '@/lib/server/dbErrors'
 import { isPolicyType, defaultPolicyConfig, POLICY_TYPES } from '@/lib/national/policies'
 
 export const dynamic = 'force-dynamic'
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
     await upsertPolicy(policyType, chapterId, body.config, guard.user.organization_id ?? null)
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    if (error?.code === '42P01') {
+    if (isMissingTableError(error)) {
       return NextResponse.json({ error: 'Tabel policy belum dibuat. Jalankan migration 012.' }, { status: 503 })
     }
     console.error('Upsert policy error:', error)

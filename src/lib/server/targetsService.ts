@@ -1,5 +1,6 @@
 import 'server-only'
 import { getSupabaseAdmin } from './supabaseAdmin'
+import { isMissingTableError } from './dbErrors'
 import type { ChapterTarget } from '@/lib/national/types'
 
 const TARGET_COLUMNS =
@@ -24,7 +25,7 @@ function pickTarget(row: any): Partial<ChapterTarget> {
 export async function loadTargets(): Promise<ResolvedTargets> {
   const { data, error } = await getSupabaseAdmin().from('chapter_targets').select(TARGET_COLUMNS)
   if (error) {
-    if (error.code !== '42P01') console.error('loadTargets error:', error.message)
+    if (!isMissingTableError(error)) console.error('loadTargets error:', error.message)
     return { default: null, overrides: new Map() }
   }
 

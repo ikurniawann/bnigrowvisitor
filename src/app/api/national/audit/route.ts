@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/server/session'
 import { getSupabaseAdmin } from '@/lib/server/supabaseAdmin'
 import { findActiveUserById } from '@/lib/server/userService'
+import { isMissingTableError } from '@/lib/server/dbErrors'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,10 +46,9 @@ export async function GET(request: Request) {
     const [loginRes, activityRes] = await Promise.all([loginQuery, activityQuery])
 
     // login_audit may not exist before migration 012; degrade gracefully.
-    const logins = loginRes.error
-      ? []
-      : loginRes.data || []
-    if (loginRes.error && loginRes.error.code !== '42P01') {
+    const loginMissing = isMissingTableError(loginRes.error)
+    const logins = loginRes.error ? [] : loginRes.data || []
+    if (loginRes.error && !loginMissing) {
       console.error('Login audit query error:', loginRes.error.message)
     }
     if (activityRes.error) throw activityRes.error
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       logins,
       activity: activityRes.data || [],
-      pendingMigration: Boolean(loginRes.error && loginRes.error.code === '42P01'),
+      pendingMigration: loginMissing,
     })
   } catch (error: any) {
     console.error('National audit error:', error)

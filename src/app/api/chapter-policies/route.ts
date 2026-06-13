@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/server/session'
 import { resolvePoliciesForChapter } from '@/lib/server/policyService'
+import { isMissingTableError } from '@/lib/server/dbErrors'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
     const policies = await resolvePoliciesForChapter(chapterId)
     return NextResponse.json({ chapterId, policies })
   } catch (error: any) {
-    if (error?.code === '42P01') return NextResponse.json({ policies: {}, pendingMigration: true })
+    if (isMissingTableError(error)) return NextResponse.json({ policies: {}, pendingMigration: true })
     console.error('Chapter policies error:', error)
     return NextResponse.json({ error: 'Gagal memuat policy chapter.' }, { status: 500 })
   }

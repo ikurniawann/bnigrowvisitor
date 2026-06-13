@@ -1,5 +1,6 @@
 import 'server-only'
 import { getSupabaseAdmin } from './supabaseAdmin'
+import { isMissingTableError } from './dbErrors'
 import { PolicyType, mergePolicyConfig } from '@/lib/national/policies'
 
 const POLICY_COLUMNS = 'id, chapter_id, policy_type, config, updated_at'
@@ -16,7 +17,7 @@ export interface PolicyRow {
 export async function listPolicies(): Promise<{ rows: PolicyRow[]; pendingMigration: boolean }> {
   const { data, error } = await getSupabaseAdmin().from('national_policies').select(POLICY_COLUMNS)
   if (error) {
-    if (error.code === '42P01') return { rows: [], pendingMigration: true }
+    if (isMissingTableError(error)) return { rows: [], pendingMigration: true }
     throw error
   }
   return { rows: (data as PolicyRow[]) || [], pendingMigration: false }
