@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getSession } from '@/lib/server/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -273,10 +274,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Konfigurasi Supabase belum lengkap.' }, { status: 500 })
     }
 
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Sesi user tidak ditemukan. Silakan login ulang.' }, { status: 401 })
+    }
+
     const body = await request.json()
     const messages = Array.isArray(body.messages) ? body.messages as ChatMessage[] : []
-    const userId = typeof body.userId === 'string' ? body.userId : ''
-    const selectedChapterId = typeof body.chapterId === 'string' ? body.chapterId : ''
     const assistantName = typeof body.assistantName === 'string' && body.assistantName.trim()
       ? body.assistantName.trim().slice(0, 80)
       : 'Grow Assistant'
@@ -285,20 +289,22 @@ export async function POST(request: Request) {
       : 'BNI Grow'
     const prompt = messages[messages.length - 1]?.content?.trim() || ''
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Sesi user tidak ditemukan. Silakan login ulang.' }, { status: 401 })
-    }
-
     const { data: user, error: userError } = await supabaseServer
       .from('users')
       .select('id, name, email, role, is_active, organization_id, chapter_id')
-      .eq('id', userId)
+      .eq('id', session.sub)
       .eq('is_active', true)
       .single()
 
     if (userError || !user) {
       return NextResponse.json({ error: 'Sesi user tidak valid. Silakan login ulang.' }, { status: 401 })
     }
+
+    // Non-national users can only view their own chapter context.
+    const requestedChapterId = typeof body.chapterId === 'string' ? body.chapterId : ''
+    const selectedChapterId = isNationalUser(user as AssistantUser)
+      ? requestedChapterId
+      : (user.chapter_id || '')
 
     if (!prompt) {
       return NextResponse.json({ error: 'Pertanyaan masih kosong.' }, { status: 400 })

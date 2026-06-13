@@ -161,7 +161,7 @@ export default function PICManagement() {
         const picPayload: Record<string, any> = {
           name: memberForPic.name,
           email: picEmail,
-          password_hash: 'temp',
+          password_hash: `unset-${crypto.randomUUID()}`,
           role: 'pic',
           phone: memberForPic.phone || '',
           business_classification: formData.business_classification || memberForPic.business_field || '',
@@ -208,9 +208,10 @@ export default function PICManagement() {
         let insertError: any = null
 
         if (existingUser.data?.id) {
+          const { password_hash: _ph, ...picUpdatePayload } = picPayload
           let updateResult = await supabase
             .from('users')
-            .update(picPayload)
+            .update(picUpdatePayload)
             .eq('id', existingUser.data.id)
             .select('id')
             .single()
@@ -221,7 +222,6 @@ export default function PICManagement() {
               .update({
                 name: picPayload.name,
                 email: picPayload.email,
-                password_hash: picPayload.password_hash,
                 role: picPayload.role,
                 phone: picPayload.phone,
                 is_active: picPayload.is_active,

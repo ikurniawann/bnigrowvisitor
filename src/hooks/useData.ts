@@ -118,13 +118,11 @@ export function useData() {
     return (query as any).eq('chapter_id', user.chapter_id)
   }
 
+  // Only chapter_id is injected here: visitors/members/meetings have no
+  // organization_id column. Tables that do (users) set it explicitly.
   function withCreateScope<T extends Record<string, any>>(payload: T, user = currentUser): T {
     const scopedPayload: Record<string, any> = { ...payload }
     const selectedChapterId = getSelectedChapterId()
-
-    if (user?.organization_id && !scopedPayload.organization_id) {
-      scopedPayload.organization_id = user.organization_id
-    }
 
     if (!scopedPayload.chapter_id) {
       if (isNationalAdmin(user) && selectedChapterId) {
@@ -421,17 +419,25 @@ export function useData() {
   }
 
   async function addPic(pic: Omit<PIC, 'id'>) {
+    // Placeholder credential until the PIC sets a real password; random so the
+    // account can't be logged into with a guessable default.
+    const placeholderPassword = `unset-${crypto.randomUUID()}`
+    const basePayload = {
+      email: `pic+${Date.now()}@bnigrow.com`,
+      role: 'pic',
+      password_hash: placeholderPassword,
+      is_active: true,
+      organization_id: currentUser?.organization_id,
+    }
+
     let { data, error }: { data: any | null; error: any } = await supabase
       .from('users')
-        .insert(withCreateScope({
-          name: pic.name,
-          email: `pic+${Date.now()}@bnigrow.com`,
-          role: 'pic',
-          phone: pic.wa,
-          business_classification: pic.business_classification,
-          password_hash: 'temp',
-          is_active: true,
-        }))
+      .insert(withCreateScope({
+        ...basePayload,
+        name: pic.name,
+        phone: pic.wa,
+        business_classification: pic.business_classification,
+      }))
       .select('id, name, role, phone, business_classification, is_active')
       .single()
 
@@ -439,12 +445,9 @@ export function useData() {
       const fallback = await supabase
         .from('users')
         .insert(withCreateScope({
+          ...basePayload,
           name: pic.name,
-          email: `pic+${Date.now()}@bnigrow.com`,
-          role: 'pic',
           phone: pic.wa,
-          password_hash: 'temp',
-          is_active: true,
         }))
         .select('id, name, role, phone, is_active')
         .single()

@@ -10,47 +10,33 @@ export default function ChapterRouteScope({
   children: ReactNode
 }) {
   const [ready, setReady] = useState(false)
+  const [denied, setDenied] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
     async function loadChapterContext() {
-      const existing = localStorage.getItem('selectedChapterContext')
-      let existingContext: any = null
-
-      try {
-        existingContext = existing ? JSON.parse(existing) : null
-      } catch {
-        existingContext = null
-      }
-
       try {
         const response = await fetch(`/api/chapter-context/${encodeURIComponent(chapterId)}`, { cache: 'no-store' })
+
+        if (response.status === 401) {
+          if (!cancelled) { window.location.href = '/login'; }
+          return
+        }
+
+        if (response.status === 403) {
+          if (!cancelled) setDenied(true)
+          return
+        }
+
         const context = await response.json()
         if (response.ok && context?.chapter?.id && !cancelled) {
           localStorage.setItem('selectedChapterContext', JSON.stringify(context))
           window.dispatchEvent(new Event('chapter-context-updated'))
           setReady(true)
-          return
         }
       } catch {
-        // Fall back to existing context below.
-      }
-
-      if (!cancelled) {
-        if (existingContext?.chapter?.id !== chapterId) {
-          localStorage.setItem('selectedChapterContext', JSON.stringify({
-            chapter: {
-              id: chapterId,
-              name: existingContext?.chapter?.name || '',
-              display_name: existingContext?.chapter?.display_name || '',
-            },
-            area: existingContext?.area || null,
-            city: existingContext?.city || null,
-          }))
-          window.dispatchEvent(new Event('chapter-context-updated'))
-        }
-        setReady(true)
+        // Network error — keep spinner, don't silently fall back to stale context.
       }
     }
 
@@ -60,6 +46,15 @@ export default function ChapterRouteScope({
       cancelled = true
     }
   }, [chapterId])
+
+  if (denied) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+        <p className="text-red-600 font-semibold">Akses Ditolak</p>
+        <p className="text-sm text-gray-500">Anda tidak memiliki akses ke chapter ini.</p>
+      </div>
+    )
+  }
 
   if (!ready) {
     return (

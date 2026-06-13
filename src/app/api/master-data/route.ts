@@ -1,54 +1,110 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSession } from '@/lib/server/session'
+import { getSupabaseAdmin } from '@/lib/server/supabaseAdmin'
+import { findActiveUserById, hashPassword } from '@/lib/server/userService'
 
 export const dynamic = 'force-dynamic'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+const NATIONAL_ADMIN_EMAIL = 'admin@bnigrow.com'
 
-const supabaseServer = supabaseUrl && supabaseKey
-  ? createClient(supabaseUrl, supabaseKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
-  : null
+// Columns each table accepts from the client. Anything else is dropped so the
+// service-role client can never be used for mass assignment.
+const ALLOWED_COLUMNS: Record<string, Set<string>> = {
+  cities: new Set(['organization_id', 'name', 'is_active']),
+  areas: new Set(['city_id', 'name', 'is_active']),
+  chapters: new Set(['area_id', 'name', 'display_name', 'is_active']),
+  chapter_domains: new Set(['chapter_id', 'domain', 'type', 'is_primary', 'is_active']),
+  users: new Set(['name', 'email', 'phone', 'chapter_id', 'organization_id', 'is_active']),
+}
 
-const allowedTables = new Set(['cities', 'areas', 'chapters', 'chapter_domains', 'users'])
+const REQUIRED_INSERT_COLUMNS: Record<string, string[]> = {
+  cities: ['organization_id', 'name'],
+  areas: ['city_id', 'name'],
+  chapters: ['area_id', 'name', 'display_name'],
+  chapter_domains: ['chapter_id', 'domain'],
+  users: ['name', 'email', 'chapter_id'],
+}
 
-async function assertNationalAdmin(userId: string) {
-  if (!supabaseServer) throw new Error('Supabase server env belum lengkap.')
-  if (!userId) throw new Error('Sesi user tidak ditemukan.')
+const MIN_PASSWORD_LENGTH = 6
 
-  const { data: user, error } = await supabaseServer
-    .from('users')
-    .select('id, email, role, is_active')
-    .eq('id', userId)
-    .eq('is_active', true)
-    .single()
+class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message)
+  }
+}
 
-  if (error || !user) throw new Error('Sesi user tidak valid.')
+async function requireNationalAdmin() {
+  const session = await getSession()
+  if (!session) {
+    throw new ApiError('Silakan login ulang.', 401)
+  }
 
-  const isNational = user.role === 'admin' || user.role === 'national_admin' || user.email === 'admin@bnigrow.com'
-  if (!isNational) throw new Error('Akses master data hanya untuk National Admin.')
+  const user = await findActiveUserById(session.sub)
+  if (!user) {
+    throw new ApiError('Sesi user tidak valid.', 401)
+  }
+
+  const isNational =
+    user.role === 'admin' ||
+    user.role === 'national_admin' ||
+    user.email?.toLowerCase() === NATIONAL_ADMIN_EMAIL
+
+  if (!isNational) {
+    throw new ApiError('Akses master data hanya untuk National Admin.', 403)
+  }
 
   return user
 }
 
-export async function GET(request: Request) {
-  try {
-    if (!supabaseServer) {
-      return NextResponse.json({ error: 'Supabase server env belum lengkap.' }, { status: 500 })
-    }
+function sanitizePayload(table: string, payload: Record<string, unknown>) {
+  const allowed = ALLOWED_COLUMNS[table]
+  const sanitized: Record<string, unknown> = {}
 
-    const url = new URL(request.url)
-    await assertNationalAdmin(url.searchParams.get('userId') || '')
+  for (const [key, value] of Object.entries(payload || {})) {
+    if (allowed.has(key)) {
+      sanitized[key] = typeof value === 'string' ? value.trim() : value
+    }
+  }
+
+  if (typeof sanitized.email === 'string') {
+    sanitized.email = sanitized.email.toLowerCase()
+  }
+  if (typeof sanitized.domain === 'string') {
+    sanitized.domain = sanitized.domain.toLowerCase()
+  }
+
+  return sanitized
+}
+
+function assertRequiredColumns(table: string, payload: Record<string, unknown>) {
+  for (const column of REQUIRED_INSERT_COLUMNS[table]) {
+    const value = payload[column]
+    if (value === undefined || value === null || value === '') {
+      throw new ApiError(`Kolom ${column} wajib diisi.`, 400)
+    }
+  }
+}
+
+function handleError(error: any) {
+  if (error instanceof ApiError) {
+    return NextResponse.json({ error: error.message }, { status: error.status })
+  }
+  console.error('Master data error:', error)
+  return NextResponse.json({ error: error.message || 'Gagal memproses master data.' }, { status: 500 })
+}
+
+export async function GET() {
+  try {
+    await requireNationalAdmin()
+    const admin = getSupabaseAdmin()
 
     const [orgResult, cityResult, areaResult, chapterResult, domainResult, adminResult] = await Promise.all([
-      supabaseServer.from('organizations').select('id, name').order('name'),
-      supabaseServer.from('cities').select('id, organization_id, name, is_active, organization:organization_id(id, name)').order('name'),
-      supabaseServer.from('areas').select('id, city_id, name, is_active, city:city_id(id, organization_id, name, is_active)').order('name'),
-      supabaseServer.from('chapters').select('id, area_id, name, display_name, is_active, area:area_id(id, city_id, name, is_active)').order('name'),
-      supabaseServer.from('chapter_domains').select('id, chapter_id, domain, type, is_primary, is_active, chapter:chapter_id(id, area_id, name, display_name, is_active)').order('domain'),
-      supabaseServer
+      admin.from('organizations').select('id, name').order('name'),
+      admin.from('cities').select('id, organization_id, name, is_active, organization:organization_id(id, name)').order('name'),
+      admin.from('areas').select('id, city_id, name, is_active, city:city_id(id, organization_id, name, is_active)').order('name'),
+      admin.from('chapters').select('id, area_id, name, display_name, is_active, area:area_id(id, city_id, name, is_active)').order('name'),
+      admin.from('chapter_domains').select('id, chapter_id, domain, type, is_primary, is_active, chapter:chapter_id(id, area_id, name, display_name, is_active)').order('domain'),
+      admin
         .from('users')
         .select('id, name, email, phone, chapter_id, is_active, chapter:chapter_id(id, area_id, name, display_name, is_active)')
         .eq('role', 'chapter_admin')
@@ -68,63 +124,100 @@ export async function GET(request: Request) {
       admins: adminResult.data || [],
     })
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Gagal memuat master data.' },
-      { status: error.message?.includes('Akses') || error.message?.includes('Sesi') ? 403 : 500 }
-    )
+    return handleError(error)
   }
 }
 
 export async function POST(request: Request) {
   try {
-    if (!supabaseServer) {
-      return NextResponse.json({ error: 'Supabase server env belum lengkap.' }, { status: 500 })
-    }
+    await requireNationalAdmin()
+    const admin = getSupabaseAdmin()
 
-    const body = await request.json()
-    await assertNationalAdmin(body.userId || '')
+    const body = await request.json().catch(() => null)
+    const action = body?.action as string
+    const table = body?.table as string
+    const id = typeof body?.id === 'string' ? body.id : undefined
 
-    const action = body.action as string
-    const table = body.table as string
-    const id = body.id as string | undefined
-    const payload = body.payload || {}
-
-    if (!allowedTables.has(table)) {
-      return NextResponse.json({ error: 'Table tidak diizinkan.' }, { status: 400 })
+    if (!ALLOWED_COLUMNS[table]) {
+      throw new ApiError('Table tidak diizinkan.', 400)
     }
 
     if (action === 'toggle') {
-      if (!id) return NextResponse.json({ error: 'ID wajib diisi.' }, { status: 400 })
-      const { error } = await supabaseServer
+      if (!id) throw new ApiError('ID wajib diisi.', 400)
+
+      if (table === 'users') {
+        const { data: target, error: targetError } = await admin
+          .from('users')
+          .select('id, role')
+          .eq('id', id)
+          .maybeSingle()
+
+        if (targetError) throw targetError
+        if (!target || target.role !== 'chapter_admin') {
+          throw new ApiError('Hanya akun chapter admin yang bisa dikelola dari sini.', 400)
+        }
+      }
+
+      const { error } = await admin
         .from(table)
-        .update({ is_active: Boolean(payload.is_active), updated_at: new Date().toISOString() })
+        .update({ is_active: Boolean(body?.payload?.is_active), updated_at: new Date().toISOString() })
         .eq('id', id)
+
       if (error) throw error
       return NextResponse.json({ success: true })
     }
 
     if (action === 'upsert') {
+      const payload = sanitizePayload(table, body?.payload || {})
+
+      if (table === 'users') {
+        // This endpoint only manages chapter admin accounts; the role is
+        // forced server-side and passwords are always stored as bcrypt.
+        payload.role = 'chapter_admin'
+
+        const password = typeof body?.payload?.password === 'string' ? body.payload.password.trim() : ''
+        if (password) {
+          if (password.length < MIN_PASSWORD_LENGTH) {
+            throw new ApiError(`Password minimal ${MIN_PASSWORD_LENGTH} karakter.`, 400)
+          }
+          payload.password_hash = await hashPassword(password)
+        } else if (!id) {
+          throw new ApiError('Password wajib diisi untuk admin baru.', 400)
+        }
+      }
+
       if (id) {
-        const { error } = await supabaseServer
+        if (table === 'users') {
+          const { data: target, error: targetError } = await admin
+            .from('users')
+            .select('id, role')
+            .eq('id', id)
+            .maybeSingle()
+
+          if (targetError) throw targetError
+          if (!target || target.role !== 'chapter_admin') {
+            throw new ApiError('Hanya akun chapter admin yang bisa dikelola dari sini.', 400)
+          }
+        }
+
+        const { error } = await admin
           .from(table)
           .update({ ...payload, updated_at: new Date().toISOString() })
           .eq('id', id)
+
         if (error) throw error
         return NextResponse.json({ success: true })
       }
 
-      const { error } = await supabaseServer
-        .from(table)
-        .insert(payload)
+      assertRequiredColumns(table, payload)
+
+      const { error } = await admin.from(table).insert(payload)
       if (error) throw error
       return NextResponse.json({ success: true })
     }
 
-    return NextResponse.json({ error: 'Action tidak dikenal.' }, { status: 400 })
+    throw new ApiError('Action tidak dikenal.', 400)
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Gagal menyimpan master data.' },
-      { status: error.message?.includes('Akses') || error.message?.includes('Sesi') ? 403 : 500 }
-    )
+    return handleError(error)
   }
 }

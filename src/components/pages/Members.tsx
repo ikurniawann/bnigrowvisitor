@@ -165,16 +165,25 @@ export default function Members() {
         updates.email = email
       }
 
-      if (password) {
-        updates.password_hash = password
-      }
-
       const { error: updateError } = await supabase
         .from('users')
         .update(updates)
         .eq('id', account.id)
 
       if (updateError) throw updateError
+
+      if (password) {
+        const pwRes = await fetch('/api/accounts/set-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: account.id, password }),
+        })
+        if (!pwRes.ok) {
+          const pwData = await pwRes.json()
+          throw new Error(pwData.error || 'Gagal menyimpan password.')
+        }
+      }
+
       await logActivity({
         action: 'update',
         entity: password ? 'user_password' : 'user_account',
@@ -196,7 +205,7 @@ export default function Members() {
       .insert({
         name: member.name.trim(),
         email,
-        password_hash: password,
+        password_hash: `unset-${crypto.randomUUID()}`,
         role: 'pic',
         phone: member.phone.trim() || null,
         is_active: true,
@@ -205,6 +214,17 @@ export default function Members() {
       })
 
     if (insertError) throw insertError
+
+    const pwRes = await fetch('/api/accounts/set-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    if (!pwRes.ok) {
+      const pwData = await pwRes.json()
+      throw new Error(pwData.error || 'Gagal menyimpan password.')
+    }
+
     await logActivity({
       action: 'insert',
       entity: 'user_account',

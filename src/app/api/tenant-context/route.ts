@@ -1,25 +1,15 @@
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/server/supabaseAdmin'
 
 export const dynamic = 'force-dynamic'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  ''
-
-const supabaseServer = supabaseUrl && supabaseKey
-  ? createClient(supabaseUrl, supabaseKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
-  : null
 
 function normalizeHost(host: string) {
   return host.trim().toLowerCase().replace(/^www\./, '')
 }
 
+// Public on purpose: the login page needs host-based chapter branding before
+// any session exists. It only exposes chapter/area/city display names.
 export async function GET() {
   try {
     const headerStore = await headers()
@@ -30,11 +20,7 @@ export async function GET() {
       return NextResponse.json({ host: '', matched: false })
     }
 
-    if (!supabaseServer) {
-      return NextResponse.json({ host, matched: false })
-    }
-
-    const { data, error } = await supabaseServer
+    const { data, error } = await getSupabaseAdmin()
       .from('chapter_domains')
       .select(`
         id,

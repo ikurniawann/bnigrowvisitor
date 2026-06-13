@@ -10,11 +10,13 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.1",
+    "bcryptjs": "^3.0.3",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "next": "^16.2.9",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@types/file-saver": "^2.0.7",

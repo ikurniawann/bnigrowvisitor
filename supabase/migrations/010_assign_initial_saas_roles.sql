@@ -18,7 +18,7 @@ BEGIN
   WHERE org.code = 'bni_indonesia'
     AND city.name = 'Jakarta'
     AND a.name = 'Jakarta Barat'
-    AND c.name = 'Grow'
+    AND c.name = 'BNI Grow'
   LIMIT 1;
 
   UPDATE users

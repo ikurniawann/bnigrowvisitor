@@ -76,43 +76,28 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
 
   useEffect(() => {
     async function loadChapterMeta() {
-      const { data, error } = await supabase
-        .from('chapters')
-        .select(`
-          id,
-          name,
-          display_name,
-          area_id,
-          area:area_id (
-            id,
-            name,
-            city:city_id (
-              id,
-              name
-            )
-          )
-        `)
-        .order('name')
-
-      if (error) {
+      // Master tables are RLS-locked for the anon key; go through the
+      // session-authenticated API instead.
+      let data: any[] = []
+      try {
+        const response = await fetch('/api/chapters', { cache: 'no-store' })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result?.error || 'Gagal memuat chapter.')
+        data = result.chapters || []
+      } catch (error) {
         console.error('Error loading chapter meta:', error)
         return
       }
 
-      setChapterMeta((data || []).map((chapter: any) => {
-        const area = Array.isArray(chapter.area) ? chapter.area[0] : chapter.area
-        const city = area ? (Array.isArray(area.city) ? area.city[0] : area.city) : null
-
-        return {
-          id: chapter.id,
-          name: chapter.name,
-          display_name: chapter.display_name,
-          area_id: chapter.area_id,
-          area_name: area?.name || '-',
-          city_id: city?.id || '',
-          city_name: city?.name || '-',
-        }
-      }))
+      setChapterMeta((data || []).map((chapter: any) => ({
+        id: chapter.id,
+        name: chapter.name,
+        display_name: chapter.display_name,
+        area_id: chapter.area_id,
+        area_name: chapter.area_name || '-',
+        city_id: chapter.city_id || '',
+        city_name: chapter.city_name || '-',
+      })))
     }
 
     loadChapterMeta()
@@ -546,30 +531,45 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
               {nationalChapterRows.slice(0, 10).length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">Belum ada data chapter.</div>
               ) : nationalChapterRows.slice(0, 10).map((chapter, index) => (
-                <button
+                <div
                   key={chapter.id}
-                  onClick={() => openInsightList({
-                    title: chapter.display_name,
-                    subtitle: `${chapter.city_name} / ${chapter.area_name}`,
-                    visitors: chapter.visitors,
-                    accent: 'text-orange-600',
-                    meta: visitor => visitor.pic_name ? `PIC: ${visitor.pic_name}` : 'Belum ada PIC',
-                  })}
                   className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 rounded-2xl border border-gray-100 bg-white/80 p-4 text-left transition hover:border-orange-200 hover:bg-orange-50"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 text-sm font-black text-white">{index + 1}</div>
-                  <div className="min-w-0">
+                  <button
+                    className="min-w-0 text-left"
+                    onClick={() => openInsightList({
+                      title: chapter.display_name,
+                      subtitle: `${chapter.city_name} / ${chapter.area_name}`,
+                      visitors: chapter.visitors,
+                      accent: 'text-orange-600',
+                      meta: visitor => visitor.pic_name ? `PIC: ${visitor.pic_name}` : 'Belum ada PIC',
+                    })}
+                  >
                     <div className="truncate text-sm font-black text-gray-950">{chapter.display_name}</div>
                     <div className="mt-1 text-xs font-medium text-gray-500">{chapter.city_name} / {chapter.area_name}</div>
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
                       <div className="h-full rounded-full bg-gradient-to-r from-orange-300 via-orange-400 to-red-400" style={{ width: `${(chapter.total / nationalMaxChapterTotal) * 100}%` }} />
                     </div>
-                  </div>
-                  <div className="text-right">
+                  </button>
+                  <div className="flex flex-col items-end gap-1">
                     <div className="text-xl font-black text-gray-950">{chapter.total}</div>
                     <div className="text-xs font-semibold text-gray-500">{chapter.attended} hadir</div>
+                    <button
+                      onClick={() => {
+                        localStorage.setItem('selectedChapterContext', JSON.stringify({
+                          chapter: { id: chapter.id, name: chapter.name, display_name: chapter.display_name },
+                          area: chapter.area_name ? { id: chapter.area_id, name: chapter.area_name } : null,
+                          city: chapter.city_name ? { id: chapter.city_id, name: chapter.city_name } : null,
+                        }))
+                        router.push(`/chapter/${encodeURIComponent(chapter.id)}/dashboard`)
+                      }}
+                      className="mt-1 rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white transition hover:bg-red-700"
+                    >
+                      Buka →
+                    </button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>

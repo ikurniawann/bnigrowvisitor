@@ -1,32 +1,27 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSession } from '@/lib/server/session'
+import { getSupabaseAdmin } from '@/lib/server/supabaseAdmin'
 
 export const dynamic = 'force-dynamic'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  ''
-
-const supabaseServer = supabaseUrl && supabaseKey
-  ? createClient(supabaseUrl, supabaseKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
-  : null
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ chapterId: string }> }
 ) {
   try {
-    const { chapterId } = await context.params
-
-    if (!supabaseServer) {
-      return NextResponse.json({ error: 'Supabase server env belum lengkap.' }, { status: 500 })
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Silakan login ulang.' }, { status: 401 })
     }
 
-    const { data, error } = await supabaseServer
+    const { chapterId } = await context.params
+
+    const isNational = session.role === 'national_admin' || session.role === 'admin'
+    if (!isNational && session.chapter_id !== chapterId) {
+      return NextResponse.json({ error: 'Tidak diizinkan mengakses chapter ini.' }, { status: 403 })
+    }
+
+    const { data, error } = await getSupabaseAdmin()
       .from('chapters')
       .select(`
         id,

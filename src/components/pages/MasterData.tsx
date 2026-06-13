@@ -92,16 +92,11 @@ export default function MasterData({
   const chapterById = useMemo(() => new Map(chapters.map(chapter => [chapter.id, chapter])), [chapters])
   const visibleTabItems = visibleTabs ? tabs.filter(tab => visibleTabs.includes(tab.id)) : tabs
 
-  function getUserId() {
-    const user = currentUser || getStoredUser()
-    return user?.id || ''
-  }
-
   async function masterRequest(body: Record<string, any>) {
     const response = await fetch('/api/master-data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, userId: getUserId() }),
+      body: JSON.stringify(body),
     })
     const data = await response.json()
     if (!response.ok) throw new Error(data?.error || 'Gagal menyimpan master data.')
@@ -113,8 +108,7 @@ export default function MasterData({
       setLoading(true)
       setError('')
 
-      const user = getStoredUser()
-      const response = await fetch(`/api/master-data?userId=${encodeURIComponent(user?.id || '')}`, { cache: 'no-store' })
+      const response = await fetch('/api/master-data', { cache: 'no-store' })
       const data = await response.json()
       if (!response.ok) throw new Error(data?.error || 'Gagal memuat master data.')
 
@@ -258,33 +252,25 @@ export default function MasterData({
 
     setSaving(true)
     try {
+      // The server forces role=chapter_admin and bcrypt-hashes the password.
       const payload: Record<string, any> = {
         name: adminForm.name.trim(),
         email: adminForm.email.trim().toLowerCase(),
         phone: adminForm.phone.trim() || null,
-        role: 'chapter_admin',
         chapter_id: adminForm.chapter_id,
         organization_id: defaultOrgId || null,
         is_active: true,
-        updated_at: new Date().toISOString(),
       }
 
       if (adminForm.password.trim()) {
-        payload.password_hash = adminForm.password.trim()
+        payload.password = adminForm.password.trim()
       }
 
       if (adminForm.id) {
         await masterRequest({ action: 'upsert', table: 'users', id: adminForm.id, payload })
         notifyDataChanged('update')
       } else {
-        await masterRequest({
-          action: 'upsert',
-          table: 'users',
-          payload: {
-          ...payload,
-          password_hash: adminForm.password.trim(),
-          },
-        })
+        await masterRequest({ action: 'upsert', table: 'users', payload })
         notifyDataChanged('insert')
       }
 
