@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getSession } from '@/lib/server/session'
+import { resolveChapterScope, ScopeError } from '@/lib/server/chapterScope'
 
 export const dynamic = 'force-dynamic'
 
@@ -385,11 +386,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Sesi user tidak valid. Silakan login ulang.' }, { status: 401 })
     }
 
-    // Non-national users can only view their own chapter context.
-    const requestedChapterId = typeof body.chapterId === 'string' ? body.chapterId : ''
-    const selectedChapterId = isNationalUser(user as AssistantUser)
-      ? requestedChapterId
-      : (user.chapter_id || '')
+    // Chapter scope is resolved server-side: national users may target a
+    // validated chapter (or all), everyone else is pinned to their own — the
+    // requested chapterId is never trusted blindly.
+    let selectedChapterId = ''
+    try {
+      const scope = await resolveChapterScope(
+        session,
+        typeof body.chapterId === 'string' ? body.chapterId : null
+      )
+      selectedChapterId = scope.chapterId || ''
+    } catch (scopeError) {
+      if (scopeError instanceof ScopeError) {
+        return NextResponse.json({ error: scopeError.message }, { status: scopeError.status })
+      }
+      throw scopeError
+    }
 
     if (!prompt) {
       return NextResponse.json({ error: 'Pertanyaan masih kosong.' }, { status: 400 })

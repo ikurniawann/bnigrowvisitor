@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase, Visitor, Meeting, VisitorStatus, User } from '@/lib/supabase'
+import { Visitor, Meeting, VisitorStatus } from '@/lib/supabase'
 import { notifyDataChanged } from '@/lib/ui/toast'
 import { getLocalPicBusinessClassification } from '@/lib/picBusinessClassification'
-import { logActivity } from '@/lib/activityLog'
-import { isNationalAdmin } from '@/lib/permissions'
+import { apiGet, apiSend } from '@/lib/dataClient'
 
 export interface PIC {
   id: string
@@ -57,38 +56,10 @@ export const STATUSES: Record<VisitorStatus, { label: string; color: string }> =
 
 export const KANBAN_COLS = ['new', 'followup', 'confirmed', 'attended', 'interview', 'member'] as const
 
-function getStoredUser(): User | null {
-  if (typeof window === 'undefined') return null
-
-  try {
-    const storedUser = localStorage.getItem('user')
-    return storedUser ? JSON.parse(storedUser) : null
-  } catch {
-    return null
-  }
-}
-
-function getSelectedChapterId(): string {
-  if (typeof window === 'undefined') return ''
-
-  try {
-    const routeMatch = window.location.pathname.match(/^\/chapter\/([^/]+)/)
-    if (routeMatch?.[1]) return decodeURIComponent(routeMatch[1])
-
-    const storedContext = localStorage.getItem('selectedChapterContext')
-    const context = storedContext ? JSON.parse(storedContext) : null
-    if (context?.chapter?.id) return context.chapter.id
-
-    const storedTenant = localStorage.getItem('tenantContext')
-    const tenantContext = storedTenant ? JSON.parse(storedTenant) : null
-    return tenantContext?.chapter?.id || ''
-  } catch {
-    return ''
-  }
-}
-
+// All reads/writes go through the scoped data API. Chapter isolation, identity,
+// and activity logging are enforced server-side from the session — the client
+// only renders what it is allowed to see.
 export function useData() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [visitors, setVisitors] = useState<VisitorWithRelations[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [pics, setPics] = useState<PIC[]>([])
@@ -96,503 +67,172 @@ export function useData() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const storedUser = getStoredUser()
-    setCurrentUser(storedUser)
-    loadData(storedUser)
+    loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function applyChapterScope<T = any>(query: T, user = currentUser): T {
-    if (!user) return query
-
-    const selectedChapterId = getSelectedChapterId()
-
-    if (isNationalAdmin(user)) {
-      return selectedChapterId ? (query as any).eq('chapter_id', selectedChapterId) : query
-    }
-
-    if (!user.chapter_id) {
-      return (query as any).eq('chapter_id', '__missing_chapter__')
-    }
-
-    return (query as any).eq('chapter_id', user.chapter_id)
-  }
-
-  // Only chapter_id is injected here: visitors/members/meetings have no
-  // organization_id column. Tables that do (users) set it explicitly.
-  function withCreateScope<T extends Record<string, any>>(payload: T, user = currentUser): T {
-    const scopedPayload: Record<string, any> = { ...payload }
-    const selectedChapterId = getSelectedChapterId()
-
-    if (!scopedPayload.chapter_id) {
-      if (isNationalAdmin(user) && selectedChapterId) {
-        scopedPayload.chapter_id = selectedChapterId
-      } else if (user?.chapter_id) {
-        scopedPayload.chapter_id = user.chapter_id
-      }
-    }
-
-    return scopedPayload as T
-  }
-
-  async function loadData(user = currentUser) {
+  async function loadData() {
     setLoading(true)
-    await Promise.all([loadVisitors(user), loadMeetings(user), loadPics(user), loadMembers(user)])
+    await Promise.all([loadVisitors(), loadMeetings(), loadPics(), loadMembers()])
     setLoading(false)
   }
 
-  async function loadVisitors(user = currentUser) {
-    const query = applyChapterScope(supabase
-      .from('visitors')
-      .select(`
-        *,
-        pic:pic_id (id, name, business_classification),
-        meeting:meeting_id (id, title, meeting_date),
-        referred_by_member:referred_by_member_id (id, name)
-      `)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false }), user)
-
-    let { data, error } = await query
-
-    if (error && error.message?.includes('business_classification')) {
-      const fallback = await applyChapterScope(supabase
-        .from('visitors')
-        .select(`
-          *,
-          pic:pic_id (id, name),
-          meeting:meeting_id (id, title, meeting_date),
-          referred_by_member:referred_by_member_id (id, name)
-        `)
-        .order('created_at', { ascending: false })
-        .order('id', { ascending: false }), user)
-
-      data = fallback.data
-      error = fallback.error
-    }
-
-    if (error) {
+  async function loadVisitors() {
+    try {
+      const data = await apiGet<any[]>('visitors')
+      setVisitors((data || []).map(visitor => ({
+        ...visitor,
+        pic_name: visitor.pic?.name,
+        pic_business_classification:
+          visitor.pic?.business_classification || getLocalPicBusinessClassification(visitor.pic_id),
+        meeting_title: visitor.meeting?.title,
+        meeting_date: visitor.meeting?.meeting_date || visitor.meeting_date,
+        referred_by_member_name: visitor.referred_by_member?.name || visitor.referral_name,
+      })))
+    } catch (error) {
       console.error('Error loading visitors:', error)
       setVisitors([])
-      return
     }
-
-    setVisitors((data || []).map((visitor: any) => ({
-      ...visitor,
-      pic_name: visitor.pic?.name,
-      pic_business_classification: visitor.pic?.business_classification || getLocalPicBusinessClassification(visitor.pic_id),
-      meeting_title: visitor.meeting?.title,
-      meeting_date: visitor.meeting?.meeting_date || visitor.meeting_date,
-      referred_by_member_name: visitor.referred_by_member?.name || visitor.referral_name,
-    })))
   }
 
-  async function loadMeetings(user = currentUser) {
-    const { data, error } = await applyChapterScope(supabase
-      .from('meetings')
-      .select('*')
-      .order('meeting_date', { ascending: false }), user)
-
-    if (error) {
+  async function loadMeetings() {
+    try {
+      setMeetings(await apiGet<Meeting[]>('meetings'))
+    } catch (error) {
       console.error('Error loading meetings:', error)
       setMeetings([])
-      return
     }
-
-    setMeetings(data || [])
   }
 
-  async function loadPics(user = currentUser) {
-    let { data, error }: { data: any[] | null; error: any } = await applyChapterScope(supabase
-      .from('users')
-      .select('id, name, email, role, phone, business_classification, is_active')
-      .eq('role', 'pic')
-      .eq('is_active', true), user)
-
-    if (error && error.message?.includes('business_classification')) {
-      const fallback = await applyChapterScope(supabase
-        .from('users')
-        .select('id, name, email, role, phone, is_active')
-        .eq('role', 'pic')
-        .eq('is_active', true), user)
-
-      data = fallback.data
-      error = fallback.error
-    }
-
-    if (error) {
+  async function loadPics() {
+    try {
+      const data = await apiGet<any[]>('pics')
+      setPics((data || []).map(pic => ({
+        id: pic.id,
+        name: pic.name,
+        role: pic.role || 'PIC',
+        wa: pic.phone || '',
+        email: pic.email || '',
+        business_classification: pic.business_classification || getLocalPicBusinessClassification(pic.id),
+        is_active: pic.is_active,
+      })))
+    } catch (error) {
       console.error('Error loading PICs:', error)
       setPics([])
-      return
     }
-
-    setPics((data || []).map(pic => ({
-      id: pic.id,
-      name: pic.name,
-      role: pic.role || 'PIC',
-      wa: pic.phone || '',
-      email: pic.email || '',
-      business_classification: pic.business_classification || getLocalPicBusinessClassification(pic.id),
-      is_active: pic.is_active,
-    })))
   }
 
-  async function loadMembers(user = currentUser) {
-    const { data, error } = await applyChapterScope(supabase
-      .from('members')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false }), user)
-
-    if (error) {
+  async function loadMembers() {
+    try {
+      setMembers(await apiGet<Member[]>('members'))
+    } catch (error) {
       console.error('Error loading members:', error)
       setMembers([])
-      return
     }
-
-    const memberRows = data || []
-    const memberEmailValues = Array.from(new Set(
-      memberRows
-        .map(member => member.email?.trim())
-        .filter(Boolean)
-    ))
-
-    let accountByEmail = new Map<string, { role: string; is_active: boolean }>()
-
-    if (memberEmailValues.length > 0) {
-      const { data: accounts, error: accountError } = await applyChapterScope(supabase
-        .from('users')
-        .select('email, role, is_active')
-        .in('email', memberEmailValues), user)
-
-      if (accountError) {
-        console.error('Error loading member accounts:', accountError)
-      } else {
-        accountByEmail = new Map(
-          (accounts || []).map(account => [
-            account.email?.trim().toLowerCase(),
-            { role: account.role, is_active: account.is_active },
-          ])
-        )
-      }
-    }
-
-    setMembers(memberRows.map(member => {
-      const account = member.email ? accountByEmail.get(member.email.trim().toLowerCase()) : undefined
-      return {
-        ...member,
-        account_role: account?.role,
-        account_active: account?.is_active,
-      }
-    }))
   }
 
   async function addMember(member: Partial<Member>) {
-    const { data, error } = await supabase
-      .from('members')
-      .insert(withCreateScope(member))
-      .select()
-      .single()
-
-    if (error) throw error
+    const data = await apiSend<Member>('members', 'POST', member as Record<string, unknown>)
     await loadMembers()
-    await logActivity({
-      action: 'insert',
-      entity: 'member',
-      entityId: data.id,
-      entityLabel: data.name,
-      newData: data as Record<string, unknown>,
-    })
     notifyDataChanged('insert')
     return data
   }
 
   async function updateMember(id: string, member: Partial<Member>) {
-    const oldMember = members.find(item => item.id === id)
-    const query = applyChapterScope(supabase
-      .from('members')
-      .update(member)
-      .eq('id', id))
-
-    const { data, error } = await query
-      .select()
-      .single()
-
-    if (error) throw error
+    const data = await apiSend<Member>(`members/${id}`, 'PATCH', member as Record<string, unknown>)
     await loadMembers()
-    await logActivity({
-      action: 'update',
-      entity: 'member',
-      entityId: id,
-      entityLabel: data.name || oldMember?.name,
-      oldData: oldMember as Record<string, unknown> | undefined,
-      newData: data as Record<string, unknown>,
-    })
     notifyDataChanged('update')
     return data
   }
 
   async function deleteMember(id: string) {
-    const oldMember = members.find(item => item.id === id)
-    const { error } = await applyChapterScope(supabase
-      .from('members')
-      .delete()
-      .eq('id', id))
-
-    if (error) throw error
+    await apiSend(`members/${id}`, 'DELETE')
     await loadMembers()
-    await logActivity({
-      action: 'delete',
-      entity: 'member',
-      entityId: id,
-      entityLabel: oldMember?.name,
-      oldData: oldMember as Record<string, unknown> | undefined,
-    })
     notifyDataChanged('delete')
   }
 
   async function addVisitor(visitor: Partial<Visitor>) {
-    const { data, error } = await supabase
-      .from('visitors')
-      .insert(withCreateScope(visitor))
-      .select()
-      .single()
-
-    if (error) throw error
+    const data = await apiSend<Visitor>('visitors', 'POST', visitor as Record<string, unknown>)
     await loadVisitors()
-    await logActivity({
-      action: 'insert',
-      entity: 'visitor',
-      entityId: data.id,
-      entityLabel: data.name,
-      newData: data as Record<string, unknown>,
-    })
     notifyDataChanged('insert')
     return data
   }
 
   async function updateVisitor(id: string, updates: Partial<Visitor>) {
-    const oldVisitor = visitors.find(visitor => visitor.id === id)
     setVisitors(prev => prev.map(visitor =>
       visitor.id === id ? { ...visitor, ...updates } : visitor
     ))
 
-    const { error } = await applyChapterScope(supabase
-      .from('visitors')
-      .update(updates)
-      .eq('id', id))
-
-    if (error) {
+    try {
+      await apiSend(`visitors/${id}`, 'PATCH', updates as Record<string, unknown>)
+    } catch (error) {
       await loadVisitors()
       throw error
     }
 
-    await logActivity({
-      action: 'update',
-      entity: 'visitor',
-      entityId: id,
-      entityLabel: oldVisitor?.name,
-      oldData: oldVisitor as Record<string, unknown> | undefined,
-      newData: { ...oldVisitor, ...updates } as Record<string, unknown>,
-      metadata: { updates },
-    })
     notifyDataChanged('update')
   }
 
   async function deleteVisitor(id: string) {
-    const oldVisitor = visitors.find(visitor => visitor.id === id)
-    const { error } = await applyChapterScope(supabase
-      .from('visitors')
-      .delete()
-      .eq('id', id))
-
-    if (error) throw error
+    await apiSend(`visitors/${id}`, 'DELETE')
     await loadVisitors()
-    await logActivity({
-      action: 'delete',
-      entity: 'visitor',
-      entityId: id,
-      entityLabel: oldVisitor?.name,
-      oldData: oldVisitor as Record<string, unknown> | undefined,
-    })
     notifyDataChanged('delete')
   }
 
   async function addPic(pic: Omit<PIC, 'id'>) {
-    // Placeholder credential until the PIC sets a real password; random so the
-    // account can't be logged into with a guessable default.
-    const placeholderPassword = `unset-${crypto.randomUUID()}`
-    const basePayload = {
-      email: `pic+${Date.now()}@bnigrow.com`,
-      role: 'pic',
-      password_hash: placeholderPassword,
-      is_active: true,
-      organization_id: currentUser?.organization_id,
-    }
-
-    let { data, error }: { data: any | null; error: any } = await supabase
-      .from('users')
-      .insert(withCreateScope({
-        ...basePayload,
-        name: pic.name,
-        phone: pic.wa,
-        business_classification: pic.business_classification,
-      }))
-      .select('id, name, role, phone, business_classification, is_active')
-      .single()
-
-    if (error && error.message?.includes('business_classification')) {
-      const fallback = await supabase
-        .from('users')
-        .insert(withCreateScope({
-          ...basePayload,
-          name: pic.name,
-          phone: pic.wa,
-        }))
-        .select('id, name, role, phone, is_active')
-        .single()
-
-      data = fallback.data
-      error = fallback.error
-    }
-
-    if (error) throw error
-    await loadPics()
-    await logActivity({
-      action: 'insert',
-      entity: 'pic',
-      entityId: data.id,
-      entityLabel: data.name,
-      newData: data as Record<string, unknown>,
+    const data = await apiSend<any>('pics', 'POST', {
+      name: pic.name,
+      email: pic.email,
+      phone: pic.wa,
+      business_classification: pic.business_classification,
+      role: pic.role,
     })
+    await loadPics()
     notifyDataChanged('insert')
-
     return {
       id: data.id,
       name: data.name,
       role: data.role || 'PIC',
       wa: data.phone || '',
+      email: data.email || '',
       business_classification: data.business_classification || '',
       is_active: data.is_active,
-    }
+    } as PIC
   }
 
   async function updatePic(id: string, updates: Partial<PIC>) {
-    const oldPic = pics.find(pic => pic.id === id)
-    let { error } = await applyChapterScope(supabase
-      .from('users')
-      .update({
-        name: updates.name,
-        role: updates.role,
-        phone: updates.wa,
-        business_classification: updates.business_classification,
-      })
-      .eq('id', id))
-
-    if (error && error.message?.includes('business_classification')) {
-      const fallback = await applyChapterScope(supabase
-        .from('users')
-        .update({
-          name: updates.name,
-          role: updates.role,
-          phone: updates.wa,
-        })
-        .eq('id', id))
-
-      error = fallback.error
-    }
-
-    if (error) throw error
-    await loadPics()
-    await logActivity({
-      action: 'update',
-      entity: 'pic',
-      entityId: id,
-      entityLabel: updates.name || oldPic?.name,
-      oldData: oldPic as Record<string, unknown> | undefined,
-      newData: { ...oldPic, ...updates } as Record<string, unknown>,
-      metadata: { updates },
+    await apiSend(`pics/${id}`, 'PATCH', {
+      name: updates.name,
+      phone: updates.wa,
+      business_classification: updates.business_classification,
+      role: updates.role,
     })
+    await loadPics()
     notifyDataChanged('update')
   }
 
   async function deletePic(id: string) {
-    const oldPic = pics.find(pic => pic.id === id)
-    const { error } = await applyChapterScope(supabase
-      .from('users')
-      .update({ is_active: false })
-      .eq('id', id))
-
-    if (error) throw error
+    await apiSend(`pics/${id}`, 'DELETE')
     await loadPics()
-    await logActivity({
-      action: 'delete',
-      entity: 'pic',
-      entityId: id,
-      entityLabel: oldPic?.name,
-      oldData: oldPic as Record<string, unknown> | undefined,
-      newData: { ...oldPic, is_active: false } as Record<string, unknown>,
-    })
     notifyDataChanged('delete')
   }
 
   async function addMeeting(meeting: Partial<Meeting>) {
-    const { data, error } = await supabase
-      .from('meetings')
-      .insert(withCreateScope(meeting))
-      .select()
-      .single()
-
-    if (error) throw error
+    const data = await apiSend<Meeting>('meetings', 'POST', meeting as Record<string, unknown>)
     await loadMeetings()
-    await logActivity({
-      action: 'insert',
-      entity: 'meeting',
-      entityId: data.id,
-      entityLabel: data.title,
-      newData: data as Record<string, unknown>,
-    })
     notifyDataChanged('insert')
     return data
   }
 
   async function updateMeeting(id: string, updates: Partial<Meeting>) {
-    const oldMeeting = meetings.find(meeting => meeting.id === id)
-    const { error } = await applyChapterScope(supabase
-      .from('meetings')
-      .update(updates)
-      .eq('id', id))
-
-    if (error) throw error
+    await apiSend(`meetings/${id}`, 'PATCH', updates as Record<string, unknown>)
     await loadMeetings()
-    await logActivity({
-      action: 'update',
-      entity: 'meeting',
-      entityId: id,
-      entityLabel: updates.title || oldMeeting?.title,
-      oldData: oldMeeting as Record<string, unknown> | undefined,
-      newData: { ...oldMeeting, ...updates } as Record<string, unknown>,
-      metadata: { updates },
-    })
     notifyDataChanged('update')
   }
 
   async function deleteMeeting(id: string) {
-    const oldMeeting = meetings.find(meeting => meeting.id === id)
-    const { error } = await applyChapterScope(supabase
-      .from('meetings')
-      .delete()
-      .eq('id', id))
-
-    if (error) throw error
+    await apiSend(`meetings/${id}`, 'DELETE')
     await loadMeetings()
-    await logActivity({
-      action: 'delete',
-      entity: 'meeting',
-      entityId: id,
-      entityLabel: oldMeeting?.title,
-      oldData: oldMeeting as Record<string, unknown> | undefined,
-    })
     notifyDataChanged('delete')
   }
 

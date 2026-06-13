@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useData, VisitorWithRelations } from '@/hooks/useData'
-import { supabase, User } from '@/lib/supabase'
+import { User } from '@/lib/supabase'
 import { isNationalAdmin } from '@/lib/permissions'
 import { getChapterRoute } from '@/lib/chapterRoute'
 import VisitorDetail from './VisitorDetail'

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useData, Member } from '@/hooks/useData'
-import { supabase, User } from '@/lib/supabase'
-import { logActivity } from '@/lib/activityLog'
+import { User } from '@/lib/supabase'
+import { apiSend } from '@/lib/dataClient'
 import { getUserLevelLabel, isNationalAdmin } from '@/lib/permissions'
 import { useChapterBranding } from '@/hooks/useChapterBranding'
 
@@ -112,128 +112,19 @@ export default function Members() {
     setFormData(initialForm)
   }
 
+  // Account creation / password reset is enforced server-side: chapter,
+  // organization, role preservation, and cross-chapter / admin-email guards all
+  // live in the scoped sync-member route. The client only forwards intent.
   const syncMemberAccount = async (member: MemberForm, previousEmail?: string) => {
-    const email = member.email.trim().toLowerCase()
-    const oldEmail = previousEmail?.trim().toLowerCase()
-    const password = member.password.trim()
-
+    const email = member.email.trim()
     if (!email) return
 
-    const lookupEmails = Array.from(new Set([oldEmail, email].filter(Boolean) as string[]))
-    const { data: existingUsers, error: findError } = await supabase
-      .from('users')
-      .select('id, email, role, chapter_id')
-      .in('email', lookupEmails)
-
-    if (findError) throw findError
-
-    const users = existingUsers || []
-    const accountByOldEmail = oldEmail ? users.find(user => user.email?.toLowerCase() === oldEmail) : undefined
-    const accountByNewEmail = users.find(user => user.email?.toLowerCase() === email)
-    const account = accountByOldEmail || accountByNewEmail
-
-    if (account) {
-      if (['admin', 'national_admin', 'chapter_admin'].includes(account.role)) {
-        throw new Error(`Email ${email} sudah dipakai akun admin. Gunakan email member lain.`)
-      }
-
-      if (
-        account.chapter_id &&
-        currentUser?.chapter_id &&
-        account.chapter_id !== currentUser.chapter_id &&
-        !isNationalAdmin(currentUser)
-      ) {
-        throw new Error(`Email ${email} sudah dipakai akun di chapter lain. Gunakan email member dari chapter ini.`)
-      }
-
-      const targetEmailIsUsedByAnotherAccount = accountByNewEmail && accountByOldEmail && accountByNewEmail.id !== accountByOldEmail.id
-      const updates: Record<string, string | boolean | undefined | null> = {
-        name: member.name.trim(),
-        phone: member.phone.trim() || undefined,
-        is_active: true,
-      }
-
-      if (currentUser?.organization_id) {
-        updates.organization_id = currentUser.organization_id
-      }
-
-      if (currentUser?.chapter_id) {
-        updates.chapter_id = currentUser.chapter_id
-      }
-
-      if (!targetEmailIsUsedByAnotherAccount) {
-        updates.email = email
-      }
-
-      const { error: updateError } = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', account.id)
-
-      if (updateError) throw updateError
-
-      if (password) {
-        const pwRes = await fetch('/api/accounts/set-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: account.id, password }),
-        })
-        if (!pwRes.ok) {
-          const pwData = await pwRes.json()
-          throw new Error(pwData.error || 'Gagal menyimpan password.')
-        }
-      }
-
-      await logActivity({
-        action: 'update',
-        entity: password ? 'user_password' : 'user_account',
-        entityId: account.id,
-        entityLabel: email,
-        metadata: {
-          source: 'member_management',
-          password_changed: Boolean(password),
-          role_preserved: account.role,
-        },
-      })
-      return
-    }
-
-    if (!password) return
-
-    const { error: insertError } = await supabase
-      .from('users')
-      .insert({
-        name: member.name.trim(),
-        email,
-        password_hash: `unset-${crypto.randomUUID()}`,
-        role: 'pic',
-        phone: member.phone.trim() || null,
-        is_active: true,
-        organization_id: currentUser?.organization_id || null,
-        chapter_id: currentUser?.chapter_id || null,
-      })
-
-    if (insertError) throw insertError
-
-    const pwRes = await fetch('/api/accounts/set-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
-    if (!pwRes.ok) {
-      const pwData = await pwRes.json()
-      throw new Error(pwData.error || 'Gagal menyimpan password.')
-    }
-
-    await logActivity({
-      action: 'insert',
-      entity: 'user_account',
-      entityLabel: email,
-      metadata: {
-        source: 'member_management',
-        role: 'pic',
-        password_created: true,
-      },
+    await apiSend('accounts/sync-member', 'POST', {
+      name: member.name,
+      email,
+      phone: member.phone,
+      oldEmail: previousEmail,
+      password: member.password.trim() || undefined,
     })
   }
 

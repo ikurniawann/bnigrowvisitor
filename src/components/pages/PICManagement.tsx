@@ -2,10 +2,7 @@
 
 import { useState } from 'react'
 import { useData } from '@/hooks/useData'
-import { supabase } from '@/lib/supabase'
-import { notifyDataChanged } from '@/lib/ui/toast'
 import { saveLocalPicBusinessClassification } from '@/lib/picBusinessClassification'
-import { isNationalAdmin } from '@/lib/permissions'
 
 interface PICForm {
   member_id: string
@@ -25,19 +22,8 @@ const initialForm: PICForm = {
   email: '',
 }
 
-function getCurrentUserScope(): any | null {
-  if (typeof window === 'undefined') return null
-
-  try {
-    const storedUser = localStorage.getItem('user')
-    return storedUser ? JSON.parse(storedUser) : null
-  } catch {
-    return null
-  }
-}
-
 export default function PICManagement() {
-  const { pics, visitors, members, loading, reload, updatePic, deletePic } = useData()
+  const { pics, visitors, members, loading, reload, addPic, updatePic, deletePic } = useData()
   
   // State
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -155,118 +141,23 @@ export default function PICManagement() {
         }
 
         const memberEmail = (memberForPic.email || '').trim()
-        const generatedEmail = `member+${memberForPic.id}@bnigrow.com`
-        const picEmail = memberEmail || generatedEmail
-        const currentUser = getCurrentUserScope()
-        const picPayload: Record<string, any> = {
+        const picEmail = memberEmail || `member+${memberForPic.id}@bnigrow.com`
+        const businessClassification =
+          formData.business_classification || memberForPic.business_field || ''
+
+        // Server route owns chapter/org assignment, admin-email and cross-chapter
+        // guards, and the placeholder password. It returns the created PIC.
+        const createdPic = await addPic({
           name: memberForPic.name,
+          role: formData.role,
+          wa: memberForPic.phone || '',
           email: picEmail,
-          password_hash: `unset-${crypto.randomUUID()}`,
-          role: 'pic',
-          phone: memberForPic.phone || '',
-          business_classification: formData.business_classification || memberForPic.business_field || '',
-          is_active: true,
+          business_classification: businessClassification,
+        })
+
+        if (createdPic?.id) {
+          saveLocalPicBusinessClassification(createdPic.id, businessClassification)
         }
-
-        if (currentUser?.organization_id) {
-          picPayload.organization_id = currentUser.organization_id
-        }
-
-        if (currentUser?.chapter_id) {
-          picPayload.chapter_id = currentUser.chapter_id
-        }
-
-        const existingUser = await supabase
-          .from('users')
-          .select('id, role, name, chapter_id')
-          .eq('email', picEmail)
-          .maybeSingle()
-
-        if (existingUser.error) throw existingUser.error
-
-        const existingRole = existingUser.data?.role
-        const existingName = existingUser.data?.name || picEmail
-
-        if (existingRole && ['admin', 'national_admin', 'chapter_admin'].includes(existingRole)) {
-          setError(`Email ${picEmail} sudah dipakai akun admin (${existingName}). Gunakan member lain atau ubah data email member terlebih dahulu.`)
-          setSaving(false)
-          return
-        }
-
-        if (
-          existingUser.data?.chapter_id &&
-          currentUser?.chapter_id &&
-          existingUser.data.chapter_id !== currentUser.chapter_id &&
-          !isNationalAdmin(currentUser)
-        ) {
-          setError(`Email ${picEmail} sudah dipakai PIC/member di chapter lain. Gunakan member dari chapter ini.`)
-          setSaving(false)
-          return
-        }
-
-        let insertedPic: any | null = null
-        let insertError: any = null
-
-        if (existingUser.data?.id) {
-          const { password_hash: _ph, ...picUpdatePayload } = picPayload
-          let updateResult = await supabase
-            .from('users')
-            .update(picUpdatePayload)
-            .eq('id', existingUser.data.id)
-            .select('id')
-            .single()
-
-          if (updateResult.error && updateResult.error.message?.includes('business_classification')) {
-            updateResult = await supabase
-              .from('users')
-              .update({
-                name: picPayload.name,
-                email: picPayload.email,
-                role: picPayload.role,
-                phone: picPayload.phone,
-                is_active: picPayload.is_active,
-              })
-              .eq('id', existingUser.data.id)
-              .select('id')
-              .single()
-          }
-
-          insertedPic = updateResult.data
-          insertError = updateResult.error
-        } else {
-          const insertResult = await supabase
-            .from('users')
-            .insert(picPayload)
-            .select('id')
-            .single()
-
-          insertedPic = insertResult.data
-          insertError = insertResult.error
-
-          if (insertError && insertError.message?.includes('business_classification')) {
-            const fallback = await supabase
-              .from('users')
-              .insert({
-                name: picPayload.name,
-                email: picPayload.email,
-                password_hash: picPayload.password_hash,
-                role: picPayload.role,
-                phone: picPayload.phone,
-                is_active: picPayload.is_active,
-              })
-              .select('id')
-              .single()
-
-            insertedPic = fallback.data
-            insertError = fallback.error
-          }
-        }
-
-        if (insertError) throw insertError
-        if (insertedPic?.id) {
-          saveLocalPicBusinessClassification(insertedPic.id, picPayload.business_classification)
-        }
-        notifyDataChanged('insert')
       }
 
       setIsModalOpen(false)
