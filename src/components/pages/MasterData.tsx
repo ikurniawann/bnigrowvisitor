@@ -446,7 +446,6 @@ export default function MasterData({
                 <select className={selectClass} value={domainForm.type} onChange={event => setDomainForm(prev => ({ ...prev, type: event.target.value }))}>
                   <option value="subdomain">Subdomain</option>
                   <option value="custom_domain">Custom Domain</option>
-                  <option value="localhost">Localhost</option>
                 </select>
                 <label className="flex h-11 items-center gap-2 rounded-xl border border-gray-200 bg-white/80 px-3 text-sm font-bold text-gray-700">
                   <input type="checkbox" checked={domainForm.is_primary} onChange={event => setDomainForm(prev => ({ ...prev, is_primary: event.target.checked }))} />
@@ -457,9 +456,9 @@ export default function MasterData({
                 </button>
               </form>
 
-              {domains.length === 0 ? <EmptyState label="domain" /> : (
+              {domains.filter(d => !d.domain.includes('vercel') && !d.domain.includes('localhost')).length === 0 ? <EmptyState label="domain" /> : (
                 <div className="overflow-hidden rounded-2xl border border-gray-100">
-                  {domains.map(domain => (
+                  {domains.filter(d => !d.domain.includes('vercel') && !d.domain.includes('localhost')).map(domain => (
                     <div key={domain.id} className="grid gap-3 border-b border-gray-100 bg-white/70 p-4 last:border-b-0 md:grid-cols-[1fr_1fr_1fr_auto] md:items-center">
                       <div>
                         <div className="font-bold text-gray-950">{domain.domain}</div>

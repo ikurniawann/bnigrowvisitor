@@ -175,7 +175,7 @@ export default function LoginPage() {
           {/* Logo */}
           <div>
             <Image
-              src="/logo-bni-grow.png"
+              src="/logo-bni.png"
               alt={`${branding.displayName} Logo`}
               width={160}
               height={64}
@@ -198,16 +198,16 @@ export default function LoginPage() {
             {/* Features */}
             <div className="grid grid-cols-3 gap-6 pt-8">
               <div>
-                <div className="text-3xl font-bold text-white mb-1">90+</div>
+                <div className="text-3xl font-bold text-white mb-1">1659+</div>
                 <div className="text-sm text-red-200">Active Members</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-white mb-1">Weekly</div>
-                <div className="text-sm text-red-200">Meetings</div>
+                <div className="text-3xl font-bold text-white mb-1">25+</div>
+                <div className="text-sm text-red-200">Chapters</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-white mb-1">Real-time</div>
-                <div className="text-sm text-red-200">Tracking</div>
+                <div className="text-3xl font-bold text-white mb-1">6+</div>
+                <div className="text-sm text-red-200">Cities</div>
               </div>
             </div>
           </div>
@@ -225,7 +225,7 @@ export default function LoginPage() {
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <Image
-              src="/logo-bni-grow.png"
+              src="/logo-bni.png"
               alt={`${branding.displayName} Logo`}
               width={120}
               height={48}
