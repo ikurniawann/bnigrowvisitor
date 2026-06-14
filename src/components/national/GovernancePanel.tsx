@@ -129,7 +129,26 @@ export default function GovernancePanel() {
 function LoginTable({ rows, chapterName }: { rows: LoginRow[]; chapterName: (id: string | null) => string }) {
   if (rows.length === 0) return <Empty text="Belum ada catatan login." />
   return (
-    <div className="overflow-x-auto">
+    <>
+      {/* Mobile: card view */}
+      <div className="sm:hidden divide-y divide-gray-100">
+        {rows.map(row => (
+          <div key={row.id} className="p-3">
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <p className="font-medium text-gray-800 text-sm truncate">{row.email || '—'}</p>
+              <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${row.success ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                {row.success ? 'Sukses' : row.reason === 'user_not_found' ? 'Email salah' : 'Password salah'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>{chapterName(row.chapter_id)}</span>
+              <span>{formatDateTime(row.created_at)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Desktop: table */}
+      <div className="hidden sm:block overflow-x-auto">
       <table className="w-full text-left text-xs">
         <thead>
           <tr className="border-b border-gray-100 text-[11px] uppercase tracking-wide text-gray-400">
@@ -156,14 +175,33 @@ function LoginTable({ rows, chapterName }: { rows: LoginRow[]; chapterName: (id:
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   )
 }
 
 function ActivityTable({ rows, chapterName }: { rows: ActivityRow[]; chapterName: (id: string | null) => string }) {
   if (rows.length === 0) return <Empty text="Belum ada perubahan data." />
   return (
-    <div className="overflow-x-auto">
+    <>
+      {/* Mobile: card view */}
+      <div className="sm:hidden divide-y divide-gray-100">
+        {rows.map(row => (
+          <div key={row.id} className="p-3">
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <p className="font-medium text-gray-800 text-sm truncate">{row.actor_name || row.actor_email || '—'}</p>
+              <span className="flex-shrink-0 text-xs text-gray-500">{row.action}</span>
+            </div>
+            <p className="text-xs text-gray-600 mb-1 truncate">{row.entity}{row.entity_label ? ` · ${row.entity_label}` : ''}</p>
+            <div className="flex items-center justify-between text-xs text-gray-400">
+              <span>{chapterName(row.chapter_id)}</span>
+              <span>{formatDateTime(row.created_at)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Desktop: table */}
+      <div className="hidden sm:block overflow-x-auto">
       <table className="w-full text-left text-xs">
         <thead>
           <tr className="border-b border-gray-100 text-[11px] uppercase tracking-wide text-gray-400">
@@ -186,7 +224,8 @@ function ActivityTable({ rows, chapterName }: { rows: ActivityRow[]; chapterName
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   )
 }
 

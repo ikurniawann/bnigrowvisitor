@@ -331,7 +331,93 @@ export default function Members() {
 
       {/* Members Table */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="overflow-x-auto">
+
+        {/* Mobile: card view */}
+        <div className="sm:hidden divide-y divide-gray-100">
+          {paginatedMembers.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              <svg className="w-12 h-12 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <p className="text-sm">Belum ada member</p>
+              <button onClick={handleOpenAdd} disabled={!isSuperAdmin} className="mt-3 text-red-600 text-sm font-medium">
+                + Tambah member pertama
+              </button>
+            </div>
+          ) : paginatedMembers.map((member, index) => (
+            <div key={member.id} className="p-4">
+              {/* Row 1: nama + status */}
+              <div className="flex items-start justify-between gap-2 mb-1.5">
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{member.name}</p>
+                  {member.phone && <p className="text-xs text-gray-500 mt-0.5">{member.phone}</p>}
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                    member.status === 'active' ? 'bg-emerald-100 text-emerald-800' :
+                    member.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {member.status === 'active' ? 'Aktif' : member.status === 'inactive' ? 'Tidak Aktif' : 'Suspended'}
+                  </span>
+                  <span className="text-xs text-gray-400">#{index + 1}</span>
+                </div>
+              </div>
+
+              {/* Row 2: bidang usaha + perusahaan */}
+              {(member.business_field || member.company) && (
+                <p className="text-xs text-gray-600 mb-1.5 truncate">
+                  {member.business_field}{member.company ? ` • ${member.company}` : ''}
+                </p>
+              )}
+
+              {/* Row 3: email + akun */}
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-gray-600 truncate">{member.email || 'Belum ada email'}</p>
+                <span className={`ml-2 flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  member.account_active ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {member.account_active
+                    ? `Akun ${getUserLevelLabel({ role: member.account_role as any, email: member.email || '' })}`
+                    : 'Belum ada akun'}
+                </span>
+              </div>
+
+              {/* Row 4: actions */}
+              <div className="flex gap-2">
+                {canEditMember(member) ? (
+                  <button
+                    onClick={() => handleOpenEdit(member)}
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    Edit
+                  </button>
+                ) : (
+                  <span className="text-xs text-gray-400 self-center">Terkunci</span>
+                )}
+                {isSuperAdmin && (
+                  <button
+                    onClick={() => handleDelete(member.id, member.name)}
+                    className="flex items-center justify-center rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gradient-to-r from-red-600 to-red-700">
               <tr className="text-[11px] text-white font-bold uppercase tracking-wide">

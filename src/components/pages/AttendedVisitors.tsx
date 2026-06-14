@@ -434,6 +434,74 @@ export default function AttendedVisitors() {
           </h3>
         </div>
         
+        {/* Mobile: card view */}
+        {paginatedVisitors.length > 0 && (
+          <div className="sm:hidden divide-y divide-gray-100">
+            {paginatedVisitors.map((visitor, index) => (
+              <div key={visitor.id} className={`p-4 ${getAirtimeOption(visitor) ? 'border-l-4 ' + getAirtimeOption(visitor)?.color : ''}`}>
+                {/* Row 1: name + date + status */}
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{visitor.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {visitor.meeting_date ? new Date(visitor.meeting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
+                      {visitor.business_field ? ` • ${visitor.business_field}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${getAirtimeOption(visitor)?.badge || 'bg-gray-100 text-gray-800'}`}>
+                      {getAirtimeStatusLabel(visitor)}
+                    </span>
+                    <span className="text-xs text-gray-400">#{startIndex + index + 1}</span>
+                  </div>
+                </div>
+
+                {/* Row 2: WA + PIC */}
+                <div className="flex items-center justify-between mb-2">
+                  <a
+                    href={`https://wa.me/${visitor.phone?.replace(/^0/, '62')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-green-600 font-medium"
+                  >{visitor.phone}</a>
+                  {visitor.pic_name && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-800">
+                      <span className="w-3.5 h-3.5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[9px]">
+                        {visitor.pic_name.charAt(0).toUpperCase()}
+                      </span>
+                      {visitor.pic_name}
+                    </span>
+                  )}
+                </div>
+
+                {/* Row 3: weekly meeting + actions */}
+                <div className="flex items-center justify-between">
+                  <span className="inline-block rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                    {getWeeklyMeetingLabel(visitor)}
+                  </span>
+                  <div className="flex gap-2">
+                    {visitor.status === 'attended' && getAirtimeChoice(visitor) === 1 && (
+                      <button
+                        onClick={() => { setSelectedVisitor(visitor); setShowSubStatusModal(true) }}
+                        className="rounded-xl bg-red-600 px-2.5 py-1.5 text-[11px] font-medium text-white"
+                      >Tindak Lanjut</button>
+                    )}
+                    {visitor.status === 'attended' && getAirtimeChoice(visitor) === 2 && (
+                      <button
+                        onClick={() => { setSelectedVisitor(visitor); setShowSubStatusModal(true) }}
+                        className="rounded-xl bg-amber-100 px-2.5 py-1.5 text-[11px] font-medium text-amber-800"
+                      >Follow-up</button>
+                    )}
+                    <button
+                      onClick={() => handleOpenDetail(visitor)}
+                      className="rounded-xl bg-blue-50 border border-blue-200 px-2.5 py-1.5 text-[11px] font-semibold text-blue-700"
+                    >Detail</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {paginatedVisitors.length === 0 ? (
           <div className="p-12 text-center">
             <svg className="w-16 h-16 mx-auto mb-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -445,7 +513,7 @@ export default function AttendedVisitors() {
             <p className="text-gray-500">Belum ada visitor dengan status ini</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gradient-to-r from-red-600 to-red-700">
                 <tr className="text-[11px] text-white font-bold uppercase tracking-wide">

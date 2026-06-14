@@ -294,6 +294,67 @@ export default function PICManagement() {
           <h3 className="text-sm font-semibold text-gray-800">Daftar PIC</h3>
         </div>
         
+        {/* Mobile: card view */}
+        {pics.length > 0 && (
+          <div className="sm:hidden divide-y divide-gray-100">
+            {pics.map((pic) => {
+              const workload = getPICWorkload(pic.id)
+              const isActive = pic.is_active !== false
+              return (
+                <div key={pic.id} className={`p-4 ${!isActive ? 'opacity-50' : ''}`}>
+                  {/* Row 1: avatar + name + active status */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      {pic.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm">{pic.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {pic.role || 'Visitor Followup Specialist'}
+                        {!isActive && <span className="ml-1 text-red-500">· Non-aktif</span>}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 text-[10px] font-semibold">{workload.active} aktif</span>
+                    </div>
+                  </div>
+
+                  {/* Row 2: WA + classification */}
+                  <div className="flex items-center justify-between mb-3">
+                    <a
+                      href={`https://wa.me/${pic.wa?.replace(/^0/, '62')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-green-600 font-medium"
+                    >{pic.wa || '-'}</a>
+                    {pic.business_classification && (
+                      <span className="text-xs text-gray-500">{pic.business_classification}</span>
+                    )}
+                  </div>
+
+                  {/* Row 3: workload + actions */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">{workload.total} total visitor</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleOpenEdit(pic)}
+                        disabled={deletingId === pic.id}
+                        className="rounded-xl bg-gray-50 border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 disabled:opacity-50"
+                      >Edit</button>
+                      <button
+                        onClick={() => handleDelete(pic.id)}
+                        disabled={deletingId === pic.id}
+                        className="rounded-xl bg-red-50 border border-red-200 px-3 py-1.5 text-xs text-red-600 disabled:opacity-50"
+                      >
+                        {deletingId === pic.id ? '...' : 'Hapus'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
         {pics.length === 0 ? (
           <div className="p-12 text-center">
             <svg className="w-16 h-16 mx-auto mb-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -311,7 +372,7 @@ export default function PICManagement() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr className="text-[11px] text-gray-600 uppercase tracking-wide">

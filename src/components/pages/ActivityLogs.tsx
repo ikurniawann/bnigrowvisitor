@@ -195,7 +195,46 @@ export default function ActivityLogs() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+        {/* Mobile: card view */}
+        <div className="sm:hidden divide-y divide-gray-100">
+          {filteredLogs.length === 0 ? (
+            <div className="px-4 py-12 text-center text-sm text-gray-500">Belum ada log aktivitas.</div>
+          ) : filteredLogs.map(log => {
+            const changedFields = getChangedFields(log)
+            return (
+              <div key={log.id} className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <div className="min-w-0">
+                    <p className="font-bold text-gray-900 text-sm truncate">{log.actor_name || 'System'}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{log.actor_email || '-'}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${actionStyles[log.action] || 'bg-gray-100 text-gray-700'}`}>
+                      {actionLabels[log.action] || log.action}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600 mb-1.5 capitalize">
+                  <span className="font-medium">{log.entity.replace(/_/g, ' ')}</span>
+                  {log.entity_label ? ` · ${log.entity_label}` : ''}
+                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] text-gray-400">{formatDateTime(log.created_at)}</p>
+                  {changedFields.length > 0 && (
+                    <div className="flex flex-wrap gap-1 justify-end">
+                      {changedFields.slice(0, 3).map(field => (
+                        <span key={field} className="rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-800">{field}</span>
+                      ))}
+                      {changedFields.length > 3 && <span className="text-[10px] text-gray-400">+{changedFields.length - 3}</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        {/* Desktop: table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full min-w-[920px]">
             <thead className="bg-gradient-to-r from-red-600 to-orange-500 text-left text-[11px] font-bold uppercase tracking-wide text-white">
               <tr>

@@ -1123,7 +1123,37 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
             Lihat Semua →
           </button>
         </div>
-        <div className="overflow-x-auto">
+        {/* Mobile: card view */}
+        <div className="sm:hidden divide-y divide-gray-100">
+          {recentVisitors.length === 0 ? (
+            <div className="px-4 py-8 text-center text-gray-500 text-sm">
+              Belum ada visitor. Klik &quot;Tambah Visitor&quot; untuk menambahkan.
+            </div>
+          ) : recentVisitors.map((visitor) => (
+            <div
+              key={visitor.id}
+              onClick={() => handleOpenDetail(visitor)}
+              className="cursor-pointer p-4 hover:bg-gray-50 active:bg-gray-100"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{visitor.name}</p>
+                  {(visitor.business_field || visitor.phone) && (
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">
+                      {visitor.business_field || '-'}{visitor.phone ? ` • ${visitor.phone}` : ''}
+                    </p>
+                  )}
+                </div>
+                <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${getStatusBadgeClass(visitor.status)}`}>
+                  {STATUSES[visitor.status as keyof typeof STATUSES]?.label || visitor.status}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 text-xs text-gray-600">
