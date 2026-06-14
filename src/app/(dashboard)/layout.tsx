@@ -220,7 +220,7 @@ export default function DashboardLayout({
         </div>
       </div>
       <GrowAssistant />
-      {!isFullscreen && <MobileTabBar currentPage={currentPage} />}
+      {!isFullscreen && !isNationalArea && <MobileTabBar currentPage={currentPage} />}
     </DashboardContext.Provider>
   )
 }
