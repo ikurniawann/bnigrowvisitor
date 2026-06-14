@@ -173,6 +173,7 @@ export default function DashboardLayout({
   // Check if current page should be fullscreen
   const isFullscreen = FULLSCREEN_PAGES.includes(pathname) || currentPage === 'kanban'
   const isNationalArea = ['national-overview', 'national-governance', 'national-policies', 'national-dashboard', 'master'].includes(currentPage)
+  const isChapterRoute = pathname.startsWith('/chapter/')
 
   if (loading) {
     return (
@@ -220,7 +221,7 @@ export default function DashboardLayout({
         </div>
       </div>
       <GrowAssistant />
-      {!isFullscreen && !isNationalArea && currentPage !== 'chapter-dashboard' && <MobileTabBar currentPage={currentPage} />}
+      {!isFullscreen && !isNationalArea && !isChapterRoute && currentPage !== 'chapter-dashboard' && <MobileTabBar currentPage={currentPage} />}
     </DashboardContext.Provider>
   )
 }
