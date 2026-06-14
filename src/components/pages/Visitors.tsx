@@ -347,6 +347,7 @@ export default function Visitors() {
     const settings = getWaTemplateSettings()
     const sapaan = visitor.gender === 'Ibu' ? 'Ibu' : 'Bapak'
     const template = settings.templates[settings.activeMode]
+    const confirmLink = `${window.location.origin}/wm/${visitor.id}`
     const message = renderWaTemplate(template, {
       sapaan,
       nama: visitor.name,
@@ -359,6 +360,7 @@ export default function Visitors() {
       chapter: visitor.chapter || chapterBranding.displayName,
       bidang_usaha: visitor.business_field || '',
       perusahaan: visitor.company || '',
+      link_hadir: confirmLink,
     })
 
     return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`

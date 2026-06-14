@@ -26,6 +26,7 @@ const sampleValues = {
   chapter: 'Grow',
   bidang_usaha: 'Legal & Accounting',
   perusahaan: 'Agung trans solusindo',
+  link_hadir: 'https://grow.bni-vh.com/wm/abc123-contoh',
 }
 
 const modeLabels: Record<WaTemplateMode, string> = {

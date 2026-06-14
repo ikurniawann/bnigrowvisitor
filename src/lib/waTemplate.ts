@@ -19,6 +19,7 @@ export interface WaTemplateVariables {
   chapter?: string
   bidang_usaha?: string
   perusahaan?: string
+  link_hadir?: string
 }
 
 const STORAGE_KEY = 'bni-grow-wa-template-settings'
@@ -29,15 +30,15 @@ export const DEFAULT_WA_TEMPLATES: Record<WaTemplateMode, string> = {
 Perkenalkan saya {pic_nama} Visitor Host {chapter} dengan bisnis {pic_bisnis}
 Chapter {chapter}.
 
-Anda diundang oleh Bapak/Ibu {diajak_oleh} untuk ikut weekly 
+Anda diundang oleh Bapak/Ibu {diajak_oleh} untuk ikut weekly
 meeting {chapter} besok:
 {tanggal_meeting}
 Pagi jam {jam_meeting} WIB
 
-Mohon konfirmasi, apakah {sapaan} {nama} akan hadir 
-di online meeting besok jam 7.30 pagi?
+Mohon konfirmasi kehadiran {sapaan} {nama} dengan klik link berikut:
+{link_hadir}
 
-Konfirmasi kehadiran ini penting untuk menentukan pembagian 
+Konfirmasi kehadiran ini penting untuk menentukan pembagian
 room/seat saat open networking.
 
 Terima kasih,
@@ -47,17 +48,17 @@ Visitor Host {chapter}`,
 Perkenalkan saya {pic_nama} Visitor Host {chapter} dengan bisnis {pic_bisnis}
 Chapter {chapter}.
 
-Anda diundang oleh Bapak/Ibu {diajak_oleh} untuk ikut weekly 
+Anda diundang oleh Bapak/Ibu {diajak_oleh} untuk ikut weekly
 meeting {chapter}:
 {tanggal_meeting}
 Pagi jam {jam_meeting} WIB
 
 Meeting akan dilaksanakan secara offline di [Lokasi Meeting].
 
-Mohon konfirmasi, apakah {sapaan} {nama} akan hadir 
-di offline meeting tersebut?
+Mohon konfirmasi kehadiran {sapaan} {nama} dengan klik link berikut:
+{link_hadir}
 
-Konfirmasi kehadiran ini penting untuk menentukan pembagian 
+Konfirmasi kehadiran ini penting untuk menentukan pembagian
 seat saat open networking.
 
 Terima kasih,
@@ -81,6 +82,7 @@ export const WA_TEMPLATE_VARIABLES = [
   '{chapter}',
   '{bidang_usaha}',
   '{perusahaan}',
+  '{link_hadir}',
 ]
 
 function normalizeTemplate(template: string, fallback: string) {
