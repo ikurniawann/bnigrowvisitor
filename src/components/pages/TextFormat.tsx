@@ -12,6 +12,7 @@ import {
   saveWaTemplateSettings,
 } from '@/lib/waTemplate'
 import { showToast } from '@/lib/ui/toast'
+import { useChapterBranding } from '@/hooks/useChapterBranding'
 
 const sampleValues = {
   sapaan: 'Bapak',
@@ -25,6 +26,7 @@ const sampleValues = {
   chapter: 'Grow',
   bidang_usaha: 'Legal & Accounting',
   perusahaan: 'Agung trans solusindo',
+  link_hadir: 'https://grow.bni-vh.com/wm/abc123-contoh',
 }
 
 const modeLabels: Record<WaTemplateMode, string> = {
@@ -35,6 +37,7 @@ const modeLabels: Record<WaTemplateMode, string> = {
 export default function TextFormat() {
   const [settings, setSettings] = useState<WaTemplateSettings>(DEFAULT_WA_TEMPLATE_SETTINGS)
   const [selectedMode, setSelectedMode] = useState<WaTemplateMode>('online')
+  const chapterBranding = useChapterBranding()
 
   useEffect(() => {
     const stored = getWaTemplateSettings()
@@ -43,8 +46,11 @@ export default function TextFormat() {
   }, [])
 
   const previewText = useMemo(() => {
-    return renderWaTemplate(settings.templates[selectedMode], sampleValues)
-  }, [selectedMode, settings.templates])
+    return renderWaTemplate(settings.templates[selectedMode], {
+      ...sampleValues,
+      chapter: chapterBranding.chapterName,
+    })
+  }, [chapterBranding.chapterName, selectedMode, settings.templates])
 
   const updateTemplate = (mode: WaTemplateMode, value: string) => {
     setSettings(prev => ({

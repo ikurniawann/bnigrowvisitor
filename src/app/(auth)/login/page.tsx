@@ -1,12 +1,23 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { changePassword, signIn, verifyOldPassword } from '@/lib/auth'
+import { isNationalAdmin } from '@/lib/permissions'
+import { getChapterRoute } from '@/lib/chapterRoute'
+
+interface LoginBranding {
+  name: string
+  displayName: string
+  cityName: string
+}
+
+const DEFAULT_BRANDING: LoginBranding = { name: 'BNI', displayName: 'BNI', cityName: '' }
 
 export default function LoginPage() {
   const router = useRouter()
+  const [branding, setBranding] = useState<LoginBranding>(DEFAULT_BRANDING)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -21,6 +32,26 @@ export default function LoginPage() {
   const [changeLoading, setChangeLoading] = useState(false)
   const [verifyLoading, setVerifyLoading] = useState(false)
 
+  // Pull branding from the domain's tenant so the login screen reflects the
+  // chapter, not a hardcoded one.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/tenant-context', { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(context => {
+        if (cancelled || !context?.chapter) return
+        setBranding({
+          name: context.chapter.name || context.chapter.display_name || 'BNI',
+          displayName: context.chapter.display_name || context.chapter.name || 'BNI',
+          cityName: context.city?.name || '',
+        })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -29,10 +60,10 @@ export default function LoginPage() {
 
     try {
       const result = await signIn(email, password)
-      
+
       if (result.success && result.user) {
         localStorage.setItem('user', JSON.stringify(result.user))
-        router.push('/dashboard')
+        router.push(isNationalAdmin(result.user) ? '/national-overview' : getChapterRoute('dashboard', result.user))
       } else {
         setError(result.error || 'Login gagal. Silakan coba lagi.')
       }
@@ -144,8 +175,8 @@ export default function LoginPage() {
           {/* Logo */}
           <div>
             <Image
-              src="/logo-bni-grow.png" 
-              alt="BNI Grow Logo"
+              src="/bni-logo.png"
+              alt={`${branding.displayName} Logo`}
               width={160}
               height={64}
               className="object-contain brightness-0 invert"
@@ -160,30 +191,30 @@ export default function LoginPage() {
                 Visitor Management System
               </h1>
               <p className="text-xl text-red-100 leading-relaxed tracking-[-0.01em]">
-                Kelola kunjungan dan networking BNI Grow dengan mudah — dari tracking visitor, manajemen member, hingga laporan meeting real-time.
+                Kelola kunjungan dan networking {branding.displayName} dengan mudah — dari tracking visitor, manajemen member, hingga laporan meeting real-time.
               </p>
             </div>
 
             {/* Features */}
             <div className="grid grid-cols-3 gap-6 pt-8">
               <div>
-                <div className="text-3xl font-bold text-white mb-1">90+</div>
+                <div className="text-3xl font-bold text-white mb-1">1659+</div>
                 <div className="text-sm text-red-200">Active Members</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-white mb-1">Weekly</div>
-                <div className="text-sm text-red-200">Meetings</div>
+                <div className="text-3xl font-bold text-white mb-1">25+</div>
+                <div className="text-sm text-red-200">Chapters</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-white mb-1">Real-time</div>
-                <div className="text-sm text-red-200">Tracking</div>
+                <div className="text-3xl font-bold text-white mb-1">6+</div>
+                <div className="text-sm text-red-200">Cities</div>
               </div>
             </div>
           </div>
 
           {/* Footer */}
           <div className="text-sm text-red-200">
-            © 2026 BNI Grow Jakarta. All rights reserved.
+            © {new Date().getFullYear()} {branding.name}{branding.cityName ? ` ${branding.cityName}` : ''}. All rights reserved.
           </div>
         </div>
       </div>
@@ -194,8 +225,8 @@ export default function LoginPage() {
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <Image
-              src="/logo-bni-grow.png" 
-              alt="BNI Grow Logo"
+              src="/bni-logo.png"
+              alt={`${branding.displayName} Logo`}
               width={120}
               height={48}
               className="mx-auto object-contain"

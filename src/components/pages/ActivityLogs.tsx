@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ActivityLog, loadActivityLogs } from '@/lib/activityLog'
 import { User } from '@/lib/supabase'
-
-const SUPER_ADMIN_EMAIL = 'admin@bnigrow.com'
+import { getUserLevelLabel, isNationalAdmin, NATIONAL_ADMIN_EMAIL } from '@/lib/permissions'
 
 const actionLabels: Record<string, string> = {
   insert: 'Insert',
@@ -49,7 +48,7 @@ export default function ActivityLogs() {
   const [actionFilter, setActionFilter] = useState('')
   const [entityFilter, setEntityFilter] = useState('')
 
-  const isSuperAdmin = currentUser?.email?.toLowerCase() === SUPER_ADMIN_EMAIL
+  const isSuperAdmin = isNationalAdmin(currentUser)
 
   useEffect(() => {
     try {
@@ -227,7 +226,9 @@ export default function ActivityLogs() {
                         <div className="text-[13px] font-bold text-gray-950">{log.actor_name || 'System'}</div>
                         <div className="text-xs text-gray-500">{log.actor_email || '-'}</div>
                         <div className="mt-1 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-gray-600">
-                          {log.actor_email === SUPER_ADMIN_EMAIL ? 'Super Admin' : (log.actor_role || 'PIC')}
+                          {log.actor_email === NATIONAL_ADMIN_EMAIL || log.actor_role === 'national_admin'
+                            ? 'National Admin'
+                            : getUserLevelLabel({ role: log.actor_role as any, email: log.actor_email || '' })}
                         </div>
                       </td>
                       <td className="px-4 py-4">

@@ -5,7 +5,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholde
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export type UserRole = 'admin' | 'pic' | 'member'
+export type UserRole = 'admin' | 'national_admin' | 'chapter_admin' | 'pic' | 'member'
 
 export type VisitorStatus = 
   | 'new'
@@ -22,6 +22,13 @@ export interface User {
   name: string
   email: string
   role: UserRole
+  organization_id?: string
+  chapter_id?: string
+  organization_name?: string
+  chapter_name?: string
+  chapter_display_name?: string
+  area_name?: string
+  city_name?: string
   phone?: string
   avatar_url?: string
   is_active: boolean
@@ -31,6 +38,7 @@ export interface User {
 
 export interface Visitor {
   id: string
+  chapter_id?: string
   name: string
   phone: string
   email?: string
@@ -54,6 +62,7 @@ export interface Visitor {
 
 export interface Meeting {
   id: string
+  chapter_id?: string
   title: string
   meeting_date: string
   location?: string

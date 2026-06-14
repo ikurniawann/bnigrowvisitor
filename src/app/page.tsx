@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { isNationalAdmin } from '@/lib/permissions'
+import { getChapterRoute } from '@/lib/chapterRoute'
 
 export default function Home() {
   const router = useRouter()
@@ -9,7 +11,8 @@ export default function Home() {
   useEffect(() => {
     const user = localStorage.getItem('user')
     if (user) {
-      router.push('/dashboard')
+      const parsedUser = JSON.parse(user)
+      router.push(isNationalAdmin(parsedUser) ? '/national-dashboard' : getChapterRoute('dashboard', parsedUser))
     } else {
       router.push('/login')
     }

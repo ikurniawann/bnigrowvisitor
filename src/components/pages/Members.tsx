@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useData, Member } from '@/hooks/useData'
-import { supabase, User } from '@/lib/supabase'
-import { logActivity } from '@/lib/activityLog'
-
-const SUPER_ADMIN_EMAIL = 'admin@bnigrow.com'
+import { User } from '@/lib/supabase'
+import { apiSend } from '@/lib/dataClient'
+import { getUserLevelLabel, isNationalAdmin } from '@/lib/permissions'
+import { useChapterBranding } from '@/hooks/useChapterBranding'
 
 interface MemberForm {
   name: string
@@ -31,6 +31,7 @@ const initialForm: MemberForm = {
 
 export default function Members() {
   const { members, loading, reload, addMember, updateMember, deleteMember } = useData()
+  const chapterBranding = useChapterBranding()
   
   // State
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -45,8 +46,8 @@ export default function Members() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
-  const isSuperAdmin = currentUser?.email?.toLowerCase() === SUPER_ADMIN_EMAIL
-  const accessLabel = isSuperAdmin ? 'Super Admin' : 'PIC'
+  const isSuperAdmin = isNationalAdmin(currentUser) || currentUser?.role === 'chapter_admin'
+  const accessLabel = getUserLevelLabel(currentUser)
 
   useEffect(() => {
     try {
@@ -75,7 +76,10 @@ export default function Members() {
       return
     }
 
-    setFormData(initialForm)
+    setFormData({
+      ...initialForm,
+      chapter: chapterBranding.displayName,
+    })
     setEditingId(null)
     setIsModalOpen(true)
   }
@@ -108,85 +112,19 @@ export default function Members() {
     setFormData(initialForm)
   }
 
+  // Account creation / password reset is enforced server-side: chapter,
+  // organization, role preservation, and cross-chapter / admin-email guards all
+  // live in the scoped sync-member route. The client only forwards intent.
   const syncMemberAccount = async (member: MemberForm, previousEmail?: string) => {
-    const email = member.email.trim().toLowerCase()
-    const oldEmail = previousEmail?.trim().toLowerCase()
-    const password = member.password.trim()
-
+    const email = member.email.trim()
     if (!email) return
 
-    const lookupEmails = Array.from(new Set([oldEmail, email].filter(Boolean) as string[]))
-    const { data: existingUsers, error: findError } = await supabase
-      .from('users')
-      .select('id, email, role')
-      .in('email', lookupEmails)
-
-    if (findError) throw findError
-
-    const users = existingUsers || []
-    const accountByOldEmail = oldEmail ? users.find(user => user.email?.toLowerCase() === oldEmail) : undefined
-    const accountByNewEmail = users.find(user => user.email?.toLowerCase() === email)
-    const account = accountByOldEmail || accountByNewEmail
-
-    if (account) {
-      const targetEmailIsUsedByAnotherAccount = accountByNewEmail && accountByOldEmail && accountByNewEmail.id !== accountByOldEmail.id
-      const updates: Record<string, string | boolean | undefined> = {
-        name: member.name.trim(),
-        phone: member.phone.trim() || undefined,
-        is_active: true,
-      }
-
-      if (!targetEmailIsUsedByAnotherAccount) {
-        updates.email = email
-      }
-
-      if (password) {
-        updates.password_hash = password
-      }
-
-      const { error: updateError } = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', account.id)
-
-      if (updateError) throw updateError
-      await logActivity({
-        action: 'update',
-        entity: password ? 'user_password' : 'user_account',
-        entityId: account.id,
-        entityLabel: email,
-        metadata: {
-          source: 'member_management',
-          password_changed: Boolean(password),
-          role_preserved: account.role,
-        },
-      })
-      return
-    }
-
-    if (!password) return
-
-    const { error: insertError } = await supabase
-      .from('users')
-      .insert({
-        name: member.name.trim(),
-        email,
-        password_hash: password,
-        role: 'pic',
-        phone: member.phone.trim() || null,
-        is_active: true,
-      })
-
-    if (insertError) throw insertError
-    await logActivity({
-      action: 'insert',
-      entity: 'user_account',
-      entityLabel: email,
-      metadata: {
-        source: 'member_management',
-        role: 'pic',
-        password_created: true,
-      },
+    await apiSend('accounts/sync-member', 'POST', {
+      name: member.name,
+      email,
+      phone: member.phone,
+      oldEmail: previousEmail,
+      password: member.password.trim() || undefined,
     })
   }
 
@@ -313,7 +251,7 @@ export default function Members() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-bold text-gray-900">Member Grow</h1>
+            <h1 className="text-xl font-bold text-gray-900">Member {chapterBranding.shortName}</h1>
             <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
               isSuperAdmin ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'
             }`}>
@@ -322,7 +260,7 @@ export default function Members() {
           </div>
           <p className="text-sm text-gray-500 mt-1">
             {isSuperAdmin
-              ? 'Database member BNI Grow yang sudah bergabung'
+              ? `Database member ${chapterBranding.chapterName} yang sudah bergabung`
               : 'Akses PIC: hanya bisa mengubah data member milik akun sendiri'}
           </p>
         </div>
@@ -444,7 +382,7 @@ export default function Members() {
                           : 'bg-gray-100 text-gray-600'
                       }`}>
                         {member.account_active
-                          ? (member.account_role === 'admin' ? 'Akun Super Admin' : 'Akun PIC')
+                          ? `Akun ${getUserLevelLabel({ role: member.account_role as any, email: member.email || '' })}`
                           : 'Belum ada akun'}
                       </div>
                     </td>

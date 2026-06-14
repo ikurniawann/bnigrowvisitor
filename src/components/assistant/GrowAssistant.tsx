@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useChapterBranding } from '@/hooks/useChapterBranding'
 
 type AssistantMessage = {
   id: string
@@ -16,9 +17,9 @@ const starterPrompts = [
 ]
 
 const actionShortcuts = [
-  { label: 'Buka Visitor', path: '/visitors' },
-  { label: 'Buka MCQA', path: '/attended' },
-  { label: 'Text Format WA', path: '/text-format' },
+  { label: 'Buka Visitor', path: 'visitors', fallbackPath: '/visitors' },
+  { label: 'Buka MCQA', path: 'mcqa', fallbackPath: '/attended' },
+  { label: 'Text Format WA', path: 'text-format', fallbackPath: '/text-format' },
 ]
 
 function createId() {
@@ -34,6 +35,20 @@ function getStoredUserId() {
   } catch {
     return ''
   }
+}
+
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem('user')
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function isNationalAdminUser(user: any) {
+  if (!user) return false
+  return user.role === 'national_admin' || user.role === 'admin' || user.email === 'admin@bniindonesia.com'
 }
 
 function normalizeAssistantText(value: string) {
@@ -60,6 +75,14 @@ function clampPosition(position: { x: number; y: number }) {
 }
 
 export default function GrowAssistant() {
+  const chapterBranding = useChapterBranding()
+  const chapterRouteMatch = typeof window !== 'undefined' ? window.location.pathname.match(/^\/chapter\/([^/]+)/) : null
+  const isNationalScope = !chapterRouteMatch && typeof window !== 'undefined' && isNationalAdminUser(getStoredUser())
+  const activeChapterId = chapterRouteMatch?.[1]
+    ? decodeURIComponent(chapterRouteMatch[1])
+    : (isNationalScope ? '' : chapterBranding.chapterId)
+  const assistantName = isNationalScope ? 'BNI Assistant' : `${chapterBranding.shortName} Assistant`
+  const assistantInitials = isNationalScope ? 'BA' : `${chapterBranding.shortName.charAt(0) || 'G'}A`.toUpperCase()
   const [isOpen, setIsOpen] = useState(false)
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -70,8 +93,9 @@ export default function GrowAssistant() {
     {
       id: 'welcome',
       role: 'assistant',
-      content:
-        'Halo, saya Grow Assistant. Saya bisa bantu baca data visitor, status follow-up, PIC, meeting, top referral, dan insight dashboard BNI Grow.',
+      content: isNationalScope
+        ? `Halo, saya ${assistantName}. Saya bisa bantu analisa data visitor, member, PIC, dan meeting dari semua chapter BNI.`
+        : `Halo, saya ${assistantName}. Saya bisa bantu baca data visitor, status follow-up, PIC, meeting, top referral, dan insight dashboard ${chapterBranding.chapterName}.`,
     },
   ])
   const listRef = useRef<HTMLDivElement>(null)
@@ -106,6 +130,19 @@ export default function GrowAssistant() {
 
     setPosition(clampPosition(defaultPosition))
   }, [])
+
+  useEffect(() => {
+    setMessages(prev => prev.map(message =>
+      message.id === 'welcome'
+        ? {
+            ...message,
+            content: isNationalScope
+              ? `Halo, saya ${assistantName}. Saya bisa bantu analisa data visitor, member, PIC, dan meeting dari semua chapter BNI.`
+              : `Halo, saya ${assistantName}. Saya bisa bantu baca data visitor, status follow-up, PIC, meeting, top referral, dan insight dashboard ${chapterBranding.chapterName}.`,
+          }
+        : message
+    ))
+  }, [assistantName, chapterBranding.chapterName, isNationalScope])
 
   useEffect(() => {
     const handleResize = () => {
@@ -149,6 +186,9 @@ export default function GrowAssistant() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: getStoredUserId(),
+          chapterId: activeChapterId,
+          assistantName,
+          chapterName: chapterBranding.chapterName,
           messages: nextMessages.map(message => ({
             role: message.role,
             content: message.role === 'user'
@@ -160,7 +200,7 @@ export default function GrowAssistant() {
 
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data?.error || 'Grow Assistant belum bisa menjawab.')
+        throw new Error(data?.error || `${assistantName} belum bisa menjawab.`)
       }
 
       setIsOnline(true)
@@ -179,7 +219,7 @@ export default function GrowAssistant() {
         {
           id: createId(),
           role: 'assistant',
-          content: normalizeAssistantText(error.message || 'Maaf, Grow Assistant sedang offline atau bermasalah. Coba lagi sebentar.'),
+          content: normalizeAssistantText(error.message || `Maaf, ${assistantName} sedang offline atau bermasalah. Coba lagi sebentar.`),
         },
       ])
     } finally {
@@ -249,6 +289,8 @@ export default function GrowAssistant() {
     ? 'bottom-[calc(100%+1rem)]'
     : 'top-[calc(100%+1rem)]'
   const panelHorizontalClass = position.x > 260 ? 'right-0' : 'left-0'
+  const resolveShortcutPath = (action: (typeof actionShortcuts)[number]) =>
+    activeChapterId ? `/chapter/${encodeURIComponent(activeChapterId)}/${action.path}` : action.fallbackPath
 
   return (
     <div
@@ -260,10 +302,10 @@ export default function GrowAssistant() {
           <div className="flex items-center justify-between border-b border-gray-100 bg-white/80 px-4 py-3">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-red-600 to-red-800 text-sm font-bold text-white shadow-lg shadow-red-900/20">
-                GA
+                {assistantInitials}
               </div>
               <div>
-                <div className="text-sm font-bold text-gray-950">Grow Assistant</div>
+                <div className="text-sm font-bold text-gray-950">{assistantName}</div>
                 <div className={`flex items-center gap-1.5 text-xs font-medium ${isOnline === false ? 'text-gray-500' : 'text-emerald-600'}`}>
                   <span className={`h-2 w-2 rounded-full ${isOnline === false ? 'bg-gray-400' : 'bg-emerald-500'}`} />
                   {isOnline === false ? 'Offline' : 'Online'}
@@ -273,7 +315,7 @@ export default function GrowAssistant() {
             <button
               onClick={() => setIsOpen(false)}
               className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-              aria-label="Tutup Grow Assistant"
+              aria-label={`Tutup ${assistantName}`}
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 6L6 18M6 6l12 12" />
@@ -299,7 +341,7 @@ export default function GrowAssistant() {
             {isSending && (
               <div className="flex justify-start">
                 <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-500 shadow-sm">
-                  Grow Assistant sedang membaca data...
+                  {assistantName} sedang membaca data...
                 </div>
               </div>
             )}
@@ -311,7 +353,7 @@ export default function GrowAssistant() {
                 <button
                   key={action.path}
                   onClick={() => {
-                    window.location.href = action.path
+                    window.location.href = resolveShortcutPath(action)
                     setIsOpen(false)
                   }}
                   className="whitespace-nowrap rounded-full bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100"
@@ -350,7 +392,7 @@ export default function GrowAssistant() {
                   }
                 }}
                 rows={1}
-                placeholder="Tanya Grow Assistant..."
+                placeholder={`Tanya ${assistantName}...`}
                 className="max-h-28 min-h-11 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-500 focus:border-red-300 focus:bg-white focus:outline-none"
               />
               <button
@@ -378,7 +420,7 @@ export default function GrowAssistant() {
         className={`group flex h-16 touch-none select-none items-center gap-3 rounded-2xl bg-gradient-to-br from-red-600 via-red-700 to-red-900 px-4 pr-5 text-white shadow-[0_18px_50px_rgba(185,28,28,0.35)] ring-1 ring-white/20 transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(185,28,28,0.42)] ${
           isDragging ? 'cursor-grabbing scale-[1.02]' : 'cursor-grab'
         }`}
-        aria-label="Buka Grow Assistant"
+        aria-label={`Buka ${assistantName}`}
         title="Klik untuk buka, drag untuk pindahkan posisi"
       >
         {isOpen ? (
@@ -388,11 +430,11 @@ export default function GrowAssistant() {
         ) : (
           <>
             <span className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/[0.16] text-sm font-black shadow-inner ring-1 ring-white/25">
-              GA
+              {assistantInitials}
               <span className={`absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-red-700 ${isOnline === false ? 'bg-gray-300' : 'bg-emerald-300'}`} />
             </span>
             <span className="text-left leading-tight">
-              <span className="block text-sm font-black tracking-wide">Grow Assistant</span>
+              <span className="block text-sm font-black tracking-wide">{assistantName}</span>
               <span className="block text-[11px] font-semibold text-white/75">Tanya data visitor</span>
             </span>
           </>

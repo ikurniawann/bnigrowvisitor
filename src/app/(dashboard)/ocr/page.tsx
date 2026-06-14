@@ -2,13 +2,13 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { getChapterRoute } from '@/lib/chapterRoute'
 
 export default function OCRPage() {
   const router = useRouter()
   
   useEffect(() => {
-    // Redirect to dashboard - OCR feature disabled
-    router.push('/dashboard')
+    router.push(getChapterRoute('dashboard'))
   }, [router])
   
   return (

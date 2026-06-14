@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useData } from '@/hooks/useData'
 import { getWaTemplateSettings, renderWaTemplate } from '@/lib/waTemplate'
+import { useChapterBranding } from '@/hooks/useChapterBranding'
 
 interface VisitorDetailProps {
   visitor: any
@@ -31,6 +32,7 @@ const AIRTIME_OPTIONS = {
 
 export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDetailProps) {
   const { updateVisitor, reload } = useData()
+  const chapterBranding = useChapterBranding()
   const [originalVisitor, setOriginalVisitor] = useState(visitor)
   const [currentVisitor, setCurrentVisitor] = useState(visitor)
   const [updating, setUpdating] = useState(false)
@@ -278,7 +280,7 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
         diajak_oleh: referredByMemberName || '[Diajak Oleh]',
         tanggal_meeting: formatMeetingDate(),
         jam_meeting: '07.30 - 10.15',
-        chapter: currentVisitor.chapter || 'Grow',
+        chapter: currentVisitor.chapter || chapterBranding.chapterName,
         bidang_usaha: currentVisitor.business_field || '',
         perusahaan: currentVisitor.company || '',
       })

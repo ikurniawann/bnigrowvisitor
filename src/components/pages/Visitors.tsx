@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useData } from '@/hooks/useData'
 import VisitorDetail from './VisitorDetail'
 import { getWaTemplateSettings, renderWaTemplate } from '@/lib/waTemplate'
+import { useChapterBranding } from '@/hooks/useChapterBranding'
 
 interface VisitorForm {
   name: string
@@ -52,6 +53,7 @@ const STATUSES = {
 
 export default function Visitors() {
   const { visitors, meetings, pics, members, loading, reload, addVisitor, updateVisitor, deleteVisitor } = useData()
+  const chapterBranding = useChapterBranding()
   
   // Filters
   const [search, setSearch] = useState('')
@@ -101,21 +103,6 @@ export default function Visitors() {
     (m.company || '').toLowerCase().includes(memberSearch.toLowerCase())
   ).slice(0, 10) // Limit 10 results
 
-  // Listen for global "open add visitor" event from topbar button
-  useEffect(() => {
-    const handleOpenAddVisitor = () => {
-      handleOpenAdd()
-    }
-
-    window.addEventListener('open-add-visitor', handleOpenAddVisitor)
-
-    return () => {
-      window.removeEventListener('open-add-visitor', handleOpenAddVisitor)
-    }
-    // Event listener should be registered once for the dashboard-level custom event.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   // Filter visitors
   const filteredVisitors = useMemo(() => {
     return visitors.filter(v => {
@@ -156,16 +143,30 @@ export default function Visitors() {
     setCurrentPage(1)
   }, [search, statusFilter, meetingFilter, picFilter])
 
-  function handleOpenAdd() {
+  const handleOpenAdd = useCallback(() => {
     setFormData({
       ...initialForm,
+      chapter: chapterBranding.displayName,
       meeting_id: meetings.length > 0 ? meetings[0].id : '',
       pic_id: '',
     })
     setEditingId(null)
     setError('')
     setIsModalOpen(true)
-  }
+  }, [chapterBranding.displayName, meetings])
+
+  // Listen for global "open add visitor" event from topbar button
+  useEffect(() => {
+    const handleOpenAddVisitor = () => {
+      handleOpenAdd()
+    }
+
+    window.addEventListener('open-add-visitor', handleOpenAddVisitor)
+
+    return () => {
+      window.removeEventListener('open-add-visitor', handleOpenAddVisitor)
+    }
+  }, [handleOpenAdd])
 
   const handleOpenEdit = (visitor: any) => {
     setFormData({
@@ -346,6 +347,7 @@ export default function Visitors() {
     const settings = getWaTemplateSettings()
     const sapaan = visitor.gender === 'Ibu' ? 'Ibu' : 'Bapak'
     const template = settings.templates[settings.activeMode]
+    const confirmLink = `${window.location.origin}/wm/${visitor.id}`
     const message = renderWaTemplate(template, {
       sapaan,
       nama: visitor.name,
@@ -355,9 +357,10 @@ export default function Visitors() {
       diajak_oleh: visitor.referred_by_member_name || visitor.referral_name || '[Diajak Oleh]',
       tanggal_meeting: getMeetingDateText(visitor),
       jam_meeting: '07.30 - 10.15',
-      chapter: visitor.chapter || 'Grow',
+      chapter: visitor.chapter || chapterBranding.displayName,
       bidang_usaha: visitor.business_field || '',
       perusahaan: visitor.company || '',
+      link_hadir: confirmLink,
     })
 
     return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`
@@ -922,14 +925,14 @@ export default function Visitors() {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                    Chapter BNI Grow
+                    Chapter {chapterBranding.shortName}
                   </label>
                   <input
                     type="text"
                     value={formData.chapter}
                     onChange={(e) => setFormData({ ...formData, chapter: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500"
-                    placeholder="Misal: Grow Jakarta Selatan"
+                    placeholder={`Misal: ${chapterBranding.displayName}`}
                   />
                 </div>
 

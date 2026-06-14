@@ -1,9 +1,11 @@
-import { supabase, User } from './supabase'
+import { apiGet, apiSend } from './dataClient'
 
 export type ActivityAction = 'insert' | 'update' | 'delete'
 
 export interface ActivityLog {
   id: string
+  organization_id?: string
+  chapter_id?: string
   actor_id?: string
   actor_name?: string
   actor_email?: string
@@ -28,48 +30,25 @@ interface LogActivityInput {
   metadata?: Record<string, unknown> | null
 }
 
-function getCurrentActor(): User | null {
-  if (typeof window === 'undefined') return null
-
+// Writes an audit entry through the server, which derives actor identity and
+// chapter from the verified session — the client can no longer forge them.
+// Best-effort: never let a logging failure break the calling action.
+export async function logActivity(input: LogActivityInput): Promise<void> {
   try {
-    const storedUser = window.localStorage.getItem('user')
-    return storedUser ? JSON.parse(storedUser) : null
-  } catch {
-    return null
-  }
-}
-
-export async function logActivity(input: LogActivityInput) {
-  const actor = getCurrentActor()
-
-  const { error } = await supabase
-    .from('activity_logs')
-    .insert({
-      actor_id: actor?.id,
-      actor_name: actor?.name,
-      actor_email: actor?.email,
-      actor_role: actor?.role,
+    await apiSend('activity-logs', 'POST', {
       action: input.action,
       entity: input.entity,
-      entity_id: input.entityId,
-      entity_label: input.entityLabel,
-      old_data: input.oldData,
-      new_data: input.newData,
+      entityId: input.entityId,
+      entityLabel: input.entityLabel,
+      oldData: input.oldData,
+      newData: input.newData,
       metadata: input.metadata,
     })
-
-  if (error) {
+  } catch (error) {
     console.error('Error writing activity log:', error)
   }
 }
 
-export async function loadActivityLogs(limit = 200) {
-  const { data, error } = await supabase
-    .from('activity_logs')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit)
-
-  if (error) throw error
-  return (data || []) as ActivityLog[]
+export async function loadActivityLogs(limit = 200): Promise<ActivityLog[]> {
+  return apiGet<ActivityLog[]>(`activity-logs?limit=${limit}`)
 }
