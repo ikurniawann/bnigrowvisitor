@@ -11,9 +11,10 @@ interface TopbarProps {
   onLogout: () => void
   onAddVisitor: () => void
   showAddVisitor?: boolean
+  isScrolled?: boolean
 }
 
-export default function Topbar({ title, user, onLogout, onAddVisitor, showAddVisitor = true }: TopbarProps) {
+export default function Topbar({ title, user, onLogout, onAddVisitor, showAddVisitor = true, isScrolled = false }: TopbarProps) {
   const [branding, setBranding] = useState<ChapterBranding>(() => ({
     chapterName: 'BNI',
     displayName: 'BNI Chapter',
@@ -64,7 +65,6 @@ export default function Topbar({ title, user, onLogout, onAddVisitor, showAddVis
     }
   }, [])
 
-  // Close profile dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
@@ -76,23 +76,37 @@ export default function Topbar({ title, user, onLogout, onAddVisitor, showAddVis
   }, [profileOpen])
 
   return (
-    <header className="sticky top-0 z-30 h-[58px] border-b border-white/65 bg-white/62 shadow-sm backdrop-blur-2xl">
+    <header
+      className={`sticky top-0 z-30 h-[58px] border-b shadow-sm transition-[background-color,border-color] duration-300
+        ${isScrolled
+          ? 'bg-white/90 border-gray-200/70 backdrop-blur-xl'
+          : 'bg-white/62 border-white/65 backdrop-blur-2xl'
+        }`}
+    >
       <div className="relative h-full px-4 lg:px-6 flex items-center">
 
-        {/* Desktop: title left-aligned */}
-        <h1 className="hidden lg:block flex-1 text-[17px] font-semibold text-gray-950 tracking-[-0.01em]">{title}</h1>
+        {/* Desktop: title + breadcrumb */}
+        <div className="hidden lg:flex flex-col justify-center flex-1 min-w-0">
+          <h1 className="text-[17px] font-semibold text-gray-950 tracking-[-0.01em] leading-tight">{title}</h1>
+          {scopeLabel && (
+            <p className="text-[11px] text-gray-400 leading-tight mt-0.5 truncate max-w-xs">{scopeLabel}</p>
+          )}
+        </div>
 
-        {/* Mobile: title centered (absolute, between burger and avatar) */}
-        <h1 className="lg:hidden absolute inset-x-0 text-center px-24 text-[15px] font-semibold text-gray-950 tracking-[-0.01em] truncate pointer-events-none">{title}</h1>
+        {/* Mobile: compact title fades in when large title scrolls out */}
+        <h1
+          className={`lg:hidden absolute inset-x-0 text-center px-24 text-[15px] font-semibold text-gray-950 tracking-[-0.01em] truncate pointer-events-none transition-opacity duration-200 ${isScrolled ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {title}
+        </h1>
 
         {/* Right side */}
         <div className="ml-auto flex items-center gap-2">
 
-          {/* Add Visitor Button */}
           {showAddVisitor && (
             <button
               onClick={onAddVisitor}
-              className="inline-flex h-9 items-center gap-1.5 px-3 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-all"
+              className="inline-flex h-9 items-center gap-1.5 px-3 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors"
             >
               <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M12 5v14M5 12h14" />
@@ -101,58 +115,68 @@ export default function Topbar({ title, user, onLogout, onAddVisitor, showAddVis
             </button>
           )}
 
-          {/* Profile avatar + dropdown (logout lives here) */}
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setProfileOpen(v => !v)}
               className="flex items-center gap-2 pl-2 lg:pl-3 lg:border-l lg:border-gray-200/70"
             >
-              {/* Name + scope: desktop only */}
               <div className="text-right hidden lg:block">
                 <div className="text-[13px] font-semibold text-gray-950 leading-4 tracking-[-0.01em]">{profileName}</div>
                 <div className="text-[11px] text-gray-500 leading-4">{levelLabel}</div>
-                {scopeLabel && (
-                  <div className="max-w-[200px] truncate text-[10px] text-gray-400 leading-4">{scopeLabel}</div>
-                )}
               </div>
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-600 to-red-800 text-white flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-white/70 flex-shrink-0">
                 {profileName?.charAt(0).toUpperCase() || 'U'}
               </div>
             </button>
 
-            {/* Profile dropdown */}
+            {/* Glass profile dropdown */}
             {profileOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-gray-100 bg-white shadow-xl z-50 overflow-hidden">
-                {/* User info */}
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <div className="text-[13px] font-semibold text-gray-950 leading-5">{profileName}</div>
-                  <div className="text-[11px] text-gray-500 leading-4 mt-0.5">{levelLabel}</div>
-                  {scopeLabel && (
-                    <div className="text-[11px] text-gray-400 leading-4 mt-0.5 truncate">{scopeLabel}</div>
-                  )}
+              <div className="modal-spring-enter absolute right-0 top-full mt-2 w-64 rounded-2xl border border-white/60 bg-white/85 backdrop-blur-xl shadow-2xl z-50 overflow-hidden">
+                {/* User card */}
+                <div className="px-4 py-3.5 border-b border-white/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-red-800 text-white flex items-center justify-center text-sm font-bold shadow-sm flex-shrink-0">
+                      {profileName?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold text-gray-950 leading-5 truncate">{profileName}</div>
+                      <div className="text-[11px] text-gray-500 leading-4">{levelLabel}</div>
+                      {scopeLabel && (
+                        <div className="text-[11px] text-gray-400 leading-4 truncate">{scopeLabel}</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                    {/* Profile link */}
-                <a
-                  href="/my-account"
-                  onClick={() => setProfileOpen(false)}
-                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  </svg>
-                  Ubah Password
-                </a>
-                {/* Logout */}
-                <button
-                  onClick={() => { setProfileOpen(false); onLogout() }}
-                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-                  </svg>
-                  Logout
-                </button>
+
+                {/* Actions */}
+                <div className="py-1">
+                  <a
+                    href="/my-account"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-[13px] font-medium text-gray-700 hover:bg-white/60 transition-colors"
+                  >
+                    <span className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
+                      </svg>
+                    </span>
+                    <span>Profil Akun</span>
+                  </a>
+
+                  <div className="mx-4 my-1 border-t border-gray-100/70" />
+
+                  <button
+                    onClick={() => { setProfileOpen(false); onLogout() }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-[13px] font-medium text-red-600 hover:bg-red-50/60 transition-colors"
+                  >
+                    <span className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+                      </svg>
+                    </span>
+                    <span>Logout</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
@@ -175,6 +175,22 @@ export default function DashboardLayout({
   const isNationalArea = ['national-overview', 'national-governance', 'national-policies', 'national-dashboard', 'master'].includes(currentPage)
   const isChapterRoute = pathname.startsWith('/chapter/')
 
+  // Large title visibility → controls compact topbar title + scroll state
+  const largeTitleRef = useRef<HTMLDivElement>(null)
+  const [isScrolled, setIsScrolled] = useState(false)
+
+  useEffect(() => {
+    setIsScrolled(false)
+    const el = largeTitleRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsScrolled(!entry.isIntersecting),
+      { rootMargin: '-58px 0px 0px 0px', threshold: 0 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [pathname])
+
   if (loading) {
     return (
       <div className="flex min-h-screen fade-in-up">
@@ -225,17 +241,25 @@ export default function DashboardLayout({
         <div className={`flex-1 flex flex-col min-h-screen min-w-0 ${isFullscreen ? 'ml-0' : 'lg:ml-64 lg:w-[calc(100%-16rem)]'}`}>
           {/* Topbar - hidden on fullscreen pages */}
           {!isFullscreen && (
-            <Topbar 
+            <Topbar
               title={pageTitles[currentPage] || currentPage.charAt(0).toUpperCase() + currentPage.slice(1)}
               user={user}
               onLogout={handleLogout}
               onAddVisitor={handleAddVisitor}
               showAddVisitor={!isNationalArea}
+              isScrolled={isScrolled}
             />
           )}
           
-          {/* pb-16 gives room for the MobileTabBar on small screens */}
           <main key={pathname} className="flex-1 p-4 pb-20 lg:p-6 lg:pb-6 overflow-auto fade-in-up">
+            {/* Large title — mobile only; hides as user scrolls, topbar compact title fades in */}
+            {!isFullscreen && (
+              <div ref={largeTitleRef} className="lg:hidden -mx-4 px-4 pt-1 pb-3">
+                <h1 className="text-[28px] font-bold text-gray-950 tracking-tight leading-tight">
+                  {pageTitles[currentPage] || ''}
+                </h1>
+              </div>
+            )}
             {tenantWarning && (
               <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
                 {tenantWarning}
