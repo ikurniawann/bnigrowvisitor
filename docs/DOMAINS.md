@@ -1,4 +1,4 @@
-# Domain Multi-Tenant (National + Per-Chapter)
+# Domain Multi-Tenant (National + Per-Chapter Subdomain)
 
 Model: **National admin pakai domain utama (apex), tiap chapter pakai subdomain
 sendiri.** Membuat chapter baru otomatis membuat subdomain-nya.
