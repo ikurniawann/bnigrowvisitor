@@ -175,7 +175,7 @@ export default function LoginPage() {
           {/* Logo */}
           <div>
             <Image
-              src="/logo-bni.png"
+              src="/bni-logo.png"
               alt={`${branding.displayName} Logo`}
               width={160}
               height={64}
@@ -225,7 +225,7 @@ export default function LoginPage() {
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <Image
-              src="/logo-bni.png"
+              src="/bni-logo.png"
               alt={`${branding.displayName} Logo`}
               width={120}
               height={48}
