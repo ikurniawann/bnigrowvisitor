@@ -131,6 +131,18 @@ export default function Topbar({ title, user, onLogout, onAddVisitor, showAddVis
                     <div className="text-[11px] text-gray-400 leading-4 mt-0.5 truncate">{scopeLabel}</div>
                   )}
                 </div>
+                    {/* Profile link */}
+                <a
+                  href="/my-account"
+                  onClick={() => setProfileOpen(false)}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                  Ubah Password
+                </a>
                 {/* Logout */}
                 <button
                   onClick={() => { setProfileOpen(false); onLogout() }}

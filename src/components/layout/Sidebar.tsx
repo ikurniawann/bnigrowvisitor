@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { User } from '@/lib/supabase'
 import { isNationalAdmin } from '@/lib/permissions'
@@ -67,15 +67,6 @@ export default function Sidebar({ currentPage }: SidebarProps) {
     locationLabel: '',
   }))
 
-  // PIC self-service password panel
-  const [showPasswordPanel, setShowPasswordPanel] = useState(false)
-  const [currentPw, setCurrentPw] = useState('')
-  const [newPw, setNewPw] = useState('')
-  const [confirmPw, setConfirmPw] = useState('')
-  const [showNewPw, setShowNewPw] = useState(false)
-  const [pwSaving, setPwSaving] = useState(false)
-  const [pwError, setPwError] = useState('')
-  const [pwSuccess, setPwSuccess] = useState('')
   const isSuperAdmin = isNationalAdmin(currentUser)
   const isNationalArea = isSuperAdmin && ['national-overview', 'national-governance', 'national-policies', 'national-dashboard', 'master'].includes(currentPage)
   const nationalNavItems = isSuperAdmin ? [NATIONAL_OVERVIEW_ITEM, ...navItems.slice(0, 2), NATIONAL_GOVERNANCE_ITEM, NATIONAL_POLICY_ITEM] : []
@@ -125,36 +116,6 @@ export default function Sidebar({ currentPage }: SidebarProps) {
       cancelled = true
     }
   }, [])
-
-  async function handlePasswordChange(e: FormEvent) {
-    e.preventDefault()
-    if (!currentPw || !newPw || !confirmPw) return
-    if (newPw !== confirmPw) {
-      setPwError('Password baru dan konfirmasi tidak cocok.')
-      return
-    }
-    setPwSaving(true)
-    setPwError('')
-    setPwSuccess('')
-    try {
-      const res = await fetch('/api/my-account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reset-password', currentPassword: currentPw, newPassword: newPw }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || 'Gagal mengubah password.')
-      setPwSuccess('Password berhasil diubah.')
-      setCurrentPw('')
-      setNewPw('')
-      setConfirmPw('')
-      setShowNewPw(false)
-    } catch (err: any) {
-      setPwError(err.message)
-    } finally {
-      setPwSaving(false)
-    }
-  }
 
   const handleNavigate = (path: string) => {
     router.push(path)
@@ -265,92 +226,6 @@ export default function Sidebar({ currentPage }: SidebarProps) {
         </nav>
 
         <div className="border-t border-white/60 px-5 py-4 space-y-2">
-          {currentUser?.role === 'pic' && (
-            <div>
-              {showPasswordPanel ? (
-                <form onSubmit={handlePasswordChange} className="space-y-2">
-                  <p className="text-xs font-semibold text-gray-700 mb-2">Ubah Password Saya</p>
-                  <input
-                    className="w-full h-9 rounded-xl border border-gray-200 bg-white/80 px-3 text-xs font-medium text-gray-900 outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
-                    type="password"
-                    placeholder="Password lama"
-                    value={currentPw}
-                    onChange={e => setCurrentPw(e.target.value)}
-                    required
-                  />
-                  <div className="relative">
-                    <input
-                      className="w-full h-9 rounded-xl border border-gray-200 bg-white/80 px-3 pr-9 text-xs font-medium text-gray-900 outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
-                      type={showNewPw ? 'text' : 'password'}
-                      placeholder="Password baru"
-                      value={newPw}
-                      onChange={e => setNewPw(e.target.value)}
-                      required
-                    />
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      onClick={() => setShowNewPw(v => !v)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-gray-400 hover:text-gray-600"
-                    >
-                      {showNewPw ? (
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" strokeLinecap="round" strokeLinejoin="round" />
-                          <line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round" />
-                        </svg>
-                      ) : (
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                  <input
-                    className="w-full h-9 rounded-xl border border-gray-200 bg-white/80 px-3 text-xs font-medium text-gray-900 outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
-                    type="password"
-                    placeholder="Konfirmasi password baru"
-                    value={confirmPw}
-                    onChange={e => setConfirmPw(e.target.value)}
-                    required
-                  />
-                  {pwError && <p className="text-[11px] text-red-600">{pwError}</p>}
-                  {pwSuccess && <p className="text-[11px] text-emerald-600">{pwSuccess}</p>}
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      disabled={pwSaving}
-                      className="flex-1 h-9 rounded-xl bg-red-600 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
-                    >
-                      {pwSaving ? 'Menyimpan...' : 'Simpan'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowPasswordPanel(false)
-                        setCurrentPw('')
-                        setNewPw('')
-                        setConfirmPw('')
-                        setShowNewPw(false)
-                        setPwError('')
-                        setPwSuccess('')
-                      }}
-                      className="h-9 rounded-xl border border-gray-200 px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                    >
-                      Batal
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <button
-                  onClick={() => { setShowPasswordPanel(true); setPwError(''); setPwSuccess('') }}
-                  className="w-full rounded-xl border border-gray-200 bg-white/60 px-3 py-2 text-left text-xs font-semibold text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                >
-                  Ubah Password Saya
-                </button>
-              )}
-            </div>
-          )}
           <a
             href="https://wit.id"
             target="_blank"
