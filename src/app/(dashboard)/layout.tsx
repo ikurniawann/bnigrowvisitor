@@ -4,10 +4,13 @@ import React, { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
-import GrowAssistant from '@/components/assistant/GrowAssistant'
+import dynamic from 'next/dynamic'
 import { getCurrentUser, signOut } from '@/lib/auth'
 import { isNationalAdmin } from '@/lib/permissions'
 import { getChapterRoute } from '@/lib/chapterRoute'
+
+const GrowAssistant = dynamic(() => import('@/components/assistant/GrowAssistant'), { ssr: false, loading: () => null })
+const MobileTabBar = dynamic(() => import('@/components/layout/MobileTabBar'), { ssr: false, loading: () => null })
 
 // Context for global actions
 interface DashboardContextType {
@@ -205,7 +208,8 @@ export default function DashboardLayout({
             />
           )}
           
-          <main className="flex-1 p-4 lg:p-6 overflow-auto">
+          {/* pb-16 gives room for the MobileTabBar on small screens */}
+          <main className="flex-1 p-4 pb-20 lg:p-6 lg:pb-6 overflow-auto">
             {tenantWarning && (
               <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
                 {tenantWarning}
@@ -216,6 +220,7 @@ export default function DashboardLayout({
         </div>
       </div>
       <GrowAssistant />
+      {!isFullscreen && <MobileTabBar currentPage={currentPage} />}
     </DashboardContext.Provider>
   )
 }

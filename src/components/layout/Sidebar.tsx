@@ -138,12 +138,15 @@ export default function Sidebar({ currentPage }: SidebarProps) {
       )}
 
       {/* Sidebar */}
-      <aside className={`
-        fixed inset-y-0 left-0 flex h-dvh w-64 flex-col glass-panel-strong border-r border-white/70
-        transform transition-transform duration-200 z-50
-        lg:translate-x-0
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
+      <aside
+        className={`
+          fixed inset-y-0 left-0 flex w-64 flex-col glass-panel-strong border-r border-white/70
+          transform transition-[transform] duration-200 z-50
+          lg:translate-x-0
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+        style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         {/* Logo */}
         <div className="px-5 py-5 border-b border-white/60">
           <div className="inline-flex bg-red-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full mb-2 tracking-wide shadow-sm">
@@ -170,7 +173,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                 onClick={() => handleNavigate(resolvePath(item))}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1
-                  text-[13px] font-medium transition-all duration-150
+                  text-[13px] font-medium transition-[background-color,color,box-shadow] duration-150
                   ${currentPage === item.id 
                     ? 'bg-white/80 text-red-600 shadow-sm ring-1 ring-red-100/80' 
                     : 'text-gray-700 hover:bg-white/55 hover:text-gray-950'
@@ -197,7 +200,7 @@ export default function Sidebar({ currentPage }: SidebarProps) {
                 onClick={() => handleNavigate(resolvePath(item))}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1
-                  text-[13px] font-medium transition-all duration-150
+                  text-[13px] font-medium transition-[background-color,color,box-shadow] duration-150
                   ${currentPage === item.id 
                     ? 'bg-white/80 text-red-600 shadow-sm ring-1 ring-red-100/80' 
                     : 'text-gray-700 hover:bg-white/55 hover:text-gray-950'

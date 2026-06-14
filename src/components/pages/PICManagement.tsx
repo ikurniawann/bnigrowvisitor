@@ -486,7 +486,7 @@ export default function PICManagement() {
                   <div className="w-32 text-[13px] text-gray-700 truncate">{pic.name}</div>
                   <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
                     <div 
-                      className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-500"
+                      className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-[width] duration-500"
                       style={{ width: `${percentage}%` }}
                     />
                   </div>
@@ -503,7 +503,7 @@ export default function PICManagement() {
       {/* Modal: Add/Edit PIC */}
       {isModalOpen && (
         <div className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="modal-spring-enter bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">
                 {editingId ? 'Edit PIC' : 'Tambah PIC dari Member'}

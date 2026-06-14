@@ -6,7 +6,9 @@ import { useData, VisitorWithRelations } from '@/hooks/useData'
 import { User } from '@/lib/supabase'
 import { isNationalAdmin } from '@/lib/permissions'
 import { getChapterRoute } from '@/lib/chapterRoute'
-import VisitorDetail from './VisitorDetail'
+import dynamic from 'next/dynamic'
+
+const VisitorDetail = dynamic(() => import('./VisitorDetail'), { ssr: false, loading: () => null })
 
 const STATUSES = {
   new:          { label: 'Baru Daftar',      color: '#dbeafe' },
@@ -1127,7 +1129,7 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
                 <div className="w-24 text-xs text-gray-600 truncate">{industry}</div>
                 <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
                   <div
-                    className="h-full bg-red-500 transition-all duration-500"
+                    className="h-full bg-red-500 transition-[width] duration-500"
                     style={{ width: `${(count / maxIndustryCount) * 100}%` }}
                   />
                 </div>
@@ -1164,7 +1166,7 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
                       <div className="w-40 text-xs text-gray-600 truncate">{name}</div>
                       <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-orange-300 via-orange-400 to-red-300 transition-all duration-500"
+                          className="h-full rounded-full bg-gradient-to-r from-orange-300 via-orange-400 to-red-300 transition-[width] duration-500"
                           style={{ width: `${(count / maxReferrerCount) * 100}%` }}
                         />
                       </div>

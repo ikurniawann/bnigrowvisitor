@@ -415,7 +415,7 @@ export default function WeeklyMeeting() {
       {/* Modal: Add Meeting */}
       {isAddModalOpen && (
         <div className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="modal-spring-enter bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">Tambah Meeting</h3>
               <button
@@ -491,7 +491,7 @@ export default function WeeklyMeeting() {
       {/* Modal: Edit Meeting */}
       {isEditModalOpen && (
         <div className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="modal-spring-enter bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">Edit Meeting</h3>
               <button

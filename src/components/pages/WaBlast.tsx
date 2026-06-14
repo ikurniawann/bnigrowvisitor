@@ -202,7 +202,7 @@ export default function WaBlast() {
           <div className="flex items-center gap-4 pt-1">
             <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
               <div
-                className="h-full bg-emerald-500 rounded-full transition-all"
+                className="h-full bg-emerald-500 rounded-full transition-[width]"
                 style={{ width: `${Math.round((sentInMeeting / totalVisitors) * 100)}%` }}
               />
             </div>

@@ -571,7 +571,7 @@ export default function Members() {
       {/* Modal Form */}
       {isModalOpen && (
         <div className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="modal-spring-enter bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl">
               <div>

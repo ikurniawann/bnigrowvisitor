@@ -6,6 +6,26 @@ import { notifyDataChanged } from '@/lib/ui/toast'
 import { getLocalPicBusinessClassification } from '@/lib/picBusinessClassification'
 import { apiGet, apiSend } from '@/lib/dataClient'
 
+// Module-level cache: survives re-renders, resets on hard page refresh.
+// TTL = 60s per key; mutations clear only the affected key.
+const _cache = new Map<string, { data: unknown; ts: number }>()
+const CACHE_TTL = 60_000
+
+function cacheGet<T>(key: string): T | null {
+  const entry = _cache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.ts > CACHE_TTL) { _cache.delete(key); return null }
+  return entry.data as T
+}
+
+function cacheSet(key: string, data: unknown) {
+  _cache.set(key, { data, ts: Date.now() })
+}
+
+function cacheDel(...keys: string[]) {
+  keys.forEach(k => _cache.delete(k))
+}
+
 export interface PIC {
   id: string
   name: string
@@ -71,16 +91,19 @@ export function useData() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function loadData() {
+  async function loadData(force = false) {
+    if (force) _cache.clear()
     setLoading(true)
     await Promise.all([loadVisitors(), loadMeetings(), loadPics(), loadMembers()])
     setLoading(false)
   }
 
   async function loadVisitors() {
+    const cached = cacheGet<VisitorWithRelations[]>('visitors')
+    if (cached) { setVisitors(cached); return }
     try {
       const data = await apiGet<any[]>('visitors')
-      setVisitors((data || []).map(visitor => ({
+      const mapped = (data || []).map(visitor => ({
         ...visitor,
         pic_name: visitor.pic?.name,
         pic_business_classification:
@@ -88,7 +111,9 @@ export function useData() {
         meeting_title: visitor.meeting?.title,
         meeting_date: visitor.meeting?.meeting_date || visitor.meeting_date,
         referred_by_member_name: visitor.referred_by_member?.name || visitor.referral_name,
-      })))
+      }))
+      cacheSet('visitors', mapped)
+      setVisitors(mapped)
     } catch (error) {
       console.error('Error loading visitors:', error)
       setVisitors([])
@@ -96,8 +121,12 @@ export function useData() {
   }
 
   async function loadMeetings() {
+    const cached = cacheGet<Meeting[]>('meetings')
+    if (cached) { setMeetings(cached); return }
     try {
-      setMeetings(await apiGet<Meeting[]>('meetings'))
+      const data = await apiGet<Meeting[]>('meetings')
+      cacheSet('meetings', data)
+      setMeetings(data)
     } catch (error) {
       console.error('Error loading meetings:', error)
       setMeetings([])
@@ -105,9 +134,11 @@ export function useData() {
   }
 
   async function loadPics() {
+    const cached = cacheGet<PIC[]>('pics')
+    if (cached) { setPics(cached); return }
     try {
       const data = await apiGet<any[]>('pics')
-      setPics((data || []).map(pic => ({
+      const mapped = (data || []).map(pic => ({
         id: pic.id,
         name: pic.name,
         role: pic.role || 'PIC',
@@ -115,7 +146,9 @@ export function useData() {
         email: pic.email || '',
         business_classification: pic.business_classification || getLocalPicBusinessClassification(pic.id),
         is_active: pic.is_active,
-      })))
+      }))
+      cacheSet('pics', mapped)
+      setPics(mapped)
     } catch (error) {
       console.error('Error loading PICs:', error)
       setPics([])
@@ -123,8 +156,12 @@ export function useData() {
   }
 
   async function loadMembers() {
+    const cached = cacheGet<Member[]>('members')
+    if (cached) { setMembers(cached); return }
     try {
-      setMembers(await apiGet<Member[]>('members'))
+      const data = await apiGet<Member[]>('members')
+      cacheSet('members', data)
+      setMembers(data)
     } catch (error) {
       console.error('Error loading members:', error)
       setMembers([])
@@ -133,6 +170,7 @@ export function useData() {
 
   async function addMember(member: Partial<Member>) {
     const data = await apiSend<Member>('members', 'POST', member as Record<string, unknown>)
+    cacheDel('members')
     await loadMembers()
     notifyDataChanged('insert')
     return data
@@ -140,6 +178,7 @@ export function useData() {
 
   async function updateMember(id: string, member: Partial<Member>) {
     const data = await apiSend<Member>(`members/${id}`, 'PATCH', member as Record<string, unknown>)
+    cacheDel('members')
     await loadMembers()
     notifyDataChanged('update')
     return data
@@ -147,25 +186,33 @@ export function useData() {
 
   async function deleteMember(id: string) {
     await apiSend(`members/${id}`, 'DELETE')
+    cacheDel('members')
     await loadMembers()
     notifyDataChanged('delete')
   }
 
   async function addVisitor(visitor: Partial<Visitor>) {
     const data = await apiSend<Visitor>('visitors', 'POST', visitor as Record<string, unknown>)
+    cacheDel('visitors')
     await loadVisitors()
     notifyDataChanged('insert')
     return data
   }
 
   async function updateVisitor(id: string, updates: Partial<Visitor>) {
-    setVisitors(prev => prev.map(visitor =>
-      visitor.id === id ? { ...visitor, ...updates } : visitor
-    ))
+    // Optimistic update — no need to re-fetch; just update the cached copy too
+    setVisitors(prev => {
+      const next = prev.map(visitor =>
+        visitor.id === id ? { ...visitor, ...updates } : visitor
+      )
+      cacheSet('visitors', next)
+      return next
+    })
 
     try {
       await apiSend(`visitors/${id}`, 'PATCH', updates as Record<string, unknown>)
     } catch (error) {
+      cacheDel('visitors')
       await loadVisitors()
       throw error
     }
@@ -175,6 +222,7 @@ export function useData() {
 
   async function deleteVisitor(id: string) {
     await apiSend(`visitors/${id}`, 'DELETE')
+    cacheDel('visitors')
     await loadVisitors()
     notifyDataChanged('delete')
   }
@@ -187,6 +235,7 @@ export function useData() {
       business_classification: pic.business_classification,
       role: pic.role,
     })
+    cacheDel('pics')
     await loadPics()
     notifyDataChanged('insert')
     return {
@@ -207,18 +256,21 @@ export function useData() {
       business_classification: updates.business_classification,
       role: updates.role,
     })
+    cacheDel('pics')
     await loadPics()
     notifyDataChanged('update')
   }
 
   async function deletePic(id: string) {
     await apiSend(`pics/${id}`, 'DELETE')
+    cacheDel('pics')
     await loadPics()
     notifyDataChanged('delete')
   }
 
   async function addMeeting(meeting: Partial<Meeting>) {
     const data = await apiSend<Meeting>('meetings', 'POST', meeting as Record<string, unknown>)
+    cacheDel('meetings')
     await loadMeetings()
     notifyDataChanged('insert')
     return data
@@ -226,12 +278,14 @@ export function useData() {
 
   async function updateMeeting(id: string, updates: Partial<Meeting>) {
     await apiSend(`meetings/${id}`, 'PATCH', updates as Record<string, unknown>)
+    cacheDel('meetings')
     await loadMeetings()
     notifyDataChanged('update')
   }
 
   async function deleteMeeting(id: string) {
     await apiSend(`meetings/${id}`, 'DELETE')
+    cacheDel('meetings')
     await loadMeetings()
     notifyDataChanged('delete')
   }
@@ -327,7 +381,7 @@ export function useData() {
     pics,
     members,
     loading,
-    reload: loadData,
+    reload: () => loadData(true),
     addVisitor,
     updateVisitor,
     deleteVisitor,

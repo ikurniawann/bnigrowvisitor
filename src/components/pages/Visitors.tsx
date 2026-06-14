@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useData } from '@/hooks/useData'
-import VisitorDetail from './VisitorDetail'
+import dynamic from 'next/dynamic'
+import EmptyState, { VisitorEmptyIcon, SearchEmptyIcon } from '@/components/ui/EmptyState'
+
+const VisitorDetail = dynamic(() => import('./VisitorDetail'), { ssr: false, loading: () => null })
 import { getWaTemplateSettings, renderWaTemplate } from '@/lib/waTemplate'
 import { useChapterBranding } from '@/hooks/useChapterBranding'
 
@@ -627,15 +630,12 @@ export default function Visitors() {
         {/* Mobile: card view */}
         <div className="sm:hidden divide-y divide-gray-100">
           {paginatedVisitors.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <svg className="w-12 h-12 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              <p className="text-sm">Belum ada visitor</p>
-              <button onClick={handleOpenAdd} className="mt-3 text-red-600 text-sm font-medium">+ Tambah visitor pertama</button>
-            </div>
+            <EmptyState
+              icon={search || statusFilter || meetingFilter || picFilter ? <SearchEmptyIcon /> : <VisitorEmptyIcon />}
+              title={search || statusFilter || meetingFilter || picFilter ? 'Tidak ada hasil' : 'Belum ada visitor'}
+              description={search || statusFilter || meetingFilter || picFilter ? 'Coba ubah filter atau kata kunci pencarian.' : 'Mulai tambah visitor pertama untuk chapter ini.'}
+              action={!search && !statusFilter && !meetingFilter && !picFilter ? { label: '+ Tambah Visitor', onClick: handleOpenAdd } : undefined}
+            />
           ) : paginatedVisitors.map((visitor, index) => {
             const qualityIssues = getDataQualityIssues(visitor)
             return (
@@ -770,20 +770,13 @@ export default function Visitors() {
             <tbody>
               {paginatedVisitors.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-gray-500">
-                    <svg className="w-12 h-12 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                      <circle cx="9" cy="7" r="4" />
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                    </svg>
-                    <p>Belum ada visitor</p>
-                    <button 
-                      onClick={handleOpenAdd}
-                      className="mt-3 text-red-600 hover:text-red-700 text-sm font-medium"
-                    >
-                      + Tambah visitor pertama
-                    </button>
+                  <td colSpan={11}>
+                    <EmptyState
+                      icon={search || statusFilter || meetingFilter || picFilter ? <SearchEmptyIcon /> : <VisitorEmptyIcon />}
+                      title={search || statusFilter || meetingFilter || picFilter ? 'Tidak ada hasil' : 'Belum ada visitor'}
+                      description={search || statusFilter || meetingFilter || picFilter ? 'Coba ubah filter atau kata kunci pencarian.' : 'Mulai tambah visitor pertama untuk chapter ini.'}
+                      action={!search && !statusFilter && !meetingFilter && !picFilter ? { label: '+ Tambah Visitor', onClick: handleOpenAdd } : undefined}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -977,7 +970,7 @@ export default function Visitors() {
       {/* Modal: Add/Edit Visitor */}
       {isModalOpen && (
         <div className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="modal-spring-enter bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
               <h3 className="text-lg font-semibold text-gray-900">
                 {editingId ? 'Edit Visitor' : 'Tambah Visitor'}
@@ -1303,7 +1296,7 @@ export default function Visitors() {
       {/* Modal: Visitor Frequency Warning */}
       {freqWarning && (
         <div className="app-modal-backdrop fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="modal-spring-enter bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div className="p-5 border-b border-gray-100 flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
