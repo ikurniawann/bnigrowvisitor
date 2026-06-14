@@ -532,7 +532,9 @@ export default function Visitors() {
             >
               <option value="">Semua Meeting</option>
               {meetings.map(m => (
-                <option key={m.id} value={m.id}>{m.title}</option>
+                <option key={m.id} value={m.id}>
+                  {m.title.length > 38 ? m.title.slice(0, 38) + '…' : m.title}
+                </option>
               ))}
             </select>
 
