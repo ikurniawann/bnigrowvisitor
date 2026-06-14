@@ -309,6 +309,7 @@ body {
     box-shadow: 0 16px 44px rgba(15, 23, 42, 0.07);
     backdrop-filter: blur(24px) saturate(1.35);
     -webkit-backdrop-filter: blur(24px) saturate(1.35);
+    overflow: hidden;
   }
 
   .visitor-toolbar-grid {
@@ -323,6 +324,7 @@ body {
     grid-template-columns: minmax(260px, 1.35fr) minmax(150px, 0.55fr) minmax(210px, 0.9fr) minmax(145px, 0.5fr);
     gap: 12px;
     min-width: 0;
+    overflow: hidden;
   }
 
   .visitor-action-group {
