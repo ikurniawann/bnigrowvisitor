@@ -8,6 +8,7 @@ import GrowAssistant from '@/components/assistant/GrowAssistant'
 import { getCurrentUser, signOut } from '@/lib/auth'
 import { isNationalAdmin } from '@/lib/permissions'
 import { getChapterRoute } from '@/lib/chapterRoute'
+import { isNationalPage, isNationalPath } from '@/lib/navigationContext'
 
 // Context for global actions
 interface DashboardContextType {
@@ -37,6 +38,9 @@ const pathToPage: Record<string, string> = {
   '/pic': 'pic',
   '/weekly': 'weekly',
   '/logs': 'logs',
+  '/account': 'account',
+  '/profile': 'profile',
+  '/my-account': 'my-account',
 }
 
 const pageTitles: Record<string, string> = {
@@ -57,6 +61,9 @@ const pageTitles: Record<string, string> = {
   'pic-accounts': 'Akun PIC',
   weekly: 'Weekly Meeting',
   logs: 'Log',
+  account: 'Profile',
+  profile: 'Profile',
+  'my-account': 'Profile',
 }
 
 function getPageFromPath(pathname: string) {
@@ -78,6 +85,8 @@ function getPageFromPath(pathname: string) {
     }
     return sectionMap[section] || 'chapter-dashboard'
   }
+
+  if (isNationalPath(pathname)) return 'national-overview'
 
   return pathToPage[pathname] || 'dashboard'
 }
@@ -164,7 +173,7 @@ export default function DashboardLayout({
 
   // Check if current page should be fullscreen
   const isFullscreen = FULLSCREEN_PAGES.includes(pathname) || currentPage === 'kanban'
-  const isNationalArea = ['national-overview', 'national-governance', 'national-policies', 'national-dashboard', 'master'].includes(currentPage)
+  const isNationalArea = isNationalPage(currentPage)
 
   if (loading) {
     return (
