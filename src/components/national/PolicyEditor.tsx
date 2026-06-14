@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { REQUIRED_FIELD_OPTIONS, DEFAULT_PIPELINE, PolicyType } from '@/lib/national/policies'
+import { REQUIRED_FIELD_OPTIONS, DEFAULT_PIPELINE, DEFAULT_VISITOR_FREQUENCY, PolicyType } from '@/lib/national/policies'
 import { DEFAULT_WA_TEMPLATES } from '@/lib/waTemplate'
 
 interface ChapterOption {
@@ -19,6 +19,7 @@ const TABS: { type: PolicyType; label: string }[] = [
   { type: 'wa_template', label: 'Template WA' },
   { type: 'required_fields', label: 'Field Wajib' },
   { type: 'pipeline', label: 'Label Pipeline' },
+  { type: 'visitor_frequency', label: 'Frekuensi Visitor' },
 ]
 
 export default function PolicyEditor() {
@@ -64,6 +65,7 @@ export default function PolicyEditor() {
       wa_template: { online: DEFAULT_WA_TEMPLATES.online, offline: DEFAULT_WA_TEMPLATES.offline },
       required_fields: { fields: REQUIRED_FIELD_OPTIONS.filter(f => f.key === 'phone' || f.key === 'business_field').map(f => f.key) },
       pipeline: { labels: { ...DEFAULT_PIPELINE } },
+      visitor_frequency: { ...DEFAULT_VISITOR_FREQUENCY },
     }),
     []
   )
@@ -154,6 +156,8 @@ export default function PolicyEditor() {
           <WaTemplateForm config={config} setConfig={setConfig} />
         ) : tab === 'required_fields' ? (
           <RequiredFieldsForm config={config} setConfig={setConfig} />
+        ) : tab === 'visitor_frequency' ? (
+          <VisitorFrequencyForm config={config} setConfig={setConfig} />
         ) : (
           <PipelineForm config={config} setConfig={setConfig} />
         )}
@@ -232,6 +236,69 @@ function PipelineForm({ config, setConfig }: { config: Record<string, any>; setC
           />
         </label>
       ))}
+    </div>
+  )
+}
+
+function VisitorFrequencyForm({ config, setConfig }: { config: Record<string, any>; setConfig: (c: Record<string, any>) => void }) {
+  const maxVisits = Number(config.max_visits ?? DEFAULT_VISITOR_FREQUENCY.max_visits)
+  const periodMonths = Number(config.period_months ?? DEFAULT_VISITOR_FREQUENCY.period_months)
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl bg-amber-50 border border-amber-100 p-4 text-sm text-amber-800">
+        <strong>Kebijakan berlaku lintas semua chapter.</strong> Visitor yang sudah hadir sebanyak batas maksimum dalam periode yang ditentukan akan mendapat notifikasi peringatan saat statusnya diubah.
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-gray-700">
+            Maksimum Kunjungan
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={maxVisits}
+              onChange={event => setConfig({ ...config, max_visits: Number(event.target.value) })}
+              className="w-24 rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
+            />
+            <span className="text-sm text-gray-500">kali kunjungan</span>
+          </div>
+          <p className="mt-1.5 text-xs text-gray-400">
+            Notifikasi muncul saat visitor sudah hadir ≥ {maxVisits}× dalam periode.
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-gray-700">
+            Periode Waktu
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={1}
+              max={24}
+              value={periodMonths}
+              onChange={event => setConfig({ ...config, period_months: Number(event.target.value) })}
+              className="w-24 rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 focus:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-100"
+            />
+            <span className="text-sm text-gray-500">bulan terakhir</span>
+          </div>
+          <p className="mt-1.5 text-xs text-gray-400">
+            Hitung kunjungan dalam {periodMonths} bulan terakhir dari tanggal sekarang.
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
+        <p className="font-semibold text-gray-700 mb-1">Konfigurasi saat ini:</p>
+        <p>
+          Visitor yang sudah hadir <strong>{maxVisits}× atau lebih</strong> dalam <strong>{periodMonths} bulan terakhir</strong> (lintas semua chapter) akan mendapat notifikasi peringatan.
+        </p>
+        <p className="mt-1 text-xs text-gray-400">Yang dihitung: status Hadir, Interview, Jadi Member, Tidak Lanjut.</p>
+      </div>
     </div>
   )
 }

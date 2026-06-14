@@ -80,6 +80,16 @@ export default function Visitors() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   
+  // Visitor frequency warning modal
+  const [freqWarning, setFreqWarning] = useState<{
+    visitor: any
+    pendingStatus: string
+    count: number
+    limit: number
+    periodMonths: number
+    visits: any[]
+  } | null>(null)
+
   // Member search dropdown state
   const [memberSearch, setMemberSearch] = useState('')
   const [showMemberDropdown, setShowMemberDropdown] = useState(false)
@@ -420,8 +430,19 @@ export default function Visitors() {
     })
   }
 
-  const handleQuickStatusChange = async (visitorId: string, status: string) => {
-    await updateVisitor(visitorId, {
+  const handleQuickStatusChange = async (visitor: any, status: string) => {
+    try {
+      const res = await fetch(`/api/visitor-frequency?phone=${encodeURIComponent(visitor.phone)}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.exceeded) {
+          setFreqWarning({ visitor, pendingStatus: status, ...data })
+          return
+        }
+      }
+    } catch {}
+
+    await updateVisitor(visitor.id, {
       status: status as any,
       updated_at: new Date().toISOString(),
     })
@@ -726,7 +747,7 @@ export default function Visitors() {
                     <td className="px-4 py-3">
                       <select
                         value={visitor.status}
-                        onChange={(e) => handleQuickStatusChange(visitor.id, e.target.value)}
+                        onChange={(e) => handleQuickStatusChange(visitor, e.target.value)}
                         className={`h-9 w-[150px] rounded-xl border-0 px-2 text-xs font-semibold ${getStatusBadgeClass(visitor.status)}`}
                         title={getStatusLabel(visitor.status, (visitor as any).attended_choice_number)}
                       >
@@ -1156,6 +1177,78 @@ export default function Visitors() {
             handleOpenEdit(v)
           }}
         />
+      )}
+
+      {/* Modal: Visitor Frequency Warning */}
+      {freqWarning && (
+        <div className="app-modal-backdrop fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="p-5 border-b border-gray-100 flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Batas Kunjungan Tercapai</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {freqWarning.visitor.name} sudah hadir{' '}
+                  <strong className="text-amber-700">{freqWarning.count}×</strong> dalam{' '}
+                  {freqWarning.periodMonths} bulan terakhir (batas: {freqWarning.limit}×)
+                </p>
+              </div>
+            </div>
+
+            <div className="p-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Riwayat Kehadiran</p>
+              <div className="space-y-2 mb-5">
+                {freqWarning.visits.map((v: any, i: number) => {
+                  const meeting = Array.isArray(v.meeting) ? v.meeting[0] : v.meeting
+                  const dateStr = meeting?.meeting_date
+                    ? new Date(meeting.meeting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : '-'
+                  return (
+                    <div key={v.id || i} className="flex items-center justify-between rounded-xl bg-amber-50 border border-amber-100 px-3 py-2.5 text-sm">
+                      <span className="font-semibold text-amber-900">{v.chapter || '-'}</span>
+                      <span className="text-amber-700">{dateStr}</span>
+                      <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        {STATUSES[v.status as keyof typeof STATUSES]?.label || v.status}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <p className="text-sm text-gray-600 mb-5">
+                Kebijakan nasional membatasi maksimum <strong>{freqWarning.limit} kali</strong> kunjungan dalam{' '}
+                <strong>{freqWarning.periodMonths} bulan</strong>. Apakah Anda tetap ingin mengubah status?
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setFreqWarning(null)}
+                  className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={async () => {
+                    const { visitor, pendingStatus } = freqWarning
+                    setFreqWarning(null)
+                    await updateVisitor(visitor.id, {
+                      status: pendingStatus as any,
+                      updated_at: new Date().toISOString(),
+                    })
+                    await reload()
+                  }}
+                  className="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-600 transition-colors"
+                >
+                  Tetap Ubah Status
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

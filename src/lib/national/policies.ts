@@ -1,7 +1,7 @@
 // Shared, framework-agnostic policy definitions for national templates/policies.
 // Kept free of client/server directives so both layers can import it.
 
-export const POLICY_TYPES = ['wa_template', 'required_fields', 'pipeline'] as const
+export const POLICY_TYPES = ['wa_template', 'required_fields', 'pipeline', 'visitor_frequency'] as const
 export type PolicyType = (typeof POLICY_TYPES)[number]
 
 export function isPolicyType(value: unknown): value is PolicyType {
@@ -33,6 +33,8 @@ export const DEFAULT_PIPELINE = {
   not_continue: 'Tidak Lanjut',
 }
 
+export const DEFAULT_VISITOR_FREQUENCY = { max_visits: 2, period_months: 6 }
+
 export function defaultPolicyConfig(type: PolicyType): Record<string, unknown> {
   switch (type) {
     case 'required_fields':
@@ -41,6 +43,8 @@ export function defaultPolicyConfig(type: PolicyType): Record<string, unknown> {
       return { labels: DEFAULT_PIPELINE }
     case 'wa_template':
       return { online: '', offline: '' }
+    case 'visitor_frequency':
+      return { ...DEFAULT_VISITOR_FREQUENCY }
   }
 }
 
