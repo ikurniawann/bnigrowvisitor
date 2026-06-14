@@ -297,7 +297,7 @@ async function buildDashboardContext(user: AssistantUser) {
   return {
     generated_at: new Date().toISOString(),
     app: `${chapterData?.name || 'BNI'} Visitor Manager`,
-    assistant_name: chapterData?.name ? `${chapterData.name.replace(/^BNI\s+/i, '')} Assistant` : 'Grow Assistant',
+    assistant_name: chapterData?.name ? `${chapterData.name.replace(/^BNI\s+/i, '')} Assistant` : 'BNI Assistant',
     chapter_context: chapterData ? {
       id: chapterData.id,
       name: chapterData.name,
@@ -369,7 +369,7 @@ export async function POST(request: Request) {
     const messages = Array.isArray(body.messages) ? body.messages as ChatMessage[] : []
     const assistantName = typeof body.assistantName === 'string' && body.assistantName.trim()
       ? body.assistantName.trim().slice(0, 80)
-      : 'Grow Assistant'
+      : 'BNI Assistant'
     const chapterName = typeof body.chapterName === 'string' && body.chapterName.trim()
       ? body.chapterName.trim().slice(0, 120)
       : 'BNI'

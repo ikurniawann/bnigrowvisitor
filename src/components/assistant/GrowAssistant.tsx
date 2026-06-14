@@ -37,6 +37,20 @@ function getStoredUserId() {
   }
 }
 
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem('user')
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function isNationalAdminUser(user: any) {
+  if (!user) return false
+  return user.role === 'national_admin' || user.role === 'admin' || user.email === 'admin@bniindonesia.com'
+}
+
 function normalizeAssistantText(value: string) {
   return value
     .replace(/\*\*/g, '')
@@ -62,8 +76,13 @@ function clampPosition(position: { x: number; y: number }) {
 
 export default function GrowAssistant() {
   const chapterBranding = useChapterBranding()
-  const assistantName = `${chapterBranding.shortName} Assistant`
-  const assistantInitials = `${chapterBranding.shortName.charAt(0) || 'G'}A`.toUpperCase()
+  const chapterRouteMatch = typeof window !== 'undefined' ? window.location.pathname.match(/^\/chapter\/([^/]+)/) : null
+  const isNationalScope = !chapterRouteMatch && typeof window !== 'undefined' && isNationalAdminUser(getStoredUser())
+  const activeChapterId = chapterRouteMatch?.[1]
+    ? decodeURIComponent(chapterRouteMatch[1])
+    : (isNationalScope ? '' : chapterBranding.chapterId)
+  const assistantName = isNationalScope ? 'BNI Assistant' : `${chapterBranding.shortName} Assistant`
+  const assistantInitials = isNationalScope ? 'BA' : `${chapterBranding.shortName.charAt(0) || 'G'}A`.toUpperCase()
   const [isOpen, setIsOpen] = useState(false)
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -74,8 +93,9 @@ export default function GrowAssistant() {
     {
       id: 'welcome',
       role: 'assistant',
-      content:
-        `Halo, saya ${assistantName}. Saya bisa bantu baca data visitor, status follow-up, PIC, meeting, top referral, dan insight dashboard ${chapterBranding.chapterName}.`,
+      content: isNationalScope
+        ? `Halo, saya ${assistantName}. Saya bisa bantu analisa data visitor, member, PIC, dan meeting dari semua chapter BNI.`
+        : `Halo, saya ${assistantName}. Saya bisa bantu baca data visitor, status follow-up, PIC, meeting, top referral, dan insight dashboard ${chapterBranding.chapterName}.`,
     },
   ])
   const listRef = useRef<HTMLDivElement>(null)
@@ -116,11 +136,13 @@ export default function GrowAssistant() {
       message.id === 'welcome'
         ? {
             ...message,
-            content: `Halo, saya ${assistantName}. Saya bisa bantu baca data visitor, status follow-up, PIC, meeting, top referral, dan insight dashboard ${chapterBranding.chapterName}.`,
+            content: isNationalScope
+              ? `Halo, saya ${assistantName}. Saya bisa bantu analisa data visitor, member, PIC, dan meeting dari semua chapter BNI.`
+              : `Halo, saya ${assistantName}. Saya bisa bantu baca data visitor, status follow-up, PIC, meeting, top referral, dan insight dashboard ${chapterBranding.chapterName}.`,
           }
         : message
     ))
-  }, [assistantName, chapterBranding.chapterName])
+  }, [assistantName, chapterBranding.chapterName, isNationalScope])
 
   useEffect(() => {
     const handleResize = () => {
@@ -267,8 +289,6 @@ export default function GrowAssistant() {
     ? 'bottom-[calc(100%+1rem)]'
     : 'top-[calc(100%+1rem)]'
   const panelHorizontalClass = position.x > 260 ? 'right-0' : 'left-0'
-  const chapterRouteMatch = typeof window !== 'undefined' ? window.location.pathname.match(/^\/chapter\/([^/]+)/) : null
-  const activeChapterId = chapterRouteMatch?.[1] ? decodeURIComponent(chapterRouteMatch[1]) : chapterBranding.chapterId
   const resolveShortcutPath = (action: (typeof actionShortcuts)[number]) =>
     activeChapterId ? `/chapter/${encodeURIComponent(activeChapterId)}/${action.path}` : action.fallbackPath
 
