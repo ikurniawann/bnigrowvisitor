@@ -177,13 +177,38 @@ export default function DashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <svg className="animate-spin h-12 w-12 text-red-600 mx-auto" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <p className="mt-4 text-gray-600">Loading...</p>
+      <div className="flex min-h-screen fade-in-up">
+        {/* Sidebar skeleton */}
+        <div className="hidden lg:flex flex-col w-64 glass-panel-strong border-r border-white/70 h-screen">
+          <div className="px-5 py-5 border-b border-white/60 space-y-2">
+            <div className="h-4 w-20 rounded-full bg-gray-200 animate-pulse" />
+            <div className="h-5 w-36 rounded-lg bg-gray-200 animate-pulse mt-2" />
+            <div className="h-3 w-28 rounded bg-gray-100 animate-pulse mt-1" />
+          </div>
+          <div className="flex-1 px-3 py-4 space-y-1.5">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="h-9 rounded-xl bg-gray-100/80 animate-pulse" style={{ opacity: 1 - i * 0.1 }} />
+            ))}
+          </div>
+        </div>
+        {/* Main area skeleton */}
+        <div className="flex-1 flex flex-col lg:ml-0">
+          <div className="h-14 border-b border-white/60 bg-white/50 px-6 flex items-center gap-3">
+            <div className="h-5 w-36 rounded-lg bg-gray-200 animate-pulse" />
+            <div className="ml-auto flex gap-2">
+              <div className="h-8 w-24 rounded-xl bg-gray-200 animate-pulse" />
+              <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
+            </div>
+          </div>
+          <div className="flex-1 p-6 space-y-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-24 rounded-2xl bg-white/80 border border-white/70 animate-pulse" style={{ opacity: 1 - i * 0.08 }} />
+              ))}
+            </div>
+            <div className="h-48 rounded-2xl bg-white/80 border border-white/70 animate-pulse" />
+            <div className="h-32 rounded-2xl bg-white/80 border border-white/70 animate-pulse opacity-70" />
+          </div>
         </div>
       </div>
     )
@@ -210,7 +235,7 @@ export default function DashboardLayout({
           )}
           
           {/* pb-16 gives room for the MobileTabBar on small screens */}
-          <main className="flex-1 p-4 pb-20 lg:p-6 lg:pb-6 overflow-auto">
+          <main key={pathname} className="flex-1 p-4 pb-20 lg:p-6 lg:pb-6 overflow-auto fade-in-up">
             {tenantWarning && (
               <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
                 {tenantWarning}

@@ -167,25 +167,31 @@ export default function Sidebar({ currentPage }: SidebarProps) {
             <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider px-3 py-2 mb-1">
               MENU
             </div>
-            {(isNationalArea ? nationalNavItems : chapterNavItems).map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleNavigate(resolvePath(item))}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1
-                  text-[13px] font-medium transition-[background-color,color,box-shadow] duration-150
-                  ${currentPage === item.id 
-                    ? 'bg-white/80 text-red-600 shadow-sm ring-1 ring-red-100/80' 
-                    : 'text-gray-700 hover:bg-white/55 hover:text-gray-950'
-                  }
-                `}
-              >
-                <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d={item.icon} />
-                </svg>
-                <span>{item.label}</span>
-              </button>
-            ))}
+            {(isNationalArea ? nationalNavItems : chapterNavItems).map((item) => {
+              const isActive = currentPage === item.id
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavigate(resolvePath(item))}
+                  className={`
+                    relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1
+                    text-[13px] font-medium transition-[background-color,color] duration-150
+                    ${isActive
+                      ? 'bg-red-50/90 text-red-600'
+                      : 'text-gray-700 hover:bg-white/55 hover:text-gray-950'
+                    }
+                  `}
+                >
+                  {isActive && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-red-600" />
+                  )}
+                  <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? "2.5" : "2"}>
+                    <path d={item.icon} />
+                  </svg>
+                  <span className={isActive ? 'font-semibold' : ''}>{item.label}</span>
+                </button>
+              )
+            })}
           </div>
 
           {/* Data Section */}
@@ -194,25 +200,31 @@ export default function Sidebar({ currentPage }: SidebarProps) {
             <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider px-3 py-2 mb-1">
               DATA
             </div>
-            {dataNavItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleNavigate(resolvePath(item))}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1
-                  text-[13px] font-medium transition-[background-color,color,box-shadow] duration-150
-                  ${currentPage === item.id 
-                    ? 'bg-white/80 text-red-600 shadow-sm ring-1 ring-red-100/80' 
-                    : 'text-gray-700 hover:bg-white/55 hover:text-gray-950'
-                  }
-                `}
-              >
-                <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d={item.icon} />
-                </svg>
-                <span>{item.label}</span>
-              </button>
-            ))}
+            {dataNavItems.map((item) => {
+              const isActive = currentPage === item.id
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavigate(resolvePath(item))}
+                  className={`
+                    relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1
+                    text-[13px] font-medium transition-[background-color,color] duration-150
+                    ${isActive
+                      ? 'bg-red-50/90 text-red-600'
+                      : 'text-gray-700 hover:bg-white/55 hover:text-gray-950'
+                    }
+                  `}
+                >
+                  {isActive && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-red-600" />
+                  )}
+                  <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? "2.5" : "2"}>
+                    <path d={item.icon} />
+                  </svg>
+                  <span className={isActive ? 'font-semibold' : ''}>{item.label}</span>
+                </button>
+              )
+            })}
           </div>
           )}
 

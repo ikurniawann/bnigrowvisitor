@@ -7,6 +7,7 @@ import { User } from '@/lib/supabase'
 import { isNationalAdmin } from '@/lib/permissions'
 import { getChapterRoute } from '@/lib/chapterRoute'
 import dynamic from 'next/dynamic'
+import { StatGridSkeleton, CardSkeleton } from '@/components/ui/Skeleton'
 
 const VisitorDetail = dynamic(() => import('./VisitorDetail'), { ssr: false, loading: () => null })
 
@@ -44,7 +45,7 @@ type DashboardMode = 'auto' | 'national' | 'chapter'
 
 export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
   const router = useRouter()
-  const { visitors, meetings, reload } = useData()
+  const { visitors, meetings, loading: dataLoading, reload } = useData()
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [userLoaded, setUserLoaded] = useState(false)
   const [tenantChapterId, setTenantChapterId] = useState('')
@@ -355,6 +356,19 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
       not_continue: 'bg-gray-100 text-gray-800',
     }
     return classes[status] || 'bg-gray-100 text-gray-800'
+  }
+
+  if (!userLoaded || dataLoading) {
+    return (
+      <div className="space-y-6 fade-in-up">
+        <StatGridSkeleton count={4} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <CardSkeleton lines={4} />
+          <CardSkeleton lines={4} />
+        </div>
+        <CardSkeleton lines={5} />
+      </div>
+    )
   }
 
   if (mode === 'national' && userLoaded && !canViewNationalDashboard) {
