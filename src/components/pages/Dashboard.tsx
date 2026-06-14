@@ -53,6 +53,7 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
   const [cityFilter, setCityFilter] = useState<string>('')
   const [areaFilter, setAreaFilter] = useState<string>('')
   const [chapterFilter, setChapterFilter] = useState<string>('')
+  const [meetingSheetOpen, setMeetingSheetOpen] = useState(false)
   const [activeFocus, setActiveFocus] = useState<'followup' | 'unassigned' | 'quality' | 'reminder' | null>(null)
   const [activeInsight, setActiveInsight] = useState<DashboardListModal | null>(null)
   const [hoveredFocus, setHoveredFocus] = useState<'followup' | 'unassigned' | 'quality' | 'reminder' | null>(null)
@@ -763,32 +764,101 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
 
   return (
     <div className="space-y-6">
-      {/* Weekly Meeting Filter */}
-      <div className="bg-white rounded-xl shadow p-4">
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-semibold text-gray-700">Filter Weekly Meeting:</label>
-          <select 
-            value={meetingFilter} 
-            onChange={(e) => setMeetingFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-          >
-            <option value="">Semua Meeting</option>
-            {meetings.map(meeting => (
-              <option key={meeting.id} value={meeting.id}>
-                {meeting.title} - {new Date(meeting.meeting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </option>
-            ))}
-          </select>
-          {meetingFilter && (
-            <button
-              onClick={() => setMeetingFilter('')}
-              className="text-xs text-red-600 hover:text-red-700 font-medium"
-            >
-              ✕ Clear
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Weekly Meeting Filter — bottom sheet trigger */}
+      {(() => {
+        const selectedMeeting = meetings.find(m => m.id === meetingFilter)
+        const sortedMeetings = [...meetings].sort((a, b) => b.meeting_date.localeCompare(a.meeting_date))
+        return (
+          <>
+            <div className="bg-white rounded-xl shadow p-4">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-gray-700 flex-shrink-0">Weekly Meeting:</span>
+                <button
+                  onClick={() => setMeetingSheetOpen(true)}
+                  className="flex items-center gap-2 min-w-0 flex-1 sm:flex-none rounded-xl border border-gray-200 bg-gray-50 hover:bg-white hover:border-red-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors text-left"
+                >
+                  <svg className="w-4 h-4 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <span className="truncate">
+                    {selectedMeeting
+                      ? `${new Date(selectedMeeting.meeting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} — ${selectedMeeting.title}`
+                      : 'Semua Meeting'}
+                  </span>
+                  <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 ml-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                {meetingFilter && (
+                  <button onClick={() => setMeetingFilter('')} className="flex-shrink-0 text-xs text-red-500 hover:text-red-700 font-semibold">
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom sheet overlay */}
+            {meetingSheetOpen && (
+              <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center" onClick={() => setMeetingSheetOpen(false)}>
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                <div
+                  className="relative w-full sm:w-[420px] bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden"
+                  onClick={e => e.stopPropagation()}
+                >
+                  {/* Handle */}
+                  <div className="flex justify-center pt-3 pb-1 sm:hidden">
+                    <div className="w-10 h-1 rounded-full bg-gray-200" />
+                  </div>
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                    <h3 className="text-base font-bold text-gray-900">Pilih Weekly Meeting</h3>
+                    <button onClick={() => setMeetingSheetOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                  {/* List */}
+                  <div className="overflow-y-auto max-h-[60vh]">
+                    {/* Semua Meeting option */}
+                    <button
+                      onClick={() => { setMeetingFilter(''); setMeetingSheetOpen(false) }}
+                      className={`w-full flex items-center gap-3 px-5 py-4 text-left transition-colors border-b border-gray-50 ${!meetingFilter ? 'bg-red-50' : 'hover:bg-gray-50'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${!meetingFilter ? 'border-red-600 bg-red-600' : 'border-gray-300'}`}>
+                        {!meetingFilter && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+                      <span className={`text-sm font-semibold ${!meetingFilter ? 'text-red-700' : 'text-gray-700'}`}>Semua Meeting</span>
+                    </button>
+                    {sortedMeetings.map(meeting => {
+                      const isActive = meetingFilter === meeting.id
+                      return (
+                        <button
+                          key={meeting.id}
+                          onClick={() => { setMeetingFilter(meeting.id); setMeetingSheetOpen(false) }}
+                          className={`w-full flex items-center gap-3 px-5 py-4 text-left transition-colors border-b border-gray-50 ${isActive ? 'bg-red-50' : 'hover:bg-gray-50'}`}
+                        >
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isActive ? 'border-red-600 bg-red-600' : 'border-gray-300'}`}>
+                            {isActive && <div className="w-2 h-2 rounded-full bg-white" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className={`text-sm font-semibold truncate ${isActive ? 'text-red-700' : 'text-gray-800'}`}>{meeting.title}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {new Date(meeting.meeting_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                            </p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {/* Today Focus */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
