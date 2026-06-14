@@ -452,7 +452,7 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
           </div>
 
           {/* Visitor History (cross-chapter) */}
-          {(historyLoading || (visitHistory && visitHistory.count > 0)) && (
+          {(historyLoading || visitHistory !== null) && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Riwayat Kunjungan</h5>
@@ -469,6 +469,10 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
               {historyLoading ? (
                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center text-xs text-gray-400">
                   Memuat riwayat…
+                </div>
+              ) : visitHistory!.count === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/70 p-3 text-sm text-gray-500">
+                  Belum ada riwayat kunjungan di chapter manapun.
                 </div>
               ) : (
                 <div className="space-y-1.5">
