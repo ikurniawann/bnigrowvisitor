@@ -1,8 +1,7 @@
 import 'server-only'
-import { withScopedSession, ok, fail } from '@/lib/server/apiHandler'
+import { withScopedSession, ok, fail, readJson } from '@/lib/server/apiHandler'
 import { getSupabaseAdmin } from '@/lib/server/supabaseAdmin'
 import { writeActivityLog } from '@/lib/server/activityLogService'
-import { readJson } from '@/lib/server/apiHandler'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +13,6 @@ interface ImportVisitor {
   phone?: string | null
   email?: string | null
   referral_name?: string | null
-  meeting_date?: string | null
 }
 
 export async function POST(request: Request) {
@@ -23,6 +21,7 @@ export async function POST(request: Request) {
     async ({ session, scope }) => {
       const body = await readJson(request)
       const visitors = (body?.visitors ?? []) as ImportVisitor[]
+      const meetingId: string | null = typeof body?.meetingId === 'string' ? body.meetingId : null
 
       if (!Array.isArray(visitors) || visitors.length === 0) {
         return fail('Data visitor tidak boleh kosong.', 400)
@@ -32,7 +31,24 @@ export async function POST(request: Request) {
         return fail('Maksimal 500 visitor per import.', 400)
       }
 
+      if (!meetingId) {
+        return fail('Weekly meeting wajib dipilih sebelum import.', 400)
+      }
+
       const chapterId = scope.chapterId!
+
+      // Validate meeting belongs to this chapter and get its date
+      const { data: meeting, error: meetingErr } = await getSupabaseAdmin()
+        .from('weekly_meetings')
+        .select('id, title, meeting_date')
+        .eq('id', meetingId)
+        .eq('chapter_id', chapterId)
+        .maybeSingle()
+
+      if (meetingErr) throw meetingErr
+      if (!meeting) return fail('Weekly meeting tidak ditemukan pada chapter ini.', 404)
+
+      const meetingDate: string = meeting.meeting_date
 
       // Fetch existing phones in this chapter to detect duplicates
       const { data: existing, error: existErr } = await getSupabaseAdmin()
@@ -65,7 +81,8 @@ export async function POST(request: Request) {
           phone: v.phone || null,
           email: v.email || null,
           referral_name: v.referral_name || null,
-          meeting_date: v.meeting_date || null,
+          meeting_id: meetingId,
+          meeting_date: meetingDate,
           status: 'new',
         })
       }
@@ -84,8 +101,8 @@ export async function POST(request: Request) {
           action: 'insert',
           entity: 'visitor',
           entityId: null,
-          entityLabel: `bulk import ${imported} visitor dari BNI`,
-          newData: { imported, duplicates },
+          entityLabel: `bulk import ${imported} visitor ke ${meeting.title}`,
+          newData: { imported, duplicates, meetingId },
         })
       }
 

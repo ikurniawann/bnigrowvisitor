@@ -22,12 +22,13 @@ interface ImportResult {
 type ImportStep = 'idle' | 'preview' | 'importing' | 'done'
 
 export default function ExportImport() {
-  const { visitors, members } = useData()
+  const { visitors, members, meetings } = useData()
   const [isExporting, setIsExporting] = useState(false)
   const [brandLabel, setBrandLabel] = useState('data chapter')
 
   // Import state
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedMeetingId, setSelectedMeetingId] = useState('')
   const [importStep, setImportStep] = useState<ImportStep>('idle')
   const [parsedVisitors, setParsedVisitors] = useState<ParsedVisitor[]>([])
   const [skippedCount, setSkippedCount] = useState(0)
@@ -35,12 +36,14 @@ export default function ExportImport() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [isDragging, setIsDragging] = useState(false)
 
+  const selectedMeeting = meetings.find(m => m.id === selectedMeetingId) ?? null
+
   useEffect(() => {
     setBrandLabel(getChapterBranding().displayName)
   }, [])
 
   function handleFileSelect(file: File) {
-    if (!file) return
+    if (!file || !selectedMeetingId) return
     setParseError('')
     setImportResult(null)
     const reader = new FileReader()
@@ -67,13 +70,13 @@ export default function ExportImport() {
   }
 
   async function handleImport() {
-    if (parsedVisitors.length === 0) return
+    if (parsedVisitors.length === 0 || !selectedMeetingId) return
     setImportStep('importing')
     try {
       const res = await fetch('/api/data/visitors/bulk-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visitors: parsedVisitors }),
+        body: JSON.stringify({ visitors: parsedVisitors, meetingId: selectedMeetingId }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Gagal import.')
@@ -360,41 +363,98 @@ export default function ExportImport() {
           </svg>
           Import Visitor dari BNI Report
         </h2>
-        <p className="text-xs text-gray-500 mb-5">Upload file <strong>BNI Visitor Registration Report</strong> (.xls / .xlsx). Baris bertipe Guest dan Substitute akan dilewati otomatis.</p>
+        <p className="text-xs text-gray-500 mb-5">Upload file <strong>BNI Visitor Registration Report</strong> (.xls / .xlsx). Baris bertipe Guest dan Substitute akan dilewati otomatis. Semua visitor akan dikaitkan ke Weekly Meeting yang dipilih.</p>
 
         {parseError && (
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 font-medium">{parseError}</div>
         )}
 
-        {/* Step: idle — drag/drop zone */}
+        {/* Step: idle — meeting selector then drag/drop zone */}
         {importStep === 'idle' && (
-          <div
-            onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`cursor-pointer border-2 border-dashed rounded-xl p-10 text-center transition-colors ${isDragging ? 'border-orange-400 bg-orange-50' : 'border-gray-300 hover:border-orange-400 hover:bg-orange-50/40'}`}
-          >
-            <svg className="w-10 h-10 mx-auto text-gray-400 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            <p className="text-sm font-semibold text-gray-700 mb-1">Drag &amp; drop file di sini</p>
-            <p className="text-xs text-gray-400">atau klik untuk pilih file .xls / .xlsx</p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xls,.xlsx"
-              className="hidden"
-              onChange={e => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]) }}
-            />
+          <div className="space-y-4">
+            {/* Step 1: pick meeting */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold mr-1.5">1</span>
+                Pilih Weekly Meeting
+              </label>
+              <select
+                value={selectedMeetingId}
+                onChange={e => setSelectedMeetingId(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100"
+              >
+                <option value="">— Pilih weekly meeting terlebih dahulu —</option>
+                {[...meetings].sort((a, b) => b.meeting_date.localeCompare(a.meeting_date)).map(m => (
+                  <option key={m.id} value={m.id}>
+                    {new Date(m.meeting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} — {m.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Step 2: upload file */}
+            <div>
+              <p className="text-xs font-semibold text-gray-600 mb-1.5">
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold mr-1.5">2</span>
+                Upload File Excel
+              </p>
+              <div
+                onDragOver={e => { if (!selectedMeetingId) return; e.preventDefault(); setIsDragging(true) }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => { if (selectedMeetingId) fileInputRef.current?.click() }}
+                className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors ${
+                  !selectedMeetingId
+                    ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
+                    : isDragging
+                      ? 'border-orange-400 bg-orange-50 cursor-pointer'
+                      : 'border-gray-300 hover:border-orange-400 hover:bg-orange-50/40 cursor-pointer'
+                }`}
+              >
+                <svg className="w-10 h-10 mx-auto text-gray-400 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <p className="text-sm font-semibold text-gray-700 mb-1">
+                  {selectedMeetingId ? 'Drag & drop file di sini' : 'Pilih weekly meeting dulu'}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {selectedMeetingId ? 'atau klik untuk pilih file .xls / .xlsx' : 'Upload file baru tersedia setelah memilih meeting'}
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xls,.xlsx"
+                  className="hidden"
+                  onChange={e => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]) }}
+                />
+              </div>
+            </div>
           </div>
         )}
 
         {/* Step: preview */}
         {(importStep === 'preview' || importStep === 'importing') && (
           <div>
+            {/* Selected meeting banner */}
+            {selectedMeeting && (
+              <div className="mb-4 flex items-center gap-3 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3">
+                <svg className="w-4 h-4 text-orange-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-orange-800 truncate">{selectedMeeting.title}</p>
+                  <p className="text-xs text-orange-600">
+                    {new Date(selectedMeeting.meeting_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+                <span className="ml-auto flex-shrink-0 text-[10px] font-bold text-orange-500 bg-orange-100 rounded-full px-2 py-0.5">Tanggal meeting ini yang dipakai</span>
+              </div>
+            )}
+
             {/* Stats row */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center">
@@ -422,7 +482,6 @@ export default function ExportImport() {
                       <th className="text-left px-3 py-2">Perusahaan</th>
                       <th className="text-left px-3 py-2">No WA</th>
                       <th className="text-left px-3 py-2">Diajak Oleh</th>
-                      <th className="text-left px-3 py-2">Tgl Kunjungan</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -433,7 +492,6 @@ export default function ExportImport() {
                         <td className="px-3 py-2 text-gray-600 max-w-[140px] truncate">{v.company || '—'}</td>
                         <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{v.phone || '—'}</td>
                         <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{v.referral_name || '—'}</td>
-                        <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{v.visit_date || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -461,7 +519,7 @@ export default function ExportImport() {
                     Mengimport…
                   </>
                 ) : (
-                  <>Import {parsedVisitors.length} Visitor</>
+                  <>Import {parsedVisitors.length} Visitor ke {selectedMeeting?.title || 'meeting'}</>
                 )}
               </button>
               <button
