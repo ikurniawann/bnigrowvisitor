@@ -54,6 +54,7 @@ const pageTitles: Record<string, string> = {
   'export-import': 'Export / Import',
   'text-format': 'Text Format',
   pic: 'Kelola PIC',
+  'pic-accounts': 'Akun PIC',
   weekly: 'Weekly Meeting',
   logs: 'Log',
 }
@@ -71,6 +72,7 @@ function getPageFromPath(pathname: string) {
       'export-import': 'export-import',
       'text-format': 'text-format',
       pic: 'pic',
+      'pic-accounts': 'pic-accounts',
       weekly: 'weekly',
       logs: 'logs',
     }
