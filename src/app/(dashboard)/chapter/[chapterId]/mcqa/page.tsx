@@ -1,9 +1,10 @@
 import ChapterRouteScope from '@/components/layout/ChapterRouteScope'
 import AttendedVisitors from '@/components/pages/AttendedVisitors'
 
-export default function ChapterMCQAPage({ params }: { params: { chapterId: string } }) {
+export default async function ChapterMCQAPage({ params }: { params: Promise<{ chapterId: string }> }) {
+  const { chapterId } = await params
   return (
-    <ChapterRouteScope chapterId={params.chapterId}>
+    <ChapterRouteScope chapterId={chapterId}>
       <AttendedVisitors />
     </ChapterRouteScope>
   )
