@@ -46,7 +46,7 @@ export default function Members() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
-  const isSuperAdmin = isNationalAdmin(currentUser)
+  const isSuperAdmin = isNationalAdmin(currentUser) || currentUser?.role === 'chapter_admin'
   const accessLabel = getUserLevelLabel(currentUser)
 
   useEffect(() => {

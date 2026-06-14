@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useData } from '@/hooks/useData'
 import { saveLocalPicBusinessClassification } from '@/lib/picBusinessClassification'
 
@@ -24,7 +24,7 @@ const initialForm: PICForm = {
 
 export default function PICManagement() {
   const { pics, visitors, members, loading, reload, addPic, updatePic, deletePic } = useData()
-  
+
   // State
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -33,6 +33,45 @@ export default function PICManagement() {
   const [error, setError] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [memberSearch, setMemberSearch] = useState('')
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [picPassword, setPicPassword] = useState('')
+  const [showPicPassword, setShowPicPassword] = useState(false)
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwError, setPwError] = useState('')
+  const [pwSuccess, setPwSuccess] = useState('')
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('user')
+      setCurrentUser(raw ? JSON.parse(raw) : null)
+    } catch {
+      setCurrentUser(null)
+    }
+  }, [])
+
+  const isChapterAdmin = currentUser?.role === 'chapter_admin'
+
+  const handleResetPicPassword = async () => {
+    if (!editingId || !picPassword.trim()) return
+    if (picPassword.length < 6) { setPwError('Password minimal 6 karakter.'); return }
+    setPwSaving(true); setPwError(''); setPwSuccess('')
+    try {
+      const res = await fetch('/api/pic-accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set-password', id: editingId, password: picPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setPwError(data.error || 'Gagal reset password.'); return }
+      setPwSuccess('Password berhasil diubah.')
+      setPicPassword('')
+      setShowPicPassword(false)
+    } catch {
+      setPwError('Terjadi kesalahan.')
+    } finally {
+      setPwSaving(false)
+    }
+  }
 
   // Calculate workload for each PIC
   const getPICWorkload = (picId: string) => {
@@ -105,6 +144,10 @@ export default function PICManagement() {
     setMemberSearch('')
     setEditingId(pic.id)
     setError('')
+    setPicPassword('')
+    setPwError('')
+    setPwSuccess('')
+    setShowPicPassword(false)
     setIsModalOpen(true)
   }
 
@@ -553,7 +596,46 @@ export default function PICManagement() {
                 </div>
               )}
 
-              {editingId && (
+              {editingId && isChapterAdmin && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-gray-600 uppercase">
+                    Reset Password Akun PIC
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPicPassword ? 'text' : 'password'}
+                      value={picPassword}
+                      onChange={e => { setPicPassword(e.target.value); setPwError(''); setPwSuccess('') }}
+                      placeholder="Password baru (min. 6 karakter)"
+                      className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPicPassword(v => !v)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        {showPicPassword
+                          ? <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></>
+                          : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>
+                        }
+                      </svg>
+                    </button>
+                  </div>
+                  {pwError && <p className="text-xs text-red-600">{pwError}</p>}
+                  {pwSuccess && <p className="text-xs text-emerald-600">{pwSuccess}</p>}
+                  <button
+                    type="button"
+                    onClick={handleResetPicPassword}
+                    disabled={pwSaving || !picPassword.trim()}
+                    className="w-full py-2 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  >
+                    {pwSaving ? 'Menyimpan...' : 'Simpan Password Baru'}
+                  </button>
+                </div>
+              )}
+
+              {editingId && !isChapterAdmin && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-xs text-yellow-800">
                     ℹ️ Email dan password tidak dapat diubah. Untuk reset password, hubungi administrator.
