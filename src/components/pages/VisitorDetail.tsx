@@ -271,6 +271,7 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
       const settings = getWaTemplateSettings()
       const visitorGender = gender === 'Ibu' ? 'Ibu' : 'Bapak'
       const template = settings.templates[settings.activeMode]
+      const confirmLink = `${window.location.origin}/wm/${currentVisitor.id}`
       const message = renderWaTemplate(template, {
         sapaan: visitorGender,
         nama: visitorName,
@@ -283,6 +284,7 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
         chapter: currentVisitor.chapter || chapterBranding.chapterName,
         bidang_usaha: currentVisitor.business_field || '',
         perusahaan: currentVisitor.company || '',
+        link_hadir: confirmLink,
       })
 
       return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`
