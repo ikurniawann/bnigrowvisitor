@@ -63,13 +63,14 @@ export default function Topbar({ title, user, onLogout, onAddVisitor, showAddVis
 
   return (
     <header className="sticky top-0 z-30 h-[58px] border-b border-white/65 bg-white/62 shadow-sm backdrop-blur-2xl">
-      <div className="h-full px-4 lg:px-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Hamburger for mobile - handled by Sidebar */}
-          <h1 className="text-[17px] font-semibold text-gray-950 tracking-[-0.01em]">{title}</h1>
-        </div>
+      <div className="relative h-full px-4 lg:px-6 flex items-center">
+        {/* Desktop: title left-aligned */}
+        <h1 className="hidden lg:block flex-1 text-[17px] font-semibold text-gray-950 tracking-[-0.01em]">{title}</h1>
 
-        <div className="flex items-center gap-3">
+        {/* Mobile: title centered (absolute so burger button doesn't interfere) */}
+        <h1 className="lg:hidden absolute inset-x-0 text-center px-20 text-[15px] font-semibold text-gray-950 tracking-[-0.01em] truncate pointer-events-none">{title}</h1>
+
+        <div className="ml-auto flex items-center gap-3">
           {/* Add Visitor Button */}
           {showAddVisitor && (
             <button

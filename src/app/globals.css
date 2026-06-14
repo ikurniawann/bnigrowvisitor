@@ -344,6 +344,8 @@ body {
 
   .visitor-select {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding-left: 14px !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
@@ -354,6 +356,7 @@ body {
 
   .visitor-select-wide {
     min-width: 0;
+    max-width: 100%;
   }
 
   .visitor-secondary-button,
@@ -415,6 +418,15 @@ body {
     .visitor-filter-group,
     .visitor-action-group {
       grid-template-columns: 1fr;
+    }
+
+    .visitor-filter-group {
+      overflow: hidden;
+    }
+
+    .visitor-select {
+      max-width: 100%;
+      box-sizing: border-box;
     }
   }
 }
