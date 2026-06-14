@@ -30,6 +30,22 @@ const AIRTIME_OPTIONS = {
   3: { label: 'Tidak Tertarik', short: 'Tidak Lanjut', badge: 'bg-rose-100 text-rose-800', btn: 'bg-rose-100 text-rose-800 hover:bg-rose-200' },
 } as const
 
+interface VisitRecord {
+  id: string
+  chapter: string
+  status: string
+  created_at: string
+  meeting: { title: string; meeting_date: string } | null
+}
+
+interface VisitorFrequencyData {
+  count: number
+  limit: number
+  periodMonths: number
+  exceeded: boolean
+  visits: VisitRecord[]
+}
+
 export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDetailProps) {
   const { updateVisitor, reload } = useData()
   const chapterBranding = useChapterBranding()
@@ -40,11 +56,23 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
   const [addingNote, setAddingNote] = useState(false)
   const [showAttendedOptions, setShowAttendedOptions] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState('')
+  const [visitHistory, setVisitHistory] = useState<VisitorFrequencyData | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   useEffect(() => {
     setOriginalVisitor(visitor)
     setCurrentVisitor(visitor)
   }, [visitor])
+
+  useEffect(() => {
+    if (!visitor.phone) return
+    setHistoryLoading(true)
+    fetch(`/api/visitor-frequency?phone=${encodeURIComponent(visitor.phone)}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setVisitHistory(data))
+      .catch(() => {})
+      .finally(() => setHistoryLoading(false))
+  }, [visitor.phone])
 
   const getStatusBadgeClass = (status: string) => {
     return STATUSES[status as keyof typeof STATUSES]?.badge || 'bg-gray-100 text-gray-800'
@@ -422,6 +450,57 @@ export default function VisitorDetail({ visitor, onClose, onSaved }: VisitorDeta
               </div>
             </div>
           </div>
+
+          {/* Visitor History (cross-chapter) */}
+          {(historyLoading || (visitHistory && visitHistory.count > 0)) && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Riwayat Kunjungan</h5>
+                {visitHistory?.exceeded && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0zm-9 3.75h.008v.008H12v-.008z" />
+                    </svg>
+                    Melebihi batas {visitHistory.limit}× / {visitHistory.periodMonths} bln
+                  </span>
+                )}
+              </div>
+
+              {historyLoading ? (
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center text-xs text-gray-400">
+                  Memuat riwayat…
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {visitHistory!.visits.map((v, i) => {
+                    const meeting = Array.isArray(v.meeting) ? v.meeting[0] : v.meeting
+                    const dateStr = meeting?.meeting_date
+                      ? new Date(meeting.meeting_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : new Date(v.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                    return (
+                      <div key={v.id || i} className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="w-5 h-5 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                            {i + 1}
+                          </span>
+                          <span className="font-semibold text-amber-900 truncate">{v.chapter || '-'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-xs text-amber-700">{dateStr}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUSES[v.status as keyof typeof STATUSES]?.badge || 'bg-gray-100 text-gray-600'}`}>
+                            {STATUSES[v.status as keyof typeof STATUSES]?.label || v.status}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <p className="text-[11px] text-gray-400 pt-0.5">
+                    {visitHistory!.count} kunjungan dalam {visitHistory!.periodMonths} bulan terakhir (lintas semua chapter)
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Quick Status Change */}
           <div className="space-y-2">
