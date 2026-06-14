@@ -1,12 +1,5 @@
-import MasterData from '@/components/pages/MasterData'
+import ManageChapter from '@/components/pages/ManageChapter'
 
 export default function NationalDashboardPage() {
-  return (
-    <MasterData
-      defaultTab="chapters"
-      title="Manage Chapter"
-      subtitle="Tambah, edit, delete/nonaktifkan chapter, lalu pilih chapter untuk membuka data operasionalnya."
-      visibleTabs={['chapters']}
-    />
-  )
+  return <ManageChapter />
 }

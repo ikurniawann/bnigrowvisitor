@@ -5,21 +5,18 @@ import { User } from '@/lib/supabase'
 import { isNationalAdmin } from '@/lib/permissions'
 import { notifyDataChanged } from '@/lib/ui/toast'
 
-type TabKey = 'cities' | 'areas' | 'chapters' | 'domains' | 'admins'
+type TabKey = 'cities' | 'areas' | 'chapters' | 'domains'
 
 type Organization = { id: string; name: string }
 type City = { id: string; organization_id: string; name: string; is_active: boolean; organization?: Organization }
 type Area = { id: string; city_id: string; name: string; is_active: boolean; city?: City }
 type Chapter = { id: string; area_id: string; name: string; display_name: string; is_active: boolean; area?: Area }
 type ChapterDomain = { id: string; chapter_id: string; domain: string; type: string; is_primary: boolean; is_active: boolean; chapter?: Chapter }
-type ChapterAdmin = { id: string; name: string; email: string; phone?: string; chapter_id?: string; is_active: boolean; chapter?: Chapter }
-
 const tabs: { id: TabKey; label: string; description: string }[] = [
   { id: 'cities', label: 'Kota', description: 'Master kota di bawah BNI Indonesia.' },
   { id: 'areas', label: 'Area', description: 'Area dikelompokkan per kota.' },
   { id: 'chapters', label: 'Chapter', description: 'Chapter operasional per area.' },
   { id: 'domains', label: 'Domain', description: 'Mapping domain/subdomain ke chapter.' },
-  { id: 'admins', label: 'Chapter Admin', description: 'Akun admin per chapter.' },
 ]
 
 const inputClass = 'h-11 rounded-xl border border-gray-200 bg-white/80 px-3 text-sm font-medium text-gray-900 outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-100'
@@ -65,12 +62,10 @@ export default function MasterData({
   const [areas, setAreas] = useState<Area[]>([])
   const [chapters, setChapters] = useState<Chapter[]>([])
   const [domains, setDomains] = useState<ChapterDomain[]>([])
-  const [admins, setAdmins] = useState<ChapterAdmin[]>([])
   const [cityForm, setCityForm] = useState({ id: '', organization_id: '', name: '' })
   const [areaForm, setAreaForm] = useState({ id: '', city_id: '', name: '' })
   const [chapterForm, setChapterForm] = useState({ id: '', area_id: '', name: '', display_name: '' })
   const [domainForm, setDomainForm] = useState({ id: '', chapter_id: '', domain: '', type: 'subdomain', is_primary: false })
-  const [adminForm, setAdminForm] = useState({ id: '', chapter_id: '', name: '', email: '', phone: '', password: '' })
 
   const isAllowed = isNationalAdmin(currentUser)
   const defaultOrgId = organizations[0]?.id || ''
@@ -117,7 +112,6 @@ export default function MasterData({
       setAreas((data.areas || []) as any)
       setChapters((data.chapters || []) as any)
       setDomains((data.domains || []) as any)
-      setAdmins((data.admins || []) as any)
     } catch (err: any) {
       setError(err.message || 'Gagal memuat master data.')
     } finally {
@@ -130,7 +124,6 @@ export default function MasterData({
     setAreaForm({ id: '', city_id: '', name: '' })
     setChapterForm({ id: '', area_id: '', name: '', display_name: '' })
     setDomainForm({ id: '', chapter_id: '', domain: '', type: 'subdomain', is_primary: false })
-    setAdminForm({ id: '', chapter_id: '', name: '', email: '', phone: '', password: '' })
   }
 
   async function saveCity(event: FormEvent) {
@@ -235,45 +228,6 @@ export default function MasterData({
         await masterRequest({ action: 'upsert', table: 'chapter_domains', payload })
         notifyDataChanged('insert')
       }
-      resetForms()
-      await loadMasterData()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function saveChapterAdmin(event: FormEvent) {
-    event.preventDefault()
-    if (!adminForm.name.trim() || !adminForm.email.trim() || !adminForm.chapter_id) return
-    if (!adminForm.id && !adminForm.password.trim()) {
-      setError('Password wajib diisi untuk admin baru.')
-      return
-    }
-
-    setSaving(true)
-    try {
-      // The server forces role=chapter_admin and bcrypt-hashes the password.
-      const payload: Record<string, any> = {
-        name: adminForm.name.trim(),
-        email: adminForm.email.trim().toLowerCase(),
-        phone: adminForm.phone.trim() || null,
-        chapter_id: adminForm.chapter_id,
-        organization_id: defaultOrgId || null,
-        is_active: true,
-      }
-
-      if (adminForm.password.trim()) {
-        payload.password = adminForm.password.trim()
-      }
-
-      if (adminForm.id) {
-        await masterRequest({ action: 'upsert', table: 'users', id: adminForm.id, payload })
-        notifyDataChanged('update')
-      } else {
-        await masterRequest({ action: 'upsert', table: 'users', payload })
-        notifyDataChanged('insert')
-      }
-
       resetForms()
       await loadMasterData()
     } finally {
@@ -526,43 +480,6 @@ export default function MasterData({
             </div>
           )}
 
-          {activeTab === 'admins' && (
-            <div className="space-y-5">
-              <form onSubmit={saveChapterAdmin} className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
-                <select className={selectClass} value={adminForm.chapter_id} onChange={event => setAdminForm(prev => ({ ...prev, chapter_id: event.target.value }))}>
-                  <option value="">Pilih chapter</option>
-                  {chapters.map(chapter => <option key={chapter.id} value={chapter.id}>{chapter.display_name}</option>)}
-                </select>
-                <input className={inputClass} placeholder="Nama admin" value={adminForm.name} onChange={event => setAdminForm(prev => ({ ...prev, name: event.target.value }))} />
-                <input className={inputClass} placeholder="Email admin" value={adminForm.email} onChange={event => setAdminForm(prev => ({ ...prev, email: event.target.value }))} />
-                <input className={inputClass} placeholder={adminForm.id ? 'Password baru opsional' : 'Password'} type="password" value={adminForm.password} onChange={event => setAdminForm(prev => ({ ...prev, password: event.target.value }))} />
-                <button disabled={saving} className="h-11 rounded-xl bg-red-600 px-5 text-sm font-bold text-white shadow transition hover:bg-red-700 disabled:opacity-50">
-                  {adminForm.id ? 'Update Admin' : 'Tambah Admin'}
-                </button>
-              </form>
-
-              {admins.length === 0 ? <EmptyState label="chapter admin" /> : (
-                <div className="overflow-hidden rounded-2xl border border-gray-100">
-                  {admins.map(admin => (
-                    <div key={admin.id} className="grid gap-3 border-b border-gray-100 bg-white/70 p-4 last:border-b-0 md:grid-cols-[1fr_1fr_1fr_auto] md:items-center">
-                      <div>
-                        <div className="font-bold text-gray-950">{admin.name}</div>
-                        <div className="text-xs text-gray-500">{admin.email}</div>
-                      </div>
-                      <div className="text-sm font-semibold text-gray-700">{admin.chapter?.display_name || chapterById.get(admin.chapter_id || '')?.display_name || '-'}</div>
-                      <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${admin.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {admin.is_active ? 'Aktif' : 'Nonaktif'}
-                      </span>
-                      <div className="flex gap-2">
-                        <button onClick={() => setAdminForm({ id: admin.id, chapter_id: admin.chapter_id || '', name: admin.name, email: admin.email, phone: admin.phone || '', password: '' })} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Edit</button>
-                        <button onClick={() => toggleActive('users', admin.id, admin.is_active)} className="rounded-lg border border-red-100 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50">{admin.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>
