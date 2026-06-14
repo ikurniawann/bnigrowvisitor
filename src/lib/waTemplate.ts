@@ -86,7 +86,7 @@ export const WA_TEMPLATE_VARIABLES = [
 ]
 
 function normalizeTemplate(template: string, fallback: string) {
-  return (template || fallback)
+  let result = (template || fallback)
     .replace(/saya XXX/g, 'saya {pic_nama}')
     .replace(/bisnis XXX/g, 'bisnis {pic_bisnis}')
     .replace(/Visitor Host BNI\s+[A-Za-z]+ dengan bisnis/g, 'Visitor Host {chapter} dengan bisnis')
@@ -103,6 +103,12 @@ function normalizeTemplate(template: string, fallback: string) {
     .replace(/meeting BNI Grow:/g, 'meeting {chapter}:')
     .replace(/Visitor Host BNI Grow Jakarta/g, 'Visitor Host {chapter}')
     .replace(/BNI Grow/g, '{chapter}')
+
+  if (!result.includes('{link_hadir}')) {
+    result += '\n\nMohon konfirmasi kehadiran {sapaan} {nama} dengan klik link berikut:\n{link_hadir}'
+  }
+
+  return result
 }
 
 export function getWaTemplateSettings(): WaTemplateSettings {
