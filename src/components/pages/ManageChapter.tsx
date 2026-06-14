@@ -247,6 +247,8 @@ function ChapterAdminView({ chapter, onBack }: { chapter: Chapter; onBack: () =>
   const [addForm, setAddForm] = useState({ name: '', email: '', phone: '', password: '' })
   const [editForm, setEditForm] = useState({ name: '', phone: '' })
   const [newPassword, setNewPassword] = useState('')
+  const [showAddPassword, setShowAddPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
 
   useEffect(() => { loadAdmins() }, [chapter.id])
 
@@ -399,7 +401,16 @@ function ChapterAdminView({ chapter, onBack }: { chapter: Chapter; onBack: () =>
           <input className={inputClass} placeholder="Nama lengkap" value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} required />
           <input className={inputClass} placeholder="Email" type="email" value={addForm.email} onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} required />
           <input className={inputClass} placeholder="No. telepon (opsional)" value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} />
-          <input className={inputClass} placeholder="Password" type="password" value={addForm.password} onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))} required />
+          <div className="relative">
+            <input className={inputClass + ' w-full pr-10'} placeholder="Password" type={showAddPassword ? 'text' : 'password'} value={addForm.password} onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))} required />
+            <button type="button" tabIndex={-1} onClick={() => setShowAddPassword(v => !v)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
+              {showAddPassword ? (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" strokeLinecap="round" strokeLinejoin="round"/><line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round"/></svg>
+              ) : (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
+              )}
+            </button>
+          </div>
           <button disabled={saving} type="submit" className="h-11 rounded-xl bg-red-600 px-5 text-sm font-bold text-white shadow transition hover:bg-red-700 disabled:opacity-50">
             Tambah Admin
           </button>
@@ -442,17 +453,26 @@ function ChapterAdminView({ chapter, onBack }: { chapter: Chapter; onBack: () =>
                   <form onSubmit={handleSetPassword} className="flex flex-wrap items-end gap-3">
                     <div className="flex-1 min-w-[200px]">
                       <p className="mb-1.5 text-xs font-semibold text-gray-500">Reset password untuk <span className="text-gray-900">{admin.name}</span></p>
-                      <input
-                        className={inputClass + ' w-full'}
-                        type="password"
-                        placeholder="Password baru"
-                        value={newPassword}
-                        onChange={e => setNewPassword(e.target.value)}
-                        required
-                      />
+                      <div className="relative">
+                        <input
+                          className={inputClass + ' w-full pr-10'}
+                          type={showNewPassword ? 'text' : 'password'}
+                          placeholder="Password baru"
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          required
+                        />
+                        <button type="button" tabIndex={-1} onClick={() => setShowNewPassword(v => !v)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
+                          {showNewPassword ? (
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" strokeLinecap="round" strokeLinejoin="round"/><line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round"/></svg>
+                          ) : (
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
+                          )}
+                        </button>
+                      </div>
                     </div>
                     <button disabled={saving} type="submit" className="h-11 rounded-xl bg-red-600 px-4 text-xs font-bold text-white disabled:opacity-50">Simpan Password</button>
-                    <button type="button" onClick={() => { setPasswordTargetId(null); setNewPassword('') }} className="h-11 rounded-xl border border-gray-200 px-4 text-xs font-semibold text-gray-600 hover:bg-gray-50">Batal</button>
+                    <button type="button" onClick={() => { setPasswordTargetId(null); setNewPassword(''); setShowNewPassword(false) }} className="h-11 rounded-xl border border-gray-200 px-4 text-xs font-semibold text-gray-600 hover:bg-gray-50">Batal</button>
                   </form>
                 ) : (
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -471,7 +491,7 @@ function ChapterAdminView({ chapter, onBack }: { chapter: Chapter; onBack: () =>
                         Edit
                       </button>
                       <button
-                        onClick={() => { setPasswordTargetId(admin.id); setNewPassword('') }}
+                        onClick={() => { setPasswordTargetId(admin.id); setNewPassword(''); setShowNewPassword(false) }}
                         className="rounded-lg border border-blue-100 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50"
                       >
                         Ubah Password
