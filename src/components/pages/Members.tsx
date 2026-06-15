@@ -45,6 +45,7 @@ export default function Members() {
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [nameSort, setNameSort] = useState<'asc' | 'desc'>('asc')
   const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   // Excel import
@@ -282,20 +283,26 @@ export default function Members() {
       (member.company || '').toLowerCase().includes(search.toLowerCase())
     
     const matchStatus = statusFilter === '' || member.status === statusFilter
-    
+
     return matchSearch && matchStatus
   })
 
+  // Sort alfabet berdasarkan nama (toggle A→Z / Z→A lewat header kolom)
+  const sortedMembers = [...filteredMembers].sort((a, b) => {
+    const cmp = (a.name || '').localeCompare(b.name || '', 'id', { sensitivity: 'base' })
+    return nameSort === 'asc' ? cmp : -cmp
+  })
+
   // Pagination
-  const totalPages = Math.ceil(filteredMembers.length / itemsPerPage)
+  const totalPages = Math.ceil(sortedMembers.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const paginatedMembers = filteredMembers.slice(startIndex, endIndex)
+  const paginatedMembers = sortedMembers.slice(startIndex, endIndex)
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, statusFilter])
+  }, [search, statusFilter, nameSort])
 
   if (loading) {
     return (
@@ -497,7 +504,17 @@ export default function Members() {
             <thead className="bg-gradient-to-r from-red-600 to-red-700">
               <tr className="text-[11px] text-white font-bold uppercase tracking-wide">
                 <th className="text-left font-semibold px-4 py-3">No</th>
-                <th className="text-left font-semibold px-4 py-3">Nama</th>
+                <th className="text-left font-semibold px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setNameSort(s => (s === 'asc' ? 'desc' : 'asc'))}
+                    className="inline-flex items-center gap-1 hover:text-white/80 transition-colors"
+                    title="Urutkan berdasarkan nama"
+                  >
+                    Nama
+                    <span className="text-[10px] leading-none">{nameSort === 'asc' ? '▲' : '▼'}</span>
+                  </button>
+                </th>
                 <th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Email / Akun</th>
                 <th className="text-left font-semibold px-4 py-3 hidden md:table-cell">Bidang Usaha</th>
                 <th className="text-left font-semibold px-4 py-3 hidden lg:table-cell">Perusahaan</th>
