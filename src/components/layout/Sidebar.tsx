@@ -31,6 +31,13 @@ const NATIONAL_POLICY_ITEM = {
   icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z',
 }
 
+const NATIONAL_API_KEYS_ITEM = {
+  id: 'national-api-keys',
+  label: 'API Keys',
+  path: '/national-api-keys',
+  icon: 'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z',
+}
+
 const PIC_ACCOUNTS_ITEM = {
   id: 'pic-accounts',
   label: 'Akun PIC',
@@ -68,8 +75,8 @@ export default function Sidebar({ currentPage }: SidebarProps) {
   }))
 
   const isSuperAdmin = isNationalAdmin(currentUser)
-  const isNationalArea = isSuperAdmin && ['national-overview', 'national-governance', 'national-policies', 'national-dashboard', 'master'].includes(currentPage)
-  const nationalNavItems = isSuperAdmin ? [NATIONAL_OVERVIEW_ITEM, ...navItems.slice(0, 2), NATIONAL_GOVERNANCE_ITEM, NATIONAL_POLICY_ITEM] : []
+  const isNationalArea = isSuperAdmin && ['national-overview', 'national-governance', 'national-policies', 'national-api-keys', 'national-dashboard', 'master'].includes(currentPage)
+  const nationalNavItems = isSuperAdmin ? [NATIONAL_OVERVIEW_ITEM, ...navItems.slice(0, 2), NATIONAL_GOVERNANCE_ITEM, NATIONAL_POLICY_ITEM, NATIONAL_API_KEYS_ITEM] : []
   const chapterNavItems = navItems.slice(2, 7)
   const dataNavItems = [
     ...navItems.slice(7).filter(item => item.id !== 'logs' || isSuperAdmin),

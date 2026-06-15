@@ -4,7 +4,12 @@ Machine-to-machine API for external systems (e.g. BNI Finance) to read member
 data and write back renewal confirmations. Separate from the cookie-session app
 auth: external callers use a **bearer API key**.
 
-Base path: `/api/external/v1`
+**Base URL (produksi):** `https://www.bni-vh.com/api/external/v1`
+
+> ⚠️ **Wajib pakai host `www.bni-vh.com`.** Apex `bni-vh.com` melakukan redirect
+> 308 ke `www`, dan redirect lintas-host **membuang header `Authorization`**
+> sehingga request menjadi `401`. Panggil `www.bni-vh.com` secara langsung
+> (jangan andalkan follow-redirect).
 
 ---
 

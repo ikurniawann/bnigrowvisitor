@@ -27,6 +27,7 @@ const pathToPage: Record<string, string> = {
   '/national-overview': 'national-overview',
   '/national-governance': 'national-governance',
   '/national-policies': 'national-policies',
+  '/national-api-keys': 'national-api-keys',
   '/national-dashboard': 'national-dashboard',
   '/chapter-dashboard': 'chapter-dashboard',
   '/kanban': 'kanban',
@@ -49,6 +50,7 @@ const pageTitles: Record<string, string> = {
   'national-overview': 'Dashboard Nasional',
   'national-governance': 'Governance & Audit',
   'national-policies': 'Template & Policy',
+  'national-api-keys': 'API Keys',
   'national-dashboard': 'Manage Chapter',
   'chapter-dashboard': 'Chapter Dashboard',
   kanban: 'Pipeline',
@@ -172,7 +174,7 @@ export default function DashboardLayout({
 
   // Check if current page should be fullscreen
   const isFullscreen = FULLSCREEN_PAGES.includes(pathname) || currentPage === 'kanban'
-  const isNationalArea = ['national-overview', 'national-governance', 'national-policies', 'national-dashboard', 'master'].includes(currentPage)
+  const isNationalArea = ['national-overview', 'national-governance', 'national-policies', 'national-api-keys', 'national-dashboard', 'master'].includes(currentPage)
   const isChapterRoute = pathname.startsWith('/chapter/')
 
   // Large title visibility → controls compact topbar title + scroll state
