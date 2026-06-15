@@ -55,6 +55,8 @@ export interface Member {
   company?: string
   chapter?: string
   joined_date: string
+  renewal_date?: string | null
+  last_renewed_at?: string | null
   status: string
   notes?: string
   account_role?: string

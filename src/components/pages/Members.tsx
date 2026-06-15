@@ -16,6 +16,7 @@ interface MemberForm {
   business_field: string
   company: string
   chapter: string
+  renewal_date: string
   notes: string
 }
 
@@ -27,6 +28,7 @@ const initialForm: MemberForm = {
   business_field: '',
   company: '',
   chapter: '',
+  renewal_date: '',
   notes: '',
 }
 
@@ -99,6 +101,7 @@ export default function Members() {
       business_field: member.business_field || '',
       company: member.company || '',
       chapter: member.chapter || '',
+      renewal_date: member.renewal_date || '',
       notes: member.notes || '',
     })
     setEditingId(member.id)
@@ -164,6 +167,7 @@ export default function Members() {
         business_field: formData.business_field,
         company: formData.company,
         chapter: formData.chapter,
+        renewal_date: formData.renewal_date.trim() || null,
         notes: formData.notes,
       }
 
@@ -717,6 +721,21 @@ export default function Members() {
                     placeholder="Contoh: PT Santoso Jaya"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  Tanggal Renewal
+                </label>
+                <input
+                  type="date"
+                  value={formData.renewal_date}
+                  onChange={(e) => setFormData({ ...formData, renewal_date: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-gray-900 font-medium placeholder-gray-500"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">
+                  Tanggal kirim invoice perpanjangan. Lewat tanggal ini tanpa perpanjangan, member otomatis dinonaktifkan.
+                </p>
               </div>
 
               <div>

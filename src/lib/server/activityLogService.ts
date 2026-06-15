@@ -48,6 +48,43 @@ export async function writeActivityLog(
   }
 }
 
+// Variant for non-session actors: the daily renewal job and the external
+// Finance API. The actor identity is supplied explicitly rather than read from
+// a login session, but the row shape is identical so it surfaces in the same
+// audit trail.
+export interface SystemActor {
+  id: string
+  email: string
+  role: string
+}
+
+export async function writeActivityLogAs(
+  actor: SystemActor,
+  target: { organizationId: string | null; chapterId: string | null },
+  input: ActivityLogInput
+): Promise<void> {
+  const { error } = await getSupabaseAdmin()
+    .from('activity_logs')
+    .insert({
+      actor_id: actor.id,
+      actor_email: actor.email,
+      actor_role: actor.role,
+      organization_id: target.organizationId,
+      chapter_id: target.chapterId,
+      action: input.action,
+      entity: input.entity,
+      entity_id: input.entityId ?? null,
+      entity_label: input.entityLabel ?? null,
+      old_data: input.oldData ?? null,
+      new_data: input.newData ?? null,
+      metadata: input.metadata ?? null,
+    })
+
+  if (error && !isMissingTableError(error)) {
+    console.error('Gagal menulis activity log:', error)
+  }
+}
+
 export async function listActivityLogs(scope: ChapterScope, limit = 200) {
   const query = applyScope(
     getSupabaseAdmin()
