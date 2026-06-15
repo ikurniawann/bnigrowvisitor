@@ -54,7 +54,8 @@ export default function Members() {
   const [parsedMembers, setParsedMembers] = useState<ParsedMember[]>([])
   const [parseError, setParseError] = useState('')
   const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<{ imported: number; duplicates: number; total: number } | null>(null)
+  const [updateExisting, setUpdateExisting] = useState(false)
+  const [importResult, setImportResult] = useState<{ imported: number; updated: number; skipped: number; total: number } | null>(null)
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -92,6 +93,7 @@ export default function Members() {
     setParseError('')
     setImportResult(null)
     setImportFileName('')
+    setUpdateExisting(false)
     setShowImport(true)
   }
 
@@ -118,10 +120,10 @@ export default function Members() {
     setImporting(true)
     setParseError('')
     try {
-      const result = await apiSend<{ imported: number; duplicates: number; total: number }>(
+      const result = await apiSend<{ imported: number; updated: number; skipped: number; total: number }>(
         'members/bulk-import',
         'POST',
-        { members: parsedMembers }
+        { members: parsedMembers, updateExisting }
       )
       setImportResult(result)
       await reload()
@@ -684,8 +686,9 @@ export default function Members() {
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
                   <p className="font-bold">Import selesai ✓</p>
                   <ul className="mt-2 space-y-0.5 text-emerald-700">
-                    <li>• Berhasil ditambahkan: <b>{importResult.imported}</b> member</li>
-                    <li>• Dilewati (duplikat nama): <b>{importResult.duplicates}</b></li>
+                    <li>• Member baru ditambahkan: <b>{importResult.imported}</b></li>
+                    <li>• Member diperbarui: <b>{importResult.updated}</b></li>
+                    <li>• Dilewati: <b>{importResult.skipped}</b></li>
                     <li>• Total baris dibaca: <b>{importResult.total}</b></li>
                   </ul>
                 </div>
@@ -737,6 +740,20 @@ export default function Members() {
                       {parsedMembers.length > 100 && (
                         <p className="mt-1 text-[11px] text-gray-400">Menampilkan 100 baris pertama dari {parsedMembers.length}.</p>
                       )}
+
+                      <label className="mt-3 flex items-start gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={updateExisting}
+                          onChange={e => setUpdateExisting(e.target.checked)}
+                          className="mt-0.5 h-4 w-4 accent-red-600"
+                        />
+                        <span className="text-xs text-gray-700">
+                          <span className="font-semibold">Perbarui member yang sudah ada</span> (cocok berdasarkan nama).
+                          Memperbarui bidang usaha, status, &amp; renewal dari file. Tidak menimpa company/phone/email atau catatan manual.
+                          Jika tidak dicentang, member yang sudah ada akan dilewati.
+                        </span>
+                      </label>
                     </div>
                   )}
                 </>

@@ -21,6 +21,8 @@ export async function POST(request: Request) {
     async ({ session, scope }) => {
       const body = await readJson(request)
       const members = (body?.members ?? []) as ImportMember[]
+      // When true, members matching by name are updated instead of skipped.
+      const updateExisting = body?.updateExisting === true
 
       if (!Array.isArray(members) || members.length === 0) {
         return fail('Data member tidak boleh kosong.', 400)
@@ -40,27 +42,32 @@ export async function POST(request: Request) {
         .maybeSingle()
       const chapterName: string | null = chapterRow?.display_name ?? null
 
-      // Dedup against existing members in this chapter, by case-insensitive name.
+      // Existing members in this chapter, keyed by case-insensitive name. We
+      // need their id + current values to decide updates without clobbering
+      // manually-entered data.
       const { data: existing, error: existErr } = await getSupabaseAdmin()
         .from('members')
-        .select('name')
+        .select('id, name, business_field, status, renewal_date, notes')
         .eq('chapter_id', chapterId)
       if (existErr) throw existErr
 
-      const existingNames = new Set(
-        (existing || []).map((r: { name: string }) => r.name?.trim().toLowerCase()).filter(Boolean)
-      )
+      const existingByName = new Map<string, { id: string; notes: string | null }>()
+      for (const r of existing || []) {
+        const key = r.name?.trim().toLowerCase()
+        if (key) existingByName.set(key, { id: r.id, notes: r.notes ?? null })
+      }
 
       const toInsert: Record<string, unknown>[] = []
-      const seen = new Set<string>() // also dedup within the uploaded file
-      let duplicates = 0
+      const toUpdate: { id: string; patch: Record<string, unknown> }[] = []
+      const seen = new Set<string>() // dedup within the uploaded file
+      let skipped = 0
 
       for (const m of members) {
         const name = m.name?.trim()
         if (!name) continue
         const key = name.toLowerCase()
-        if (existingNames.has(key) || seen.has(key)) {
-          duplicates++
+        if (seen.has(key)) {
+          skipped++
           continue
         }
         seen.add(key)
@@ -68,43 +75,81 @@ export async function POST(request: Request) {
         const role = m.role?.trim()
         const renewal =
           typeof m.renewal_date === 'string' && ISO_DATE.test(m.renewal_date) ? m.renewal_date : null
+        const businessField = m.business_field?.trim() || null
         const status = m.status?.trim().toLowerCase() || 'active'
+        const roleNote = role && role.toLowerCase() !== 'member' ? `Peran: ${role}` : null
+
+        const match = existingByName.get(key)
+        if (match) {
+          if (!updateExisting) {
+            skipped++
+            continue
+          }
+          // Overwrite only fields the file actually carries; never touch
+          // company/phone/email, and only set notes when none exist yet.
+          const patch: Record<string, unknown> = { status }
+          if (businessField) patch.business_field = businessField
+          if (renewal) patch.renewal_date = renewal
+          if (roleNote && !match.notes?.trim()) patch.notes = roleNote
+          toUpdate.push({ id: match.id, patch })
+          continue
+        }
 
         toInsert.push({
           chapter_id: chapterId,
           chapter: chapterName,
           name,
-          business_field: m.business_field?.trim() || null,
+          business_field: businessField,
           status,
           // The dues report has no join date; only the Due Date (= renewal).
-          // Leave joined_date empty rather than defaulting to the import date,
-          // so no misleading "tanggal bergabung" is recorded.
+          // Leave joined_date empty rather than defaulting to the import date.
           joined_date: null,
           renewal_date: renewal,
-          // Preserve leadership/role info from the report's "Type" column.
-          notes: role && role.toLowerCase() !== 'member' ? `Peran: ${role}` : null,
+          notes: roleNote,
         })
       }
 
+      const admin = getSupabaseAdmin()
+
       let imported = 0
       if (toInsert.length > 0) {
-        const { data: inserted, error: insertErr } = await getSupabaseAdmin()
+        const { data: inserted, error: insertErr } = await admin
           .from('members')
           .insert(toInsert)
           .select('id')
         if (insertErr) throw insertErr
         imported = inserted?.length ?? 0
+      }
 
+      // Apply updates in small concurrent batches to avoid a request storm.
+      let updated = 0
+      const CHUNK = 25
+      for (let i = 0; i < toUpdate.length; i += CHUNK) {
+        const batch = toUpdate.slice(i, i + CHUNK)
+        const results = await Promise.all(
+          batch.map(u =>
+            admin
+              .from('members')
+              .update(u.patch)
+              .eq('id', u.id)
+              .eq('chapter_id', chapterId)
+              .then(res => !res.error)
+          )
+        )
+        updated += results.filter(Boolean).length
+      }
+
+      if (imported > 0 || updated > 0) {
         await writeActivityLog(session, scope, {
-          action: 'insert',
+          action: imported >= updated ? 'insert' : 'update',
           entity: 'member',
           entityId: null,
-          entityLabel: `bulk import ${imported} member`,
-          newData: { imported, duplicates, total: members.length },
+          entityLabel: `import member: +${imported} baru, ${updated} diperbarui`,
+          newData: { imported, updated, skipped, total: members.length, updateExisting },
         })
       }
 
-      return ok({ imported, duplicates, total: members.length })
+      return ok({ imported, updated, skipped, total: members.length })
     },
     { requireChapter: true }
   )
