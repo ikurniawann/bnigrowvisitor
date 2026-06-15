@@ -76,6 +76,10 @@ export async function POST(request: Request) {
           name,
           business_field: m.business_field?.trim() || null,
           status,
+          // The dues report has no join date; only the Due Date (= renewal).
+          // Leave joined_date empty rather than defaulting to the import date,
+          // so no misleading "tanggal bergabung" is recorded.
+          joined_date: null,
           renewal_date: renewal,
           // Preserve leadership/role info from the report's "Type" column.
           notes: role && role.toLowerCase() !== 'member' ? `Peran: ${role}` : null,
