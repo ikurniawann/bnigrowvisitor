@@ -7,6 +7,7 @@ import { apiSend } from '@/lib/dataClient'
 import { getUserLevelLabel, isNationalAdmin } from '@/lib/permissions'
 import { useChapterBranding } from '@/hooks/useChapterBranding'
 import { TableSkeleton } from '@/components/ui/Skeleton'
+import { parseBniMembersReport, ParsedMember } from '@/lib/importBniMembers'
 
 interface MemberForm {
   name: string
@@ -45,7 +46,15 @@ export default function Members() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [currentUser, setCurrentUser] = useState<User | null>(null)
-  
+
+  // Excel import
+  const [showImport, setShowImport] = useState(false)
+  const [importFileName, setImportFileName] = useState('')
+  const [parsedMembers, setParsedMembers] = useState<ParsedMember[]>([])
+  const [parseError, setParseError] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ imported: number; duplicates: number; total: number } | null>(null)
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
@@ -72,6 +81,55 @@ export default function Members() {
   }
 
   const canEditMember = (member: Member) => isSuperAdmin || isOwnMember(member)
+
+  const handleOpenImport = () => {
+    if (!isSuperAdmin) {
+      alert('Hanya Super Admin yang bisa import member.')
+      return
+    }
+    setParsedMembers([])
+    setParseError('')
+    setImportResult(null)
+    setImportFileName('')
+    setShowImport(true)
+  }
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-selecting the same file
+    if (!file) return
+    setParseError('')
+    setImportResult(null)
+    setImportFileName(file.name)
+    try {
+      const buffer = await file.arrayBuffer()
+      const { members } = parseBniMembersReport(buffer)
+      if (members.length === 0) throw new Error('Tidak ada baris member yang terbaca dari file.')
+      setParsedMembers(members)
+    } catch (err: any) {
+      setParsedMembers([])
+      setParseError(err?.message || 'Gagal membaca file.')
+    }
+  }
+
+  const handleConfirmImport = async () => {
+    if (parsedMembers.length === 0) return
+    setImporting(true)
+    setParseError('')
+    try {
+      const result = await apiSend<{ imported: number; duplicates: number; total: number }>(
+        'members/bulk-import',
+        'POST',
+        { members: parsedMembers }
+      )
+      setImportResult(result)
+      await reload()
+    } catch (err: any) {
+      setParseError(err?.message || 'Gagal mengimpor data.')
+    } finally {
+      setImporting(false)
+    }
+  }
 
   const handleOpenAdd = () => {
     if (!isSuperAdmin) {
@@ -271,15 +329,26 @@ export default function Members() {
           </p>
         </div>
         {isSuperAdmin && (
-          <button
-            onClick={handleOpenAdd}
-            className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-medium rounded-lg shadow transition-all flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Tambah Member
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleOpenImport}
+              className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg shadow-sm transition-all flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+              </svg>
+              Import Excel
+            </button>
+            <button
+              onClick={handleOpenAdd}
+              className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-medium rounded-lg shadow transition-all flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Tambah Member
+            </button>
+          </div>
         )}
       </div>
 
@@ -570,6 +639,110 @@ export default function Members() {
             >
               Next →
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Import Excel Modal */}
+      {showImport && (
+        <div className="app-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="modal-spring-enter bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Import Member dari Excel</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Format: BNI Chapter Membership Dues Report (.xls/.xlsx). Target chapter:{' '}
+                  <span className="font-semibold text-gray-700">{chapterBranding.displayName}</span>
+                </p>
+              </div>
+              <button onClick={() => setShowImport(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {importResult ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                  <p className="font-bold">Import selesai ✓</p>
+                  <ul className="mt-2 space-y-0.5 text-emerald-700">
+                    <li>• Berhasil ditambahkan: <b>{importResult.imported}</b> member</li>
+                    <li>• Dilewati (duplikat nama): <b>{importResult.duplicates}</b></li>
+                    <li>• Total baris dibaca: <b>{importResult.total}</b></li>
+                  </ul>
+                </div>
+              ) : (
+                <>
+                  <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-8 cursor-pointer hover:border-red-300 hover:bg-red-50/40 transition">
+                    <svg className="w-8 h-8 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-700">{importFileName || 'Pilih file Excel (.xls / .xlsx)'}</span>
+                    <span className="text-[11px] text-gray-400">Klik untuk memilih file</span>
+                    <input type="file" accept=".xls,.xlsx" onChange={handleImportFile} className="hidden" />
+                  </label>
+
+                  {parseError && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{parseError}</div>
+                  )}
+
+                  {parsedMembers.length > 0 && (
+                    <div>
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-700">Pratinjau: {parsedMembers.length} member terbaca</p>
+                        <p className="text-[11px] text-gray-400">company/phone/email tidak ada di report ini</p>
+                      </div>
+                      <div className="max-h-64 overflow-auto rounded-xl border border-gray-200">
+                        <table className="w-full text-left text-xs">
+                          <thead className="sticky top-0 bg-gray-50">
+                            <tr className="text-[11px] uppercase tracking-wide text-gray-400">
+                              <th className="px-3 py-2 font-semibold">Nama</th>
+                              <th className="px-3 py-2 font-semibold">Bidang</th>
+                              <th className="px-3 py-2 font-semibold">Status</th>
+                              <th className="px-3 py-2 font-semibold">Renewal</th>
+                              <th className="px-3 py-2 font-semibold">Peran</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {parsedMembers.slice(0, 100).map((m, i) => (
+                              <tr key={i} className="border-t border-gray-100">
+                                <td className="px-3 py-1.5 font-medium text-gray-800">{m.name}</td>
+                                <td className="px-3 py-1.5 text-gray-600">{m.business_field || '—'}</td>
+                                <td className="px-3 py-1.5 text-gray-600">{m.status}</td>
+                                <td className="px-3 py-1.5 text-gray-600">{m.renewal_date || '—'}</td>
+                                <td className="px-3 py-1.5 text-gray-500">{m.role || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {parsedMembers.length > 100 && (
+                        <p className="mt-1 text-[11px] text-gray-400">Menampilkan 100 baris pertama dari {parsedMembers.length}.</p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowImport(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                {importResult ? 'Tutup' : 'Batal'}
+              </button>
+              {!importResult && (
+                <button
+                  onClick={handleConfirmImport}
+                  disabled={importing || parsedMembers.length === 0}
+                  className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow"
+                >
+                  {importing ? 'Mengimpor…' : `Import ${parsedMembers.length || ''} Member`}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
