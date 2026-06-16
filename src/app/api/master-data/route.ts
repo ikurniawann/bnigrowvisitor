@@ -3,6 +3,7 @@ import { getSession } from '@/lib/server/session'
 import { getSupabaseAdmin } from '@/lib/server/supabaseAdmin'
 import { findActiveUserById, hashPassword } from '@/lib/server/userService'
 import { ensureChapterDomain } from '@/lib/server/chapterDomain'
+import { addDomainToVercel } from '@/lib/server/vercelDomains'
 
 export const dynamic = 'force-dynamic'
 
@@ -233,7 +234,19 @@ export async function POST(request: Request) {
           // Chapter exists; only the auto-domain failed. Don't roll back.
           console.error('Auto-domain gagal dibuat:', domainError)
         }
-        return NextResponse.json({ success: true, id: inserted.id, domain })
+
+        // Register the new subdomain on Vercel so it gets an HTTPS cert (DNS is
+        // a wildcard, so it already resolves). Best-effort: never block chapter
+        // creation, and a no-op when VERCEL_TOKEN is unset.
+        let domainSecured = false
+        if (domain) {
+          const vercel = await addDomainToVercel(domain)
+          domainSecured = vercel.ok
+          if (!vercel.ok && !vercel.skipped) {
+            console.error('Gagal mendaftarkan domain ke Vercel:', domain, vercel.error)
+          }
+        }
+        return NextResponse.json({ success: true, id: inserted.id, domain, domainSecured })
       }
 
       const { error } = await admin.from(table).insert(payload)

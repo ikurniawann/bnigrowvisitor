@@ -56,7 +56,7 @@ const pageTitles: Record<string, string> = {
   kanban: 'Pipeline',
   visitors: 'Visitors',
   attended: 'MCQA',
-  members: 'Member Grow',
+  members: 'Member',
   master: 'Master Wilayah',
   'my-account': 'Profil Akun',
   'wa-blast': 'WA Blast',

@@ -589,7 +589,7 @@ export default function PICManagement() {
                     </div>
                   )}
 
-                  <p className="text-[10px] text-gray-500 mt-1">PIC dibuat dari data Member Grow yang sudah ada.</p>
+                  <p className="text-[10px] text-gray-500 mt-1">PIC dibuat dari data Member yang sudah ada.</p>
                 </div>
               )}
 
