@@ -1,6 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
+import type { Member } from '@/hooks/useData'
 
 type Chapter = {
   id: string
@@ -26,6 +27,7 @@ type City = { id: string; name: string }
 const inputClass =
   'h-11 rounded-xl border border-gray-200 bg-white/80 px-3 text-sm font-medium text-gray-900 outline-none transition focus:border-red-300 focus:ring-4 focus:ring-red-100'
 const selectClass = `${inputClass} appearance-none`
+const memberPageSize = 8
 
 function EmptyState({ label }: { label: string }) {
   return (
@@ -231,18 +233,23 @@ function ChapterListView({ onSelectChapter }: { onSelectChapter: (c: Chapter) =>
           </div>
         )}
       </div>
+
     </div>
   )
 }
 
 function ChapterAdminView({ chapter, onBack }: { chapter: Chapter; onBack: () => void }) {
   const [admins, setAdmins] = useState<ChapterAdmin[]>([])
+  const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
+  const [membersLoading, setMembersLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [passwordTargetId, setPasswordTargetId] = useState<string | null>(null)
+  const [memberPage, setMemberPage] = useState(1)
+  const [memberSearch, setMemberSearch] = useState('')
 
   const [addForm, setAddForm] = useState({ name: '', email: '', phone: '', password: '' })
   const [editForm, setEditForm] = useState({ name: '', phone: '' })
@@ -250,7 +257,43 @@ function ChapterAdminView({ chapter, onBack }: { chapter: Chapter; onBack: () =>
   const [showAddPassword, setShowAddPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
 
-  useEffect(() => { loadAdmins() }, [chapter.id])
+  useEffect(() => {
+    loadAdmins()
+    loadMembers()
+    setMemberPage(1)
+  }, [chapter.id])
+
+  const filteredMembers = useMemo(() => {
+    const query = memberSearch.trim().toLowerCase()
+    if (!query) return members
+
+    return members.filter(member => [
+      member.name,
+      member.email,
+      member.phone,
+      member.business_field,
+      member.company,
+      member.chapter,
+      member.status,
+      member.account_role,
+    ].some(value => String(value || '').toLowerCase().includes(query)))
+  }, [members, memberSearch])
+
+  const memberTotalPages = Math.max(1, Math.ceil(filteredMembers.length / memberPageSize))
+  const memberStart = (memberPage - 1) * memberPageSize
+  const paginatedMembers = filteredMembers.slice(memberStart, memberStart + memberPageSize)
+  const activeAdmins = admins.filter(admin => admin.is_active).length
+  const membersWithLogin = members.filter(member => member.account_role).length
+  const activeMembers = members.filter(member => member.status === 'active').length
+  const inactiveMembers = members.length - activeMembers
+
+  useEffect(() => {
+    setMemberPage(1)
+  }, [memberSearch])
+
+  useEffect(() => {
+    setMemberPage(page => Math.min(page, memberTotalPages))
+  }, [memberTotalPages])
 
   async function loadAdmins() {
     setLoading(true)
@@ -264,6 +307,22 @@ function ChapterAdminView({ chapter, onBack }: { chapter: Chapter; onBack: () =>
       setError(e.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadMembers() {
+    setMembersLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/data/members?chapterId=${encodeURIComponent(chapter.id)}`, { cache: 'no-store' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Gagal memuat data member.')
+      setMembers(data?.data || [])
+    } catch (e: any) {
+      setError(e.message)
+      setMembers([])
+    } finally {
+      setMembersLoading(false)
     }
   }
 
@@ -394,121 +453,308 @@ function ChapterAdminView({ chapter, onBack }: { chapter: Chapter; onBack: () =>
         <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{success}</div>
       )}
 
-      {/* Add admin form */}
-      <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur-xl">
-        <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-gray-500">Tambah Akun Admin</h2>
-        <form onSubmit={handleAdd} className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
-          <input className={inputClass} placeholder="Nama lengkap" value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} required />
-          <input className={inputClass} placeholder="Email" type="email" value={addForm.email} onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} required />
-          <input className={inputClass} placeholder="No. telepon (opsional)" value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} />
-          <div className="relative">
-            <input className={inputClass + ' w-full pr-10'} placeholder="Password" type={showAddPassword ? 'text' : 'password'} value={addForm.password} onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))} required />
-            <button type="button" tabIndex={-1} onClick={() => setShowAddPassword(v => !v)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
-              {showAddPassword ? (
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" strokeLinecap="round" strokeLinejoin="round"/><line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round"/></svg>
-              ) : (
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
-              )}
-            </button>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Akun admin chapter: tambah akun + daftar admin dalam satu card */}
+        <div className="rounded-2xl border border-white/70 bg-white/80 shadow-sm backdrop-blur-xl lg:col-span-2">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-500">Account</p>
+            <h2 className="mt-0.5 text-lg font-bold text-gray-950">Akun Admin Chapter</h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {loading ? '-' : `${admins.length} akun · ${activeAdmins} aktif`} · {membersWithLogin} member punya login
+            </p>
           </div>
-          <button disabled={saving} type="submit" className="h-11 rounded-xl bg-red-600 px-5 text-sm font-bold text-white shadow transition hover:bg-red-700 disabled:opacity-50">
-            Tambah Admin
-          </button>
-        </form>
-      </div>
 
-      {/* Admin list */}
-      <div className="rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur-xl">
-        <div className="border-b border-gray-100 px-5 py-4">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-gray-500">Akun Admin Chapter</h2>
+          <div className="p-5">
+            <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+              <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-gray-500">Tambah Akun Admin</h3>
+              <form onSubmit={handleAdd} className="grid gap-3 sm:grid-cols-2">
+                <input className={inputClass} placeholder="Nama lengkap" value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))} required />
+                <input className={inputClass} placeholder="Email" type="email" value={addForm.email} onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} required />
+                <input className={inputClass} placeholder="No. telepon (opsional)" value={addForm.phone} onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))} />
+                <div className="relative">
+                  <input className={inputClass + ' w-full pr-10'} placeholder="Password" type={showAddPassword ? 'text' : 'password'} value={addForm.password} onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))} required />
+                  <button type="button" tabIndex={-1} onClick={() => setShowAddPassword(v => !v)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
+                    {showAddPassword ? (
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" strokeLinecap="round" strokeLinejoin="round"/><line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round"/></svg>
+                    ) : (
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+                <button disabled={saving} type="submit" className="h-11 rounded-xl bg-red-600 px-5 text-sm font-bold text-white shadow transition hover:bg-red-700 disabled:opacity-50 sm:col-span-2">
+                  Tambah Akun
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-gray-100 bg-white">
+              <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-gray-500">Daftar Admin</h3>
+                <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">{activeAdmins} aktif</span>
+              </div>
+
+              {loading ? (
+                <div className="p-10 text-center text-sm text-gray-500">Loading...</div>
+              ) : admins.length === 0 ? (
+                <div className="p-5"><EmptyState label="akun admin untuk chapter ini" /></div>
+              ) : (
+                <div>
+                  {admins.map(admin => (
+                    <div key={admin.id} className="border-b border-gray-100 p-4 last:border-b-0">
+                      {editingId === admin.id ? (
+                        <form onSubmit={handleUpdate} className="flex flex-wrap items-end gap-3">
+                          <input
+                            className={`${inputClass} flex-1 min-w-[160px]`}
+                            value={editForm.name}
+                            onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
+                            placeholder="Nama"
+                            required
+                          />
+                          <input
+                            className={`${inputClass} flex-1 min-w-[140px]`}
+                            value={editForm.phone}
+                            onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))}
+                            placeholder="No. telepon (opsional)"
+                          />
+                          <button disabled={saving} type="submit" className="h-11 rounded-xl bg-red-600 px-4 text-xs font-bold text-white disabled:opacity-50">Simpan</button>
+                          <button type="button" onClick={() => setEditingId(null)} className="h-11 rounded-xl border border-gray-200 px-4 text-xs font-semibold text-gray-600 hover:bg-gray-50">Batal</button>
+                        </form>
+                      ) : passwordTargetId === admin.id ? (
+                        <form onSubmit={handleSetPassword} className="flex flex-wrap items-end gap-3">
+                          <div className="flex-1 min-w-[200px]">
+                            <p className="mb-1.5 text-xs font-semibold text-gray-500">Reset password untuk <span className="text-gray-900">{admin.name}</span></p>
+                            <div className="relative">
+                              <input
+                                className={inputClass + ' w-full pr-10'}
+                                type={showNewPassword ? 'text' : 'password'}
+                                placeholder="Password baru"
+                                value={newPassword}
+                                onChange={e => setNewPassword(e.target.value)}
+                                required
+                              />
+                              <button type="button" tabIndex={-1} onClick={() => setShowNewPassword(v => !v)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
+                                {showNewPassword ? (
+                                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" strokeLinecap="round" strokeLinejoin="round"/><line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round"/></svg>
+                                ) : (
+                                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                          <button disabled={saving} type="submit" className="h-11 rounded-xl bg-red-600 px-4 text-xs font-bold text-white disabled:opacity-50">Simpan Password</button>
+                          <button type="button" onClick={() => { setPasswordTargetId(null); setNewPassword(''); setShowNewPassword(false) }} className="h-11 rounded-xl border border-gray-200 px-4 text-xs font-semibold text-gray-600 hover:bg-gray-50">Batal</button>
+                        </form>
+                      ) : (
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div className="min-w-0">
+                            <div className="font-bold text-gray-950">{admin.name}</div>
+                            <div className="mt-0.5 break-words text-xs text-gray-500">{admin.email}{admin.phone ? ` · ${admin.phone}` : ''}</div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-3 py-1 text-xs font-bold ${admin.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {admin.is_active ? 'Aktif' : 'Nonaktif'}
+                            </span>
+                            <button
+                              onClick={() => { setEditingId(admin.id); setEditForm({ name: admin.name, phone: admin.phone || '' }) }}
+                              className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => { setPasswordTargetId(admin.id); setNewPassword(''); setShowNewPassword(false) }}
+                              className="rounded-lg border border-blue-100 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50"
+                            >
+                              Ubah Password
+                            </button>
+                            <button
+                              onClick={() => handleToggle(admin.id, admin.is_active)}
+                              disabled={saving}
+                              className="rounded-lg border border-red-100 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {admin.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {loading ? (
-          <div className="p-10 text-center text-sm text-gray-500">Loading...</div>
-        ) : admins.length === 0 ? (
-          <div className="p-5"><EmptyState label="akun admin untuk chapter ini" /></div>
-        ) : (
+        {/* Ringkasan data member */}
+        <div className="rounded-2xl border border-white/70 bg-white/80 shadow-sm backdrop-blur-xl">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-500">Member</p>
+            <h2 className="mt-0.5 text-lg font-bold text-gray-950">Ringkasan Member</h2>
+            <p className="mt-0.5 text-xs text-gray-500">Data member {chapter.display_name}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-1">
+            <div className="rounded-2xl bg-red-50 p-4">
+              <div className="text-3xl font-bold text-gray-950">{membersLoading ? '-' : members.length}</div>
+              <div className="mt-1 text-xs font-semibold text-gray-500">Total member</div>
+            </div>
+            <div className="rounded-2xl bg-emerald-50 p-4">
+              <div className="text-3xl font-bold text-emerald-700">{membersLoading ? '-' : activeMembers}</div>
+              <div className="mt-1 text-xs font-semibold text-gray-500">Aktif</div>
+            </div>
+            <div className="rounded-2xl bg-gray-100 p-4">
+              <div className="text-3xl font-bold text-gray-700">{membersLoading ? '-' : inactiveMembers}</div>
+              <div className="mt-1 text-xs font-semibold text-gray-500">Nonaktif</div>
+            </div>
+            <div className="rounded-2xl bg-blue-50 p-4">
+              <div className="text-3xl font-bold text-blue-700">{membersLoading ? '-' : membersWithLogin}</div>
+              <div className="mt-1 text-xs font-semibold text-gray-500">Punya login</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Member list */}
+      <div className="rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur-xl">
+        <div className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            {admins.map(admin => (
-              <div key={admin.id} className="border-b border-gray-100 p-4 last:border-b-0">
-                {editingId === admin.id ? (
-                  <form onSubmit={handleUpdate} className="flex flex-wrap items-end gap-3">
-                    <input
-                      className={`${inputClass} flex-1 min-w-[160px]`}
-                      value={editForm.name}
-                      onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
-                      placeholder="Nama"
-                      required
-                    />
-                    <input
-                      className={`${inputClass} flex-1 min-w-[140px]`}
-                      value={editForm.phone}
-                      onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))}
-                      placeholder="No. telepon (opsional)"
-                    />
-                    <button disabled={saving} type="submit" className="h-11 rounded-xl bg-red-600 px-4 text-xs font-bold text-white disabled:opacity-50">Simpan</button>
-                    <button type="button" onClick={() => setEditingId(null)} className="h-11 rounded-xl border border-gray-200 px-4 text-xs font-semibold text-gray-600 hover:bg-gray-50">Batal</button>
-                  </form>
-                ) : passwordTargetId === admin.id ? (
-                  <form onSubmit={handleSetPassword} className="flex flex-wrap items-end gap-3">
-                    <div className="flex-1 min-w-[200px]">
-                      <p className="mb-1.5 text-xs font-semibold text-gray-500">Reset password untuk <span className="text-gray-900">{admin.name}</span></p>
-                      <div className="relative">
-                        <input
-                          className={inputClass + ' w-full pr-10'}
-                          type={showNewPassword ? 'text' : 'password'}
-                          placeholder="Password baru"
-                          value={newPassword}
-                          onChange={e => setNewPassword(e.target.value)}
-                          required
-                        />
-                        <button type="button" tabIndex={-1} onClick={() => setShowNewPassword(v => !v)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600">
-                          {showNewPassword ? (
-                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" strokeLinecap="round" strokeLinejoin="round"/><line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round"/></svg>
-                          ) : (
-                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
-                          )}
-                        </button>
-                      </div>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-gray-500">Data Member Chapter</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              Menampilkan member yang terdaftar di {chapter.display_name}.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative">
+              <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <input
+                value={memberSearch}
+                onChange={e => setMemberSearch(e.target.value)}
+                className="h-9 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-xs font-semibold text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-red-300 focus:ring-4 focus:ring-red-100 sm:w-64"
+                placeholder="Cari member..."
+              />
+            </div>
+            <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
+              {filteredMembers.length} member
+            </span>
+            <button
+              onClick={loadMembers}
+              className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        {membersLoading ? (
+          <div className="p-10 text-center text-sm text-gray-500">Loading member...</div>
+        ) : filteredMembers.length === 0 ? (
+          <div className="p-5">
+            <EmptyState label={memberSearch ? 'member sesuai pencarian' : 'member untuk chapter ini'} />
+          </div>
+        ) : (
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[760px] text-left">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/70 text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500">
+                    <th className="px-5 py-3">Nama</th>
+                    <th className="px-5 py-3">Kontak</th>
+                    <th className="px-5 py-3">Bisnis</th>
+                    <th className="px-5 py-3">Perusahaan</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3">Akun</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedMembers.map(member => (
+                    <tr key={member.id} className="border-b border-gray-100 last:border-b-0">
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-gray-950">{member.name}</div>
+                        <div className="mt-0.5 text-xs text-gray-500">{member.chapter || chapter.display_name}</div>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-gray-600">
+                        <div>{member.phone || '-'}</div>
+                        <div className="mt-0.5 text-xs text-gray-500">{member.email || '-'}</div>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-medium text-gray-700">{member.business_field || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-600">{member.company || '-'}</td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${member.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {member.status === 'active' ? 'Aktif' : 'Nonaktif'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${member.account_active ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {member.account_role ? (member.account_active ? 'Login Aktif' : 'Login Nonaktif') : 'Belum Ada'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="divide-y divide-gray-100 md:hidden">
+              {paginatedMembers.map(member => (
+                <div key={member.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-bold text-gray-950">{member.name}</div>
+                      <div className="mt-0.5 text-xs text-gray-500">{member.business_field || 'Bidang usaha belum diisi'}</div>
                     </div>
-                    <button disabled={saving} type="submit" className="h-11 rounded-xl bg-red-600 px-4 text-xs font-bold text-white disabled:opacity-50">Simpan Password</button>
-                    <button type="button" onClick={() => { setPasswordTargetId(null); setNewPassword(''); setShowNewPassword(false) }} className="h-11 rounded-xl border border-gray-200 px-4 text-xs font-semibold text-gray-600 hover:bg-gray-50">Batal</button>
-                  </form>
-                ) : (
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <div className="font-bold text-gray-950">{admin.name}</div>
-                      <div className="mt-0.5 text-xs text-gray-500">{admin.email}{admin.phone ? ` · ${admin.phone}` : ''}</div>
+                    <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${member.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {member.status === 'active' ? 'Aktif' : 'Nonaktif'}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-sm text-gray-600">
+                    <div className="rounded-xl bg-gray-50 px-3 py-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Kontak</div>
+                      <div className="mt-0.5 break-words">{member.phone || '-'}</div>
+                      <div className="mt-0.5 break-words text-xs text-gray-500">{member.email || '-'}</div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-3 py-1 text-xs font-bold ${admin.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {admin.is_active ? 'Aktif' : 'Nonaktif'}
+                    <div className="rounded-xl bg-gray-50 px-3 py-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Perusahaan</div>
+                      <div className="mt-0.5">{member.company || '-'}</div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${member.account_active ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {member.account_role ? (member.account_active ? 'Login Aktif' : 'Login Nonaktif') : 'Belum Ada Akun'}
                       </span>
-                      <button
-                        onClick={() => { setEditingId(admin.id); setEditForm({ name: admin.name, phone: admin.phone || '' }) }}
-                        className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => { setPasswordTargetId(admin.id); setNewPassword(''); setShowNewPassword(false) }}
-                        className="rounded-lg border border-blue-100 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50"
-                      >
-                        Ubah Password
-                      </button>
-                      <button
-                        onClick={() => handleToggle(admin.id, admin.is_active)}
-                        disabled={saving}
-                        className="rounded-lg border border-red-100 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                      >
-                        {admin.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                      </button>
+                      <span className="rounded-full bg-red-50 px-3 py-1 text-[11px] font-bold text-red-700">
+                        {chapter.display_name}
+                      </span>
                     </div>
                   </div>
-                )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs font-medium text-gray-500">
+                Menampilkan <span className="font-bold text-gray-900">{memberStart + 1}</span> - <span className="font-bold text-gray-900">{Math.min(memberStart + memberPageSize, filteredMembers.length)}</span> dari <span className="font-bold text-gray-900">{filteredMembers.length}</span> member
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setMemberPage(page => Math.max(1, page - 1))}
+                  disabled={memberPage === 1}
+                  className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <span className="min-w-16 rounded-xl bg-gray-50 px-3 py-2 text-center text-xs font-bold text-gray-600">
+                  {memberPage}/{memberTotalPages}
+                </span>
+                <button
+                  onClick={() => setMemberPage(page => Math.min(memberTotalPages, page + 1))}
+                  disabled={memberPage === memberTotalPages}
+                  className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
               </div>
-            ))}
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>
