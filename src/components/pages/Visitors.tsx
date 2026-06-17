@@ -413,6 +413,17 @@ export default function Visitors() {
     return issues
   }
 
+  // A visitor whose meeting hasn't happened yet is simply "New" — flagging
+  // missing PIC/etc. is premature, so we show a New badge instead.
+  const isUpcomingMeeting = (visitor: any): boolean => {
+    const raw = visitor.meeting_date || visitor.meeting?.meeting_date
+    if (!raw) return false
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const meetingDay = new Date(`${String(raw).slice(0, 10)}T00:00:00`)
+    return !Number.isNaN(meetingDay.getTime()) && meetingDay.getTime() >= today.getTime()
+  }
+
   const toggleSelected = (visitorId: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -662,7 +673,11 @@ export default function Visitors() {
                         {visitor.business_field}{visitor.company ? ` • ${visitor.company}` : ''}
                       </p>
                     )}
-                    {qualityIssues.length > 0 && (
+                    {isUpcomingMeeting(visitor) ? (
+                      <div className="mt-1">
+                        <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">New</span>
+                      </div>
+                    ) : qualityIssues.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {qualityIssues.slice(0, 2).map(issue => (
                           <span key={issue} className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">{issue}</span>
@@ -800,7 +815,11 @@ export default function Visitors() {
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900 text-[13px]">{visitor.name}</div>
                       <div className="text-xs text-gray-500 md:hidden">{visitor.phone}</div>
-                      {qualityIssues.length > 0 && (
+                      {isUpcomingMeeting(visitor) ? (
+                        <div className="mt-1">
+                          <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">New</span>
+                        </div>
+                      ) : qualityIssues.length > 0 && (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {qualityIssues.slice(0, 2).map(issue => (
                             <span key={issue} className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
