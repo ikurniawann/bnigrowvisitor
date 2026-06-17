@@ -54,24 +54,47 @@ export async function POST(request: Request) {
       const meetingDate: string = meeting.meeting_date
 
       const admin = getSupabaseAdmin()
-      const digits = (s: string | null | undefined) => (s || '').replace(/[^0-9]/g, '')
+      const normPhone = (s: string | null | undefined) => (s || '').trim()
 
-      // Match against visitors already IN THIS MEETING (by WA, fallback name),
-      // so a re-upload of the same meeting updates/skips instead of duplicating.
-      const { data: existing, error: existErr } = await admin
+      // visitors.phone carries a GLOBAL unique constraint, so a phone may exist
+      // only once across the whole table. Match incoming phones table-wide to
+      // avoid a duplicate-key 500; fall back to name-within-this-meeting for
+      // phone-less rows.
+      const phoneList = Array.from(new Set(visitors.map(v => normPhone(v.phone)).filter(Boolean)))
+      const byPhone = new Map<string, { id: string; chapterId: string | null }>()
+      if (phoneList.length > 0) {
+        const { data: phoneRows, error: phoneErr } = await admin
+          .from('visitors')
+          .select('id, phone, chapter_id')
+          .in('phone', phoneList)
+        if (phoneErr) throw phoneErr
+        for (const r of phoneRows || []) {
+          if (r.phone) byPhone.set(r.phone, { id: r.id, chapterId: r.chapter_id })
+        }
+      }
+
+      const { data: meetingRows, error: meetingRowsErr } = await admin
         .from('visitors')
-        .select('id, name, phone')
+        .select('id, name')
         .eq('chapter_id', chapterId)
         .eq('meeting_id', meetingId)
-      if (existErr) throw existErr
-
-      const byPhone = new Map<string, string>()
+      if (meetingRowsErr) throw meetingRowsErr
       const byName = new Map<string, string>()
-      for (const r of existing || []) {
-        const ph = digits(r.phone)
-        if (ph) byPhone.set(ph, r.id)
+      for (const r of meetingRows || []) {
         const nm = r.name?.trim().toLowerCase()
         if (nm) byName.set(nm, r.id)
+      }
+
+      // Status and meeting_id are deliberately excluded — a re-import never
+      // changes a visitor's pipeline status or moves them between meetings.
+      const buildPatch = (v: ImportVisitor): Record<string, unknown> => {
+        const patch: Record<string, unknown> = {}
+        if (v.gender) patch.gender = v.gender
+        if (v.company) patch.company = v.company
+        if (v.business_field) patch.business_field = v.business_field
+        if (v.email) patch.email = v.email
+        if (v.referral_name) patch.referral_name = v.referral_name
+        return patch
       }
 
       const toInsert: Record<string, unknown>[] = []
@@ -83,33 +106,35 @@ export async function POST(request: Request) {
       for (const v of visitors) {
         const name = v.name?.trim()
         if (!name) continue
-        const ph = digits(v.phone)
+        const phone = normPhone(v.phone)
         const nm = name.toLowerCase()
 
         // Dedup within the uploaded file itself.
-        if ((ph && seenPhone.has(ph)) || (!ph && seenName.has(nm))) {
+        if ((phone && seenPhone.has(phone)) || (!phone && seenName.has(nm))) {
           skipped++
           continue
         }
-        if (ph) seenPhone.add(ph)
+        if (phone) seenPhone.add(phone)
         else seenName.add(nm)
 
-        const matchId = (ph && byPhone.get(ph)) || byName.get(nm)
-        if (matchId) {
-          if (!updateExisting) {
+        // Phone already exists somewhere (globally unique) → never re-insert.
+        if (phone && byPhone.has(phone)) {
+          const ex = byPhone.get(phone)!
+          if (updateExisting && ex.chapterId === chapterId) {
+            toUpdate.push({ id: ex.id, patch: buildPatch(v) })
+          } else {
             skipped++
-            continue
           }
-          // Refresh info only — never touch status or meeting_id. Only set
-          // fields the file actually carries (don't blank out existing data).
-          const patch: Record<string, unknown> = {}
-          if (v.gender) patch.gender = v.gender
-          if (v.company) patch.company = v.company
-          if (v.business_field) patch.business_field = v.business_field
-          if (v.phone) patch.phone = v.phone
-          if (v.email) patch.email = v.email
-          if (v.referral_name) patch.referral_name = v.referral_name
-          toUpdate.push({ id: matchId, patch })
+          continue
+        }
+
+        // Phone-less row already present by name in this meeting.
+        if (!phone && byName.has(nm)) {
+          if (updateExisting) {
+            toUpdate.push({ id: byName.get(nm)!, patch: buildPatch(v) })
+          } else {
+            skipped++
+          }
           continue
         }
 
@@ -119,7 +144,7 @@ export async function POST(request: Request) {
           gender: v.gender || null,
           company: v.company || null,
           business_field: v.business_field || null,
-          phone: v.phone || null,
+          phone: phone || null,
           email: v.email || null,
           referral_name: v.referral_name || null,
           meeting_id: meetingId,
