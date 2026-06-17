@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
       // Validate meeting belongs to this chapter and get its date
       const { data: meeting, error: meetingErr } = await getSupabaseAdmin()
-        .from('weekly_meetings')
+        .from('meetings')
         .select('id, title, meeting_date')
         .eq('id', meetingId)
         .eq('chapter_id', chapterId)
