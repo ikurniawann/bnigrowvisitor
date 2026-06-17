@@ -152,6 +152,22 @@ export default function Visitors() {
   const selectedVisitors = useMemo(() => sortedVisitors.filter(visitor => selectedIds.has(visitor.id)), [sortedVisitors, selectedIds])
   const allPageSelected = paginatedVisitors.length > 0 && paginatedVisitors.every(visitor => selectedIds.has(visitor.id))
 
+  // How many times each WA number appears across the chapter's meetings = how
+  // many weekly meetings this visitor has joined (visit history count).
+  const visitCountByPhone = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const v of visitors) {
+      const ph = (v.phone || '').replace(/[^0-9]/g, '')
+      if (ph) counts.set(ph, (counts.get(ph) || 0) + 1)
+    }
+    return counts
+  }, [visitors])
+
+  const getVisitCount = (visitor: { phone?: string | null }) => {
+    const ph = (visitor.phone || '').replace(/[^0-9]/g, '')
+    return ph ? visitCountByPhone.get(ph) || 1 : 1
+  }
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
@@ -663,7 +679,14 @@ export default function Visitors() {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-gray-900 text-sm truncate">{visitor.name}</span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-semibold text-gray-900 text-sm truncate">{visitor.name}</span>
+                        {getVisitCount(visitor) > 1 && (
+                          <span title={`Ikut ${getVisitCount(visitor)}x weekly meeting`} className="flex-shrink-0 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                            {getVisitCount(visitor)}x
+                          </span>
+                        )}
+                      </div>
                       <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${getStatusBadgeClass(visitor.status)}`}>
                         {getStatusLabel(visitor.status, (visitor as any).attended_choice_number)}
                       </span>
@@ -813,7 +836,14 @@ export default function Visitors() {
                     </td>
                     <td className="px-4 py-3 text-[13px] text-gray-600 font-medium">{startIndex + index + 1}</td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900 text-[13px]">{visitor.name}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-gray-900 text-[13px]">{visitor.name}</span>
+                        {getVisitCount(visitor) > 1 && (
+                          <span title={`Ikut ${getVisitCount(visitor)}x weekly meeting`} className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                            {getVisitCount(visitor)}x
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-gray-500 md:hidden">{visitor.phone}</div>
                       {isUpcomingMeeting(visitor) ? (
                         <div className="mt-1">

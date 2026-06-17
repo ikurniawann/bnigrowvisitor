@@ -56,31 +56,22 @@ export async function POST(request: Request) {
       const admin = getSupabaseAdmin()
       const normPhone = (s: string | null | undefined) => (s || '').trim()
 
-      // visitors.phone carries a GLOBAL unique constraint, so a phone may exist
-      // only once across the whole table. Match incoming phones table-wide to
-      // avoid a duplicate-key 500; fall back to name-within-this-meeting for
-      // phone-less rows.
-      const phoneList = Array.from(new Set(visitors.map(v => normPhone(v.phone)).filter(Boolean)))
-      const byPhone = new Map<string, { id: string; chapterId: string | null }>()
-      if (phoneList.length > 0) {
-        const { data: phoneRows, error: phoneErr } = await admin
-          .from('visitors')
-          .select('id, phone, chapter_id')
-          .in('phone', phoneList)
-        if (phoneErr) throw phoneErr
-        for (const r of phoneRows || []) {
-          if (r.phone) byPhone.set(r.phone, { id: r.id, chapterId: r.chapter_id })
-        }
-      }
-
-      const { data: meetingRows, error: meetingRowsErr } = await admin
+      // Match within THIS meeting only (by WA, name fallback). visitors.phone is
+      // unique per meeting (migration 015), so a returning visitor can be added
+      // to other meetings while a re-import of the same meeting updates/skips
+      // instead of duplicating.
+      const { data: existing, error: existErr } = await admin
         .from('visitors')
-        .select('id, name')
+        .select('id, name, phone')
         .eq('chapter_id', chapterId)
         .eq('meeting_id', meetingId)
-      if (meetingRowsErr) throw meetingRowsErr
+      if (existErr) throw existErr
+
+      const byPhone = new Map<string, string>()
       const byName = new Map<string, string>()
-      for (const r of meetingRows || []) {
+      for (const r of existing || []) {
+        const ph = normPhone(r.phone)
+        if (ph) byPhone.set(ph, r.id)
         const nm = r.name?.trim().toLowerCase()
         if (nm) byName.set(nm, r.id)
       }
@@ -117,21 +108,10 @@ export async function POST(request: Request) {
         if (phone) seenPhone.add(phone)
         else seenName.add(nm)
 
-        // Phone already exists somewhere (globally unique) → never re-insert.
-        if (phone && byPhone.has(phone)) {
-          const ex = byPhone.get(phone)!
-          if (updateExisting && ex.chapterId === chapterId) {
-            toUpdate.push({ id: ex.id, patch: buildPatch(v) })
-          } else {
-            skipped++
-          }
-          continue
-        }
-
-        // Phone-less row already present by name in this meeting.
-        if (!phone && byName.has(nm)) {
+        const matchId = (phone && byPhone.get(phone)) || (!phone && byName.get(nm))
+        if (matchId) {
           if (updateExisting) {
-            toUpdate.push({ id: byName.get(nm)!, patch: buildPatch(v) })
+            toUpdate.push({ id: matchId, patch: buildPatch(v) })
           } else {
             skipped++
           }
