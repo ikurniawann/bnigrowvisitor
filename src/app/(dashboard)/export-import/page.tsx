@@ -15,7 +15,8 @@ function brandFileSlug(): string {
 
 interface ImportResult {
   imported: number
-  duplicates: number
+  updated: number
+  skipped: number
   total: number
 }
 
@@ -35,6 +36,7 @@ export default function ExportImport() {
   const [parseError, setParseError] = useState('')
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [updateExisting, setUpdateExisting] = useState(false)
 
   const selectedMeeting = meetings.find(m => m.id === selectedMeetingId) ?? null
 
@@ -76,7 +78,7 @@ export default function ExportImport() {
       const res = await fetch('/api/data/visitors/bulk-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visitors: parsedVisitors, meetingId: selectedMeetingId }),
+        body: JSON.stringify({ visitors: parsedVisitors, meetingId: selectedMeetingId, updateExisting }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Gagal import.')
@@ -94,6 +96,7 @@ export default function ExportImport() {
     setSkippedCount(0)
     setParseError('')
     setImportResult(null)
+    setUpdateExisting(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -504,6 +507,20 @@ export default function ExportImport() {
               </div>
             )}
 
+            <label className="flex items-start gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={updateExisting}
+                onChange={e => setUpdateExisting(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-orange-600"
+              />
+              <span className="text-xs text-gray-700">
+                <span className="font-semibold">Perbarui visitor yang sudah ada di meeting ini</span> (cocok berdasarkan No. WA / nama).
+                Memperbarui perusahaan, bidang, WA, email, &amp; diajak-oleh — <span className="font-semibold">status TIDAK diubah</span>.
+                Jika tidak dicentang, visitor yang sudah ada akan dilewati (tidak dobel).
+              </span>
+            </label>
+
             <div className="flex gap-3">
               <button
                 onClick={handleImport}
@@ -545,11 +562,15 @@ export default function ExportImport() {
             <div className="flex justify-center gap-6 mb-5 mt-3">
               <div className="text-center">
                 <div className="text-2xl font-bold text-emerald-600">{importResult.imported}</div>
-                <div className="text-xs text-gray-500">Visitor ditambahkan</div>
+                <div className="text-xs text-gray-500">Ditambahkan</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-400">{importResult.duplicates}</div>
-                <div className="text-xs text-gray-500">Duplikat dilewati</div>
+                <div className="text-2xl font-bold text-blue-600">{importResult.updated}</div>
+                <div className="text-xs text-gray-500">Diperbarui</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-400">{importResult.skipped}</div>
+                <div className="text-xs text-gray-500">Dilewati</div>
               </div>
             </div>
             <button
