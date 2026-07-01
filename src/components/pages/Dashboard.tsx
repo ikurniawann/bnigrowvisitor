@@ -45,7 +45,7 @@ type DashboardMode = 'auto' | 'national' | 'chapter'
 
 export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
   const router = useRouter()
-  const { visitors, meetings, loading: dataLoading, reload } = useData()
+  const { visitors, guests, meetings, loading: dataLoading, reload } = useData()
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [userLoaded, setUserLoaded] = useState(false)
   const [tenantChapterId, setTenantChapterId] = useState('')
@@ -139,6 +139,18 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
       if (cityFilter && meta?.city_id !== cityFilter) return false
       if (areaFilter && meta?.area_id !== areaFilter) return false
       if (chapterFilter && visitor.chapter_id !== chapterFilter) return false
+      return true
+    })
+
+  const filteredGuests = guests
+    .filter(guest => !meetingFilter || guest.meeting_id === meetingFilter)
+    .filter(guest => {
+      if (mode === 'chapter' && tenantChapterId && guest.chapter_id !== tenantChapterId) return false
+      if (!isNationalDashboard) return true
+      const meta = guest.chapter_id ? chapterMetaById.get(guest.chapter_id) : undefined
+      if (cityFilter && meta?.city_id !== cityFilter) return false
+      if (areaFilter && meta?.area_id !== areaFilter) return false
+      if (chapterFilter && guest.chapter_id !== chapterFilter) return false
       return true
     })
   
@@ -245,7 +257,13 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
     const dist: Record<string, number> = {}
     filteredVisitors.forEach(v => {
       if (v.status === 'no_show') return
-      const referrerName = (v as any).referred_by_member_name
+      const referrerName = (v as any).referred_by_member_name || v.referral_name
+      if (referrerName) {
+        dist[referrerName] = (dist[referrerName] || 0) + 1
+      }
+    })
+    filteredGuests.forEach(guest => {
+      const referrerName = guest.referral_name
       if (referrerName) {
         dist[referrerName] = (dist[referrerName] || 0) + 1
       }
@@ -1155,11 +1173,11 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
           </div>
         </div>
 
-        {/* Row 2: Top Diajak Oleh - Horizontal Bars (Full Width) */}
+        {/* Row 2: Top Visitor & Guest Brought - Horizontal Bars (Full Width) */}
         <div className="bg-white rounded-xl shadow p-6 lg:col-span-2">
           <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <span>🏆</span>
-            Top Visitor Brought
+            Top Visitor & Guest Brought
           </h3>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-3">
             {sortedReferrerDist.length > 0 ? (
@@ -1170,8 +1188,11 @@ export default function Dashboard({ mode = 'auto' }: { mode?: DashboardMode }) {
                       key={name}
                       onClick={() => openInsightList({
                         title: name,
-                        subtitle: 'Visitor yang dibawa oleh member ini',
-                        visitors: filteredVisitors.filter(visitor => visitor.status !== 'no_show' && (visitor as any).referred_by_member_name === name),
+                        subtitle: 'Visitor aktif yang dibawa oleh member ini. Guest ikut dihitung di angka chart.',
+                        visitors: filteredVisitors.filter(visitor =>
+                          visitor.status !== 'no_show' &&
+                          (((visitor as any).referred_by_member_name || visitor.referral_name) === name)
+                        ),
                         accent: 'text-orange-600',
                         meta: visitor => visitor.pic_name ? `PIC: ${visitor.pic_name}` : 'Belum ada PIC',
                       })}
