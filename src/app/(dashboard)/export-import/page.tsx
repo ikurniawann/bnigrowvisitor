@@ -28,7 +28,7 @@ interface ImportResult {
 type ImportStep = 'idle' | 'preview' | 'importing' | 'done'
 
 export default function ExportImport() {
-  const { visitors, guests, members, meetings } = useData()
+  const { visitors, guests, members, meetings, reload } = useData()
   const [isExporting, setIsExporting] = useState(false)
   const [brandLabel, setBrandLabel] = useState('data chapter')
 
@@ -90,6 +90,7 @@ export default function ExportImport() {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Gagal import.')
       setImportResult(json.data)
+      await reload()
       setImportStep('done')
     } catch (err: unknown) {
       setParseError(err instanceof Error ? err.message : 'Gagal import.')

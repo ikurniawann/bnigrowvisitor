@@ -43,6 +43,38 @@ function excelSerialToIso(serial: unknown): string | null {
   return new Date(ms).toISOString().split('T')[0]
 }
 
+function normalizeHeader(value: unknown): string {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/\*/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function buildHeaderIndex(headerRow: (string | number)[]) {
+  const byName = new Map<string, number>()
+  headerRow.forEach((cell, index) => {
+    const normalized = normalizeHeader(cell)
+    if (normalized && !byName.has(normalized)) byName.set(normalized, index)
+  })
+
+  return (aliases: string[], fallbackIndex: number): number => {
+    for (const alias of aliases) {
+      const index = byName.get(normalizeHeader(alias))
+      if (typeof index === 'number') return index
+    }
+    return fallbackIndex
+  }
+}
+
+function classifySourceType(raw: string): 'visitor' | 'guest' | 'skip' {
+  const value = raw.toLowerCase().trim()
+  if (!value) return 'skip'
+  if (/\bguest\b/.test(value)) return 'guest'
+  if (/\bvisitor\b/.test(value)) return 'visitor'
+  return 'skip'
+}
+
 export function parseBniVisitorReport(buffer: ArrayBuffer): ImportParseResult {
   const wb = XLSX.read(new Uint8Array(buffer), { type: 'array' })
   const ws = wb.Sheets[wb.SheetNames[0]]
@@ -56,6 +88,23 @@ export function parseBniVisitorReport(buffer: ArrayBuffer): ImportParseResult {
     throw new Error('Format file tidak dikenali. Pastikan file adalah BNI Visitor Registration Report.')
   }
 
+  const header = rows[headerIdx] || []
+  const col = buildHeaderIndex(header)
+  const idx = {
+    title: col(['Title', 'Salutation'], 0),
+    firstName: col(['First Name', 'Firstname', 'Nama Depan'], 1),
+    lastName: col(['Last Name', 'Lastname', 'Nama Belakang'], 2),
+    company: col(['Company', 'Company Name', 'Business Name', 'Nama Perusahaan'], 4),
+    profession: col(['Profession', 'Business Category', 'Business Field', 'Industry', 'Bidang Usaha'], 6),
+    invitedBy: col(['Invited By', 'Invited by Member', 'Referred By', 'Referral Name', 'Diajak Oleh'], 9),
+    visitDate: col(['Visit Date', 'Meeting Date', 'Tanggal Visit', 'Tanggal Meeting'], 11),
+    format: col(['Format', 'Meeting Format', 'Visit Format', 'Online Offline', 'Online/Offline'], 12),
+    phone: col(['Phone', 'Phone Number', 'No WA', 'Whatsapp', 'WhatsApp', 'No WhatsApp'], 13),
+    mobile: col(['Mobile', 'Mobile Number', 'Handphone', 'HP', 'No HP'], 15),
+    email: col(['Email', 'Email Address'], 18),
+    sourceType: col(['Type', 'Visitor Type', 'Registration Type', 'Attendee Type', 'Attendance Type', 'Participant Type'], 26),
+  }
+
   const dataRows = rows.slice(headerIdx + 1).filter(row =>
     row.some(cell => String(cell).trim() !== '')
   )
@@ -65,24 +114,24 @@ export function parseBniVisitorReport(buffer: ArrayBuffer): ImportParseResult {
   let skipped = 0
 
   for (const row of dataRows) {
-    const title       = String(row[0]  ?? '').trim()
-    const firstName   = String(row[1]  ?? '').trim()
-    const lastName    = String(row[2]  ?? '').trim()
-    const company     = String(row[4]  ?? '').trim() || null
-    const profession  = String(row[6]  ?? '').trim()
-    const phoneCol    = String(row[13] ?? '').trim()
-    const mobileCol   = String(row[15] ?? '').trim()
-    const email       = String(row[18] ?? '').trim() || null
-    const invitedBy   = String(row[9]  ?? '').trim() || null
-    const visitDate   = row[11]
-    const format      = String(row[12] ?? '').trim()
-    const sourceType  = String(row[26] ?? '').trim()
+    const title       = String(row[idx.title]  ?? '').trim()
+    const firstName   = String(row[idx.firstName]  ?? '').trim()
+    const lastName    = String(row[idx.lastName]  ?? '').trim()
+    const company     = String(row[idx.company]  ?? '').trim() || null
+    const profession  = String(row[idx.profession]  ?? '').trim()
+    const phoneCol    = String(row[idx.phone] ?? '').trim()
+    const mobileCol   = String(row[idx.mobile] ?? '').trim()
+    const email       = String(row[idx.email] ?? '').trim() || null
+    const invitedBy   = String(row[idx.invitedBy]  ?? '').trim() || null
+    const visitDate   = row[idx.visitDate]
+    const format      = String(row[idx.format] ?? '').trim()
+    const sourceType  = String(row[idx.sourceType] ?? '').trim()
 
     const name = [firstName, lastName].filter(Boolean).join(' ')
     if (!name) continue
 
-    const normalizedType = sourceType.toLowerCase()
-    if (normalizedType !== 'visitor' && normalizedType !== 'guest') {
+    const normalizedType = classifySourceType(sourceType)
+    if (normalizedType === 'skip') {
       skipped++
       continue
     }
