@@ -59,6 +59,8 @@ export async function POST(request: Request) {
 
       const admin = getSupabaseAdmin()
       const normPhone = (s: string | null | undefined) => (s || '').trim()
+      const isDuplicateError = (error: { code?: string; message?: string } | null | undefined) =>
+        error?.code === '23505' || /duplicate key/i.test(error?.message || '')
 
       // Match within THIS meeting only (by WA, name fallback). visitors.phone is
       // unique per meeting (migration 015), so a returning visitor can be added
@@ -143,8 +145,26 @@ export async function POST(request: Request) {
           .from('visitors')
           .insert(toInsert)
           .select('id')
-        if (insertErr) throw insertErr
-        imported = inserted?.length ?? 0
+        if (insertErr) {
+          if (!isDuplicateError(insertErr)) throw insertErr
+
+          // Production may still have the legacy global unique constraint on
+          // visitors.phone. Do not let one returning visitor abort the whole
+          // file and prevent Guest rows from being imported.
+          for (const row of toInsert) {
+            const { error: rowErr } = await admin.from('visitors').insert(row)
+            if (rowErr) {
+              if (isDuplicateError(rowErr)) {
+                skipped++
+                continue
+              }
+              throw rowErr
+            }
+            imported++
+          }
+        } else {
+          imported = inserted?.length ?? 0
+        }
       }
 
       // Apply info updates in small concurrent batches. Empty patches (matched
@@ -249,8 +269,23 @@ export async function POST(request: Request) {
             .from('guests')
             .insert(guestInserts)
             .select('id')
-          if (guestInsertErr) throw guestInsertErr
-          guestImported = insertedGuests?.length ?? 0
+          if (guestInsertErr) {
+            if (!isDuplicateError(guestInsertErr)) throw guestInsertErr
+
+            for (const row of guestInserts) {
+              const { error: rowErr } = await admin.from('guests').insert(row)
+              if (rowErr) {
+                if (isDuplicateError(rowErr)) {
+                  guestSkipped++
+                  continue
+                }
+                throw rowErr
+              }
+              guestImported++
+            }
+          } else {
+            guestImported = insertedGuests?.length ?? 0
+          }
         }
 
         let guestUpdated = 0
