@@ -18,12 +18,17 @@ interface ImportResult {
   updated: number
   skipped: number
   total: number
+  guests?: {
+    imported: number
+    updated: number
+    skipped: number
+  }
 }
 
 type ImportStep = 'idle' | 'preview' | 'importing' | 'done'
 
 export default function ExportImport() {
-  const { visitors, members, meetings } = useData()
+  const { visitors, guests, members, meetings } = useData()
   const [isExporting, setIsExporting] = useState(false)
   const [brandLabel, setBrandLabel] = useState('data chapter')
 
@@ -32,6 +37,7 @@ export default function ExportImport() {
   const [selectedMeetingId, setSelectedMeetingId] = useState('')
   const [importStep, setImportStep] = useState<ImportStep>('idle')
   const [parsedVisitors, setParsedVisitors] = useState<ParsedVisitor[]>([])
+  const [parsedGuests, setParsedGuests] = useState<ParsedVisitor[]>([])
   const [skippedCount, setSkippedCount] = useState(0)
   const [parseError, setParseError] = useState('')
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
@@ -54,6 +60,7 @@ export default function ExportImport() {
         const buffer = e.target?.result as ArrayBuffer
         const result = parseBniVisitorReport(buffer)
         setParsedVisitors(result.visitors)
+        setParsedGuests(result.guests)
         setSkippedCount(result.skipped)
         setImportStep('preview')
       } catch (err: unknown) {
@@ -72,13 +79,13 @@ export default function ExportImport() {
   }
 
   async function handleImport() {
-    if (parsedVisitors.length === 0 || !selectedMeetingId) return
+    if (parsedVisitors.length + parsedGuests.length === 0 || !selectedMeetingId) return
     setImportStep('importing')
     try {
       const res = await fetch('/api/data/visitors/bulk-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visitors: parsedVisitors, meetingId: selectedMeetingId, updateExisting }),
+        body: JSON.stringify({ visitors: parsedVisitors, guests: parsedGuests, meetingId: selectedMeetingId, updateExisting }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Gagal import.')
@@ -93,6 +100,7 @@ export default function ExportImport() {
   function resetImport() {
     setImportStep('idle')
     setParsedVisitors([])
+    setParsedGuests([])
     setSkippedCount(0)
     setParseError('')
     setImportResult(null)
@@ -236,6 +244,74 @@ export default function ExportImport() {
     }
   }
 
+  // Export Guests to Excel
+  const handleExportGuests = async () => {
+    setIsExporting(true)
+    try {
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('Guests')
+
+      worksheet.columns = [
+        { key: 'no', width: 5 },
+        { key: 'name', width: 25 },
+        { key: 'gender', width: 10 },
+        { key: 'business_field', width: 30 },
+        { key: 'company', width: 25 },
+        { key: 'phone', width: 15 },
+        { key: 'email', width: 30 },
+        { key: 'referred_by', width: 20 },
+        { key: 'meeting_date', width: 15 },
+        { key: 'meeting_format', width: 14 },
+        { key: 'created_at', width: 20 }
+      ]
+
+      const headerRow = worksheet.addRow([
+        'NO', 'NAMA', 'GENDER', 'BIDANG USAHA', 'PERUSAHAAN',
+        'NO WA', 'EMAIL', 'DIAJAK OLEH', 'TANGGAL MEETING', 'FORMAT', 'TANGGAL INPUT'
+      ])
+
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFDC143C' }
+      }
+      headerRow.alignment = { vertical: 'middle', horizontal: 'center' }
+
+      guests.forEach((guest: any, index: number) => {
+        worksheet.addRow({
+          no: index + 1,
+          name: guest.name,
+          gender: guest.gender || '-',
+          business_field: guest.business_field || '-',
+          company: guest.company || '-',
+          phone: guest.phone || '-',
+          email: guest.email || '-',
+          referred_by: guest.referral_name || '-',
+          meeting_date: guest.meeting_date ? new Date(guest.meeting_date).toLocaleDateString('id-ID') : '-',
+          meeting_format: guest.meeting_format || '-',
+          created_at: new Date(guest.created_at).toLocaleDateString('id-ID')
+        })
+      })
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) {
+          row.alignment = { vertical: 'middle' }
+          row.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} }
+        }
+      })
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      saveAs(blob, `${brandFileSlug()}_Guests_${new Date().toISOString().split('T')[0]}.xlsx`)
+    } catch (error) {
+      console.error('Export error:', error)
+      alert('Gagal export data guests')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -255,7 +331,7 @@ export default function ExportImport() {
           Export Data
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Export Visitors */}
           <div className="border border-gray-200 rounded-lg p-4 hover:border-green-500 transition-colors">
             <div className="flex items-start justify-between mb-3">
@@ -283,6 +359,52 @@ export default function ExportImport() {
               onClick={handleExportVisitors}
               disabled={isExporting || visitors.length === 0}
               className="w-full px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white text-sm font-medium rounded-lg shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isExporting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Export Excel
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Export Guests */}
+          <div className="border border-gray-200 rounded-lg p-4 hover:border-orange-500 transition-colors">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="font-semibold text-gray-900">Guest List</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {guests.length} guests
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                <svg className="w-5 h-5 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm-7 18a7 7 0 0 1 14 0M19 8h3M20.5 6.5v3"/>
+                </svg>
+              </div>
+            </div>
+            
+            <p className="text-xs text-gray-600 mb-4">
+              Export data guest terpisah dari visitor, termasuk meeting asal, format meeting, dan kontak.
+            </p>
+            
+            <button
+              onClick={handleExportGuests}
+              disabled={isExporting || guests.length === 0}
+              className="w-full px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white text-sm font-medium rounded-lg shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isExporting ? (
                 <>
@@ -366,7 +488,7 @@ export default function ExportImport() {
           </svg>
           Import Visitor dari BNI Report
         </h2>
-        <p className="text-xs text-gray-500 mb-5">Upload file <strong>BNI Visitor Registration Report</strong> (.xls / .xlsx). Baris bertipe Guest dan Substitute akan dilewati otomatis. Semua visitor akan dikaitkan ke Weekly Meeting yang dipilih.</p>
+        <p className="text-xs text-gray-500 mb-5">Upload file <strong>BNI Visitor Registration Report</strong> (.xls / .xlsx). Baris bertipe Visitor masuk ke table Visitor, baris bertipe Guest masuk ke table Guest, dan Substitute dilewati. Semua data akan dikaitkan ke Weekly Meeting yang dipilih.</p>
 
         {parseError && (
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 font-medium">{parseError}</div>
@@ -461,16 +583,20 @@ export default function ExportImport() {
             {/* Stats row */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center">
-                <div className="text-2xl font-bold text-gray-900">{parsedVisitors.length + skippedCount}</div>
+                <div className="text-2xl font-bold text-gray-900">{parsedVisitors.length + parsedGuests.length + skippedCount}</div>
                 <div className="text-xs text-gray-500 mt-0.5">Total baris di file</div>
               </div>
               <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center">
                 <div className="text-2xl font-bold text-emerald-700">{parsedVisitors.length}</div>
                 <div className="text-xs text-emerald-600 mt-0.5">Visitor akan diimport</div>
               </div>
-              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center col-span-2 sm:col-span-1">
+              <div className="rounded-xl border border-orange-100 bg-orange-50 p-3 text-center">
+                <div className="text-2xl font-bold text-orange-600">{parsedGuests.length}</div>
+                <div className="text-xs text-orange-600 mt-0.5">Guest akan diimport</div>
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center col-span-2 sm:col-span-3">
                 <div className="text-2xl font-bold text-gray-500">{skippedCount}</div>
-                <div className="text-xs text-gray-400 mt-0.5">Guest / Substitute dilewati</div>
+                <div className="text-xs text-gray-400 mt-0.5">Substitute / tipe lain dilewati</div>
               </div>
             </div>
 
@@ -507,6 +633,41 @@ export default function ExportImport() {
               </div>
             )}
 
+            {parsedGuests.length > 0 && (
+              <div className="overflow-x-auto rounded-xl border border-orange-100 mb-5 max-h-72">
+                <div className="border-b border-orange-100 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-700">
+                  Preview Guest ({parsedGuests.length})
+                </div>
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0">
+                    <tr>
+                      <th className="text-left px-3 py-2">Nama</th>
+                      <th className="text-left px-3 py-2">Gender</th>
+                      <th className="text-left px-3 py-2">Perusahaan</th>
+                      <th className="text-left px-3 py-2">No WA</th>
+                      <th className="text-left px-3 py-2">Diajak Oleh</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parsedGuests.slice(0, 50).map((v, i) => (
+                      <tr key={i}>
+                        <td className="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">{v.name}</td>
+                        <td className="px-3 py-2 text-gray-600">{v.gender || '—'}</td>
+                        <td className="px-3 py-2 text-gray-600 max-w-[140px] truncate">{v.company || '—'}</td>
+                        <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{v.phone || '—'}</td>
+                        <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{v.referral_name || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {parsedGuests.length > 50 && (
+                  <div className="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
+                    Menampilkan 50 dari {parsedGuests.length} guest
+                  </div>
+                )}
+              </div>
+            )}
+
             <label className="flex items-start gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 cursor-pointer">
               <input
                 type="checkbox"
@@ -524,7 +685,7 @@ export default function ExportImport() {
             <div className="flex gap-3">
               <button
                 onClick={handleImport}
-                disabled={importStep === 'importing' || parsedVisitors.length === 0}
+                disabled={importStep === 'importing' || parsedVisitors.length + parsedGuests.length === 0}
                 className="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white text-sm font-semibold rounded-xl shadow transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {importStep === 'importing' ? (
@@ -536,7 +697,7 @@ export default function ExportImport() {
                     Mengimport…
                   </>
                 ) : (
-                  <>Import {parsedVisitors.length} Visitor ke {selectedMeeting?.title || 'meeting'}</>
+                  <>Import {parsedVisitors.length} Visitor + {parsedGuests.length} Guest ke {selectedMeeting?.title || 'meeting'}</>
                 )}
               </button>
               <button
@@ -559,17 +720,25 @@ export default function ExportImport() {
               </svg>
             </div>
             <h3 className="text-base font-bold text-gray-900 mb-1">Import Berhasil!</h3>
-            <div className="flex justify-center gap-6 mb-5 mt-3">
+            <div className="grid grid-cols-2 gap-4 mb-5 mt-3 sm:grid-cols-5">
               <div className="text-center">
                 <div className="text-2xl font-bold text-emerald-600">{importResult.imported}</div>
-                <div className="text-xs text-gray-500">Ditambahkan</div>
+                <div className="text-xs text-gray-500">Visitor Baru</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">{importResult.updated}</div>
-                <div className="text-xs text-gray-500">Diperbarui</div>
+                <div className="text-xs text-gray-500">Visitor Update</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-400">{importResult.skipped}</div>
+                <div className="text-2xl font-bold text-orange-600">{importResult.guests?.imported || 0}</div>
+                <div className="text-xs text-gray-500">Guest Baru</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-500">{importResult.guests?.updated || 0}</div>
+                <div className="text-xs text-gray-500">Guest Update</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-400">{importResult.skipped + (importResult.guests?.skipped || 0)}</div>
                 <div className="text-xs text-gray-500">Dilewati</div>
               </div>
             </div>

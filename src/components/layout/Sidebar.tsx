@@ -52,6 +52,7 @@ const navItems = [
   { id: 'chapter-dashboard', label: 'Chapter Dashboard', path: 'dashboard', fallbackPath: '/chapter-dashboard', icon: 'M4 5h16v14H4V5zm4 4h3v6H8V9zm5 2h3v4h-3v-4z' },
   { id: 'kanban', label: 'Pipeline', path: 'pipeline', fallbackPath: '/kanban', icon: 'M3 3h5v18H3V3zm7 0h5v12h-5V3zm7 0h5v15h-5V3z' },
   { id: 'visitors', label: 'Visitor', path: 'visitors', fallbackPath: '/visitors', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 1 1 0 7.75' },
+  { id: 'guests', label: 'Guest', path: 'guests', fallbackPath: '/guests', icon: 'M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm-7 18a7 7 0 0 1 14 0M19 8h3M20.5 6.5v3' },
   { id: 'attended', label: 'MCQA', path: 'mcqa', fallbackPath: '/attended', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
   { id: 'members', label: 'Member', path: 'members', fallbackPath: '/members', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
   { id: 'wa-blast', label: 'WA Blast', path: 'wa-blast', fallbackPath: '/wa-blast', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2zM8 10h8M8 14h5' },
@@ -77,9 +78,9 @@ export default function Sidebar({ currentPage }: SidebarProps) {
   const isSuperAdmin = isNationalAdmin(currentUser)
   const isNationalArea = isSuperAdmin && ['national-overview', 'national-governance', 'national-policies', 'national-api-keys', 'national-dashboard', 'master'].includes(currentPage)
   const nationalNavItems = isSuperAdmin ? [NATIONAL_OVERVIEW_ITEM, ...navItems.slice(0, 2), NATIONAL_GOVERNANCE_ITEM, NATIONAL_POLICY_ITEM, NATIONAL_API_KEYS_ITEM] : []
-  const chapterNavItems = navItems.slice(2, 7)
+  const chapterNavItems = navItems.slice(2, 8)
   const dataNavItems = [
-    ...navItems.slice(7).filter(item => item.id !== 'logs' || isSuperAdmin),
+    ...navItems.slice(8).filter(item => item.id !== 'logs' || isSuperAdmin),
     ...(currentUser?.role === 'chapter_admin' ? [PIC_ACCOUNTS_ITEM] : []),
   ]
 

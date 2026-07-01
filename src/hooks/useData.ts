@@ -65,6 +65,28 @@ export interface Member {
   updated_at: string
 }
 
+export interface Guest {
+  id: string
+  chapter_id?: string
+  name: string
+  gender?: string | null
+  business_field?: string | null
+  company?: string | null
+  phone?: string | null
+  email?: string | null
+  chapter?: string | null
+  referral_name?: string | null
+  meeting_id?: string | null
+  meeting_date?: string | null
+  meeting_format?: string | null
+  visit_date?: string | null
+  source_type?: string | null
+  notes?: string | null
+  meeting_title?: string
+  created_at: string
+  updated_at: string
+}
+
 export const STATUSES: Record<VisitorStatus, { label: string; color: string }> = {
   new: { label: 'Baru Daftar', color: '#dbeafe' },
   followup: { label: 'Follow Up', color: '#fef3c7' },
@@ -86,6 +108,7 @@ export function useData() {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [pics, setPics] = useState<PIC[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [guests, setGuests] = useState<Guest[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -96,7 +119,7 @@ export function useData() {
   async function loadData(force = false) {
     if (force) _cache.clear()
     setLoading(true)
-    await Promise.all([loadVisitors(), loadMeetings(), loadPics(), loadMembers()])
+    await Promise.all([loadVisitors(), loadMeetings(), loadPics(), loadMembers(), loadGuests()])
     setLoading(false)
   }
 
@@ -170,6 +193,24 @@ export function useData() {
     }
   }
 
+  async function loadGuests() {
+    const cached = cacheGet<Guest[]>('guests')
+    if (cached) { setGuests(cached); return }
+    try {
+      const data = await apiGet<any[]>('guests')
+      const mapped = (data || []).map(guest => ({
+        ...guest,
+        meeting_title: guest.meeting?.title,
+        meeting_date: guest.meeting?.meeting_date || guest.meeting_date,
+      }))
+      cacheSet('guests', mapped)
+      setGuests(mapped)
+    } catch (error) {
+      console.error('Error loading guests:', error)
+      setGuests([])
+    }
+  }
+
   async function addMember(member: Partial<Member>) {
     const data = await apiSend<Member>('members', 'POST', member as Record<string, unknown>)
     cacheDel('members')
@@ -190,6 +231,29 @@ export function useData() {
     await apiSend(`members/${id}`, 'DELETE')
     cacheDel('members')
     await loadMembers()
+    notifyDataChanged('delete')
+  }
+
+  async function addGuest(guest: Partial<Guest>) {
+    const data = await apiSend<Guest>('guests', 'POST', guest as Record<string, unknown>)
+    cacheDel('guests')
+    await loadGuests()
+    notifyDataChanged('insert')
+    return data
+  }
+
+  async function updateGuest(id: string, guest: Partial<Guest>) {
+    const data = await apiSend<Guest>(`guests/${id}`, 'PATCH', guest as Record<string, unknown>)
+    cacheDel('guests')
+    await loadGuests()
+    notifyDataChanged('update')
+    return data
+  }
+
+  async function deleteGuest(id: string) {
+    await apiSend(`guests/${id}`, 'DELETE')
+    cacheDel('guests')
+    await loadGuests()
     notifyDataChanged('delete')
   }
 
@@ -379,6 +443,7 @@ export function useData() {
 
   return {
     visitors,
+    guests,
     meetings,
     pics,
     members,
@@ -396,6 +461,9 @@ export function useData() {
     addMember,
     updateMember,
     deleteMember,
+    addGuest,
+    updateGuest,
+    deleteGuest,
     getFilteredVisitors,
     getStats,
     getIndustryDistribution,

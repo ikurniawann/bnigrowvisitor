@@ -38,6 +38,24 @@ const TABS = [
     fallbackPath: '/visitors',
   },
   {
+    id: 'guests',
+    label: 'Guest',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+        <path d="M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm-7 18a7 7 0 0 1 14 0M19 8h3M20.5 6.5v3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    iconFilled: (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+        <path d="M12 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM5 21a7 7 0 0 1 14 0H5z" />
+        <path d="M19 8h4v2h-4V8z" />
+        <path d="M20 6h2v6h-2V6z" />
+      </svg>
+    ),
+    path: 'guests',
+    fallbackPath: '/guests',
+  },
+  {
     id: 'kanban',
     label: 'Pipeline',
     icon: (

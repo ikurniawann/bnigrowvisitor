@@ -15,7 +15,8 @@ export interface ParsedVisitor {
 
 export interface ImportParseResult {
   visitors: ParsedVisitor[]   // Type = Visitor only
-  skipped: number             // Guest + Substitute count
+  guests: ParsedVisitor[]     // Type = Guest only
+  skipped: number             // Substitute/unknown count
   total: number               // total rows in file
 }
 
@@ -59,8 +60,9 @@ export function parseBniVisitorReport(buffer: ArrayBuffer): ImportParseResult {
     row.some(cell => String(cell).trim() !== '')
   )
 
-  let skipped = 0
   const visitors: ParsedVisitor[] = []
+  const guests: ParsedVisitor[] = []
+  let skipped = 0
 
   for (const row of dataRows) {
     const title       = String(row[0]  ?? '').trim()
@@ -79,14 +81,15 @@ export function parseBniVisitorReport(buffer: ArrayBuffer): ImportParseResult {
     const name = [firstName, lastName].filter(Boolean).join(' ')
     if (!name) continue
 
-    if (sourceType.toLowerCase() !== 'visitor') {
+    const normalizedType = sourceType.toLowerCase()
+    if (normalizedType !== 'visitor' && normalizedType !== 'guest') {
       skipped++
       continue
     }
 
     const phone = normalizePhone(phoneCol) || normalizePhone(mobileCol)
 
-    visitors.push({
+    const parsedRow: ParsedVisitor = {
       name,
       gender: genderFromTitle(title),
       company,
@@ -97,8 +100,11 @@ export function parseBniVisitorReport(buffer: ArrayBuffer): ImportParseResult {
       meeting_format: format === 'Online' || format === 'Offline' ? (format as 'Online' | 'Offline') : null,
       visit_date: excelSerialToIso(visitDate),
       source_type: sourceType,
-    })
+    }
+
+    if (normalizedType === 'guest') guests.push(parsedRow)
+    else visitors.push(parsedRow)
   }
 
-  return { visitors, skipped, total: dataRows.length }
+  return { visitors, guests, skipped, total: dataRows.length }
 }

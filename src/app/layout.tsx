@@ -17,7 +17,8 @@ const geistMono = localFont({
 // Generic root metadata — per-chapter branding is applied client-side from the
 // resolved tenant, so the static title stays chapter-neutral.
 export const metadata: Metadata = {
-  title: "BNI Visitor Manager",
+  title: "BNI Visitor Management",
+  applicationName: "BNI Visitor Management",
   description: "Visitor management dashboard for BNI chapters",
 };
 
